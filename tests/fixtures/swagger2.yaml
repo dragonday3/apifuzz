@@ -1,0 +1,42 @@
+swagger: "2.0"
+info:
+  title: Bookstore
+  version: "1.0"
+basePath: /api
+paths:
+  /books:
+    get:
+      operationId: listBooks
+      parameters:
+        - name: page
+          in: query
+          type: integer
+      responses:
+        200:
+          description: ok
+    post:
+      operationId: createBook
+      parameters:
+        - name: body
+          in: body
+          schema:
+            type: object
+            properties:
+              title:
+                type: string
+              author:
+                type: string
+      responses:
+        201:
+          description: created
+  /books/{bookId}:
+    get:
+      operationId: getBook
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          type: integer
+      responses:
+        200:
+          description: ok
