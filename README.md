@@ -15,6 +15,21 @@ apifuzz takes any API spec (OpenAPI, HAR, Postman) → generates semantic securi
 
 No wordlists. No spray-and-pray. Test cases are generated from your actual schema — field names, types, and endpoint semantics drive the payloads.
 
+### Why it needs a spec (not just a URL)
+
+apifuzz is a **test-case generator**, not a traffic interceptor. Before it can inject payloads, it needs to know what endpoints exist, what parameters they accept, and what types those parameters are. A bare URL tells it nothing — `GET /weather?q=STRING` is what lets it try `q='; DROP TABLE--`.
+
+**No spec? Use a HAR file.** Record your browser traffic against the API, export it, and pass that instead — apifuzz reverse-engineers the schema from real requests. See [Quick Start](#quick-start) below.
+
+### `--target` is the base URL only
+
+The spec (or HAR) provides the paths. Pass just the origin:
+
+```
+--target https://api.example.com        ✓
+--target https://api.example.com/v1/weather  ✗  (path goes in the spec)
+```
+
 **Checks implemented:**
 
 | ID | OWASP Category | What It Tests |
@@ -87,6 +102,21 @@ apifuzz recording.har --target https://api.example.com
 # Scan a Postman collection
 apifuzz collection.json --target https://api.example.com
 ```
+
+### No spec? Zero-spec workflow via HAR
+
+If you don't have an OpenAPI spec, record your browser traffic instead:
+
+1. Open **Chrome/Firefox DevTools** → **Network** tab
+2. Make some requests to the API (browse, search, login, etc.)
+3. Right-click any request → **Save all as HAR with content**
+4. Pass the exported file:
+
+```bash
+apifuzz recording.har --target https://api.example.com
+```
+
+apifuzz parses the recorded requests to discover endpoints and parameters automatically — no spec writing required.
 
 ---
 
