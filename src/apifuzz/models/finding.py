@@ -11,13 +11,16 @@ class Severity(str, Enum):
 
 
 class OWASPCategory(str, Enum):
-    API1_BOLA = "API1:2023 - Broken Object Level Authorization"
-    API2_AUTH = "API2:2023 - Broken Authentication"
+    API1_BOLA  = "API1:2023 - Broken Object Level Authorization"
+    API2_AUTH  = "API2:2023 - Broken Authentication"
     API3_BOPLA = "API3:2023 - Broken Object Property Level Authorization"
-    API4_RATE = "API4:2023 - Unrestricted Resource Consumption"
-    API6_MASS = "API6:2023 - Unrestricted Access to Sensitive Business Flows"
-    API7_SSRF = "API7:2023 - Server Side Request Forgery"
+    API4_RATE  = "API4:2023 - Unrestricted Resource Consumption"
+    API5_BFLA  = "API5:2023 - Broken Function Level Authorization"
+    API6_MASS  = "API6:2023 - Unrestricted Access to Sensitive Business Flows"
+    API7_SSRF  = "API7:2023 - Server Side Request Forgery"
     API8_INJECT = "API8:2023 - Security Misconfiguration"
+    API9_INVENTORY = "API9:2023 - Improper Inventory Management"
+    API10_UNSAFE   = "API10:2023 - Unsafe Consumption of APIs"
 
 
 class Finding(BaseModel):
