@@ -4,7 +4,7 @@ from typing import Any
 
 from apifuzz.analyzer import Analyzer
 from apifuzz.checks.auth import AuthCheck
-from apifuzz.checks.base import BaseCheck
+from apifuzz.checks.base import BaseCheck, build_url
 from apifuzz.checks.bola import BOLACheck
 from apifuzz.checks.cors import CORSCheck
 from apifuzz.checks.injection import InjectionCheck
@@ -107,6 +107,13 @@ class Scanner:
     def _generate(self, endpoints: list[Endpoint]) -> list[TestCase]:
         test_cases: list[TestCase] = []
         for endpoint in endpoints:
+            key = f"{endpoint.method} {endpoint.path}"
+            # Baseline: one normal request; detectors ignore markers the endpoint already returns.
+            cases = [TestCase(method=endpoint.method, url=build_url(endpoint), headers={}, params={},
+                              body=endpoint.body_example, label=f"Baseline: {key}", check_id="baseline")]
             for check in self._checks:
-                test_cases.extend(check.generate(endpoint, self.auth))
+                cases.extend(check.generate(endpoint, self.auth))
+            for tc in cases:
+                tc.extra["endpoint_key"] = key
+            test_cases.extend(cases)
         return test_cases

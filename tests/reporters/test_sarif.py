@@ -8,7 +8,7 @@ def make_finding(
     title="SQL Injection found",
     rule_id="APIFUZZ-INJECT-SQLI",
     severity=Severity.CRITICAL,
-    owasp=OWASPCategory.API8_INJECT,
+    owasp=OWASPCategory.INJECTION,
     method="GET",
     path="/api/users",
 ):
@@ -96,7 +96,7 @@ class TestSARIFReporter:
     def test_owasp_category_in_properties(self, reporter, single_finding):
         sarif = reporter.generate(single_finding)
         props = sarif["runs"][0]["results"][0]["properties"]
-        assert props["owasp_category"] == OWASPCategory.API8_INJECT.value
+        assert props["owasp_category"] == OWASPCategory.INJECTION.value
 
     def test_empty_findings_valid_sarif(self, reporter):
         sarif = reporter.generate([])

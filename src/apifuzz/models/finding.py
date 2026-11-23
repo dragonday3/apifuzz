@@ -16,11 +16,13 @@ class OWASPCategory(str, Enum):
     API3_BOPLA = "API3:2023 - Broken Object Property Level Authorization"
     API4_RATE  = "API4:2023 - Unrestricted Resource Consumption"
     API5_BFLA  = "API5:2023 - Broken Function Level Authorization"
-    API6_MASS  = "API6:2023 - Unrestricted Access to Sensitive Business Flows"
+    API6_BUSINESS_FLOWS = "API6:2023 - Unrestricted Access to Sensitive Business Flows"
     API7_SSRF  = "API7:2023 - Server Side Request Forgery"
-    API8_INJECT = "API8:2023 - Security Misconfiguration"
+    API8_MISCONFIG = "API8:2023 - Security Misconfiguration"
     API9_INVENTORY = "API9:2023 - Improper Inventory Management"
     API10_UNSAFE   = "API10:2023 - Unsafe Consumption of APIs"
+    # Injection has no OWASP API 2023 category; map to the general OWASP Top 10.
+    INJECTION = "A03:2021 Injection (OWASP Top 10)"
 
 
 class Finding(BaseModel):

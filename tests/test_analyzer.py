@@ -99,7 +99,7 @@ class TestAnalyzerMassAssignment:
         findings = analyzer.analyze([result])
         assert len(findings) == 1
         assert findings[0].severity == Severity.HIGH
-        assert findings[0].owasp_category == OWASPCategory.API6_MASS
+        assert findings[0].owasp_category == OWASPCategory.API3_BOPLA
 
     def test_no_reflection_no_finding(self, analyzer):
         tc = make_tc("mass_assignment", extra={"injected_fields": ["isAdmin", "role"]})
@@ -135,9 +135,9 @@ class TestAnalyzerInjection:
         assert len(findings) == 1
         assert findings[0].severity == Severity.CRITICAL
 
-    def test_ssti_49_reflected_is_critical(self, analyzer):
+    def test_ssti_canary_product_is_critical(self, analyzer):
         tc = make_tc("injection", extra={"injection_type": "ssti"})
-        result = make_result(tc, 200, body="Result: 49")
+        result = make_result(tc, 200, body="Hello 9801547")
         findings = analyzer.analyze([result])
         assert len(findings) == 1
         assert findings[0].severity == Severity.CRITICAL
@@ -220,3 +220,115 @@ class TestAnalyzerDedup:
                       extra={"strategy": "no_auth"})
         findings = analyzer.analyze([make_result(tc1, 200), make_result(tc2, 200)])
         assert len(findings) == 1
+
+
+class TestOWASP2023Labels:
+    def test_mass_assignment_is_api3(self, analyzer):
+        tc = make_tc("mass_assignment", extra={"injected_fields": ["role"]})
+        [f] = analyzer.analyze([make_result(tc, 201, body='{"role": "admin"}')])
+        assert f.owasp_category.value.startswith("API3:2023")
+
+    def test_injection_is_not_an_api_category(self, analyzer):
+        tc = make_tc("injection", extra={"injection_type": "sqli"})
+        [f] = analyzer.analyze([make_result(tc, 500, body="You have an error in your SQL syntax")])
+        assert f.owasp_category.value == "A03:2021 Injection (OWASP Top 10)"
+
+    def test_cors_is_api8_misconfiguration(self, analyzer):
+        tc = make_tc("cors", extra={"origin": "https://evil.com"})
+        headers = {"access-control-allow-origin": "https://evil.com", "access-control-allow-credentials": "true"}
+        [f] = analyzer.analyze([make_result(tc, 200, headers=headers)])
+        assert f.owasp_category.value == "API8:2023 - Security Misconfiguration"
+
+    def test_member_names_match_values(self):
+        from apifuzz.models.finding import OWASPCategory
+        for member in OWASPCategory:
+            if member.name.startswith("API"):
+                assert member.value.startswith(member.name.split("_")[0] + ":2023")
+
+
+
+def probe(injection_type, body, *, headers=None, payload="", key="GET /x", status=200, check_id="injection"):
+    tc = make_tc(check_id, extra={"injection_type": injection_type, "payload": payload, "endpoint_key": key})
+    return make_result(tc, status, body=body, headers=headers)
+
+
+def baseline(body, key="GET /x"):
+    return make_result(make_tc("baseline", extra={"endpoint_key": key}), 200, body=body)
+
+
+class TestDetectionFalsePositives:
+    """Phase 0.4: ordinary responses must not trigger injection/SSRF findings."""
+
+    def test_number_49_is_not_ssti(self, analyzer):
+        assert analyzer.analyze([probe("ssti", '{"price": 49, "count": 49}')]) == []
+
+    def test_literal_payload_reflection_is_not_ssti(self, analyzer):
+        assert analyzer.analyze([probe("ssti", "you searched {{1337*7331}} 9801547")]) == []
+
+    def test_product_already_in_baseline_is_not_ssti(self, analyzer):
+        assert analyzer.analyze([baseline("id 9801547"), probe("ssti", "id 9801547")]) == []
+
+    def test_currency_and_markdown_are_not_cmd_injection(self, analyzer):
+        assert analyzer.analyze([probe("cmd_injection", "Total: $ 12.00\n# Heading\n")]) == []
+
+    def test_cmd_canary_detected(self, analyzer):
+        [f] = analyzer.analyze([probe("cmd_injection", "out: apifuzz9801547")])
+        assert f.rule_id == "APIFUZZ-INJECT-CMD"
+
+    def test_uid_with_hyphenated_user_detected(self, analyzer):
+        assert len(analyzer.analyze([probe("cmd_injection", "uid=33(www-data) gid=33(www-data)")])) == 1
+
+    def test_sqli_error_already_in_baseline_is_ignored(self, analyzer):
+        page = "docs: what is a syntax error?"
+        assert analyzer.analyze([baseline(page), probe("sqli", page)]) == []
+
+    def test_vampi_sqlite_error_detected(self, analyzer):
+        body = "sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unrecognized token"
+        assert len(analyzer.analyze([probe("sqli", body, status=500)])) == 1
+
+    def test_xss_needs_html_content_type(self, analyzer):
+        payload = "<script>apifuzz(1337)</script>"
+        json_resp = probe("xss", f'{{"q": "{payload}"}}', payload=payload,
+                          headers={"content-type": "application/json"})
+        html_resp = probe("xss", f"<p>{payload}</p>", payload=payload,
+                          headers={"content-type": "text/html; charset=utf-8"})
+        assert analyzer.analyze([json_resp]) == []
+        [f] = analyzer.analyze([html_resp])
+        assert f.rule_id == "APIFUZZ-INJECT-XSS"
+
+    def test_nosql_error_detected(self, analyzer):
+        [f] = analyzer.analyze([probe("nosqli", "MongoServerError: unknown operator: $eq", status=500)])
+        assert f.rule_id == "APIFUZZ-INJECT-NOSQLI"
+
+    def test_ssrf_reflected_localhost_is_not_a_finding(self, analyzer):
+        body = '{"error": "could not fetch http://localhost:8080 or http://169.254.169.254/latest/meta-data/"}'
+        assert analyzer.analyze([probe("", body, check_id="ssrf")]) == []
+
+    def test_ssrf_marker_in_baseline_is_ignored(self, analyzer):
+        assert analyzer.analyze([baseline("instance-id docs"), probe("", "instance-id docs", check_id="ssrf")]) == []
+
+    def test_ssrf_metadata_detected(self, analyzer):
+        [f] = analyzer.analyze([probe("", "ami-id\ninstance-id\nhostname", check_id="ssrf")])
+        assert f.rule_id == "APIFUZZ-SSRF-001"
+
+
+def nosqli_pair(true_status, true_body, false_status, false_body):
+    out = []
+    for polarity, status, body in (("true", true_status, true_body), ("false", false_status, false_body)):
+        tc = make_tc("injection", extra={"injection_type": "nosqli", "strategy": "nosqli_pair",
+                                         "pair_id": "GET /u query.name", "polarity": polarity})
+        out.append(make_result(tc, status, body=body))
+    return out
+
+
+class TestNoSQLiPairs:
+    def test_differing_pair_is_flagged(self, analyzer):
+        users = '[{"name": "alice"}, {"name": "bob"}, {"name": "carol"}]'
+        [f] = analyzer.analyze(nosqli_pair(200, users, 200, "[]"))
+        assert f.rule_id == "APIFUZZ-INJECT-NOSQLI-BOOL"
+
+    def test_identical_pair_is_not_flagged(self, analyzer):
+        assert analyzer.analyze(nosqli_pair(200, "[]", 200, "[]")) == []
+
+    def test_rejected_pair_is_not_flagged(self, analyzer):
+        assert analyzer.analyze(nosqli_pair(422, "bad", 400, "bad request")) == []

@@ -1,4 +1,5 @@
 import re
+from apifuzz.checks.injection import CMD_CANARY, SSTI_PRODUCT
 from apifuzz.executor import TestResult
 from apifuzz.models.finding import Finding, Severity, OWASPCategory
 
@@ -7,22 +8,25 @@ _SEVERITY_ORDER = [
 ]
 
 _SQLI_ERRORS = re.compile(
-    r"(sql syntax|mysql_fetch|ORA-\d{5}|syntax error|pg_exec|sqlite3\.OperationalError"
-    r"|Microsoft OLE DB|ODBC SQL|Unclosed quotation mark|Incorrect syntax near)",
+    r"(sql syntax|mysql_fetch|ORA-\d{5}|syntax error|pg_exec|sqlite3\.OperationalError|unrecognized token"
+    r"|SQLSTATE\[|Microsoft OLE DB|ODBC SQL|Unclosed quotation mark|Incorrect syntax near)",
     re.IGNORECASE,
 )
-_SSTI_REFLECTED = re.compile(r"\b49\b")  # {{7*7}} = 49
-_SSRF_METADATA = re.compile(
-    r"(ami-id|instance-id|169\.254\.169\.254|localhost|127\.0\.0\.1|root:x:|/etc/passwd)",
-    re.IGNORECASE,
-)
-_CMD_PATTERNS = re.compile(r"(uid=\d+|gid=\d+|\$ |# )", re.IGNORECASE)
+# Markers only a real metadata/file read returns; none of them occurs in the SSRF payloads themselves.
+_SSRF_METADATA = re.compile(r"(ami-id|instance-id|root:x:0:0|computeMetadata|\"AccessKeyId\")", re.IGNORECASE)
+_CMD_UID = re.compile(r"uid=\d+\([\w-]+\) gid=\d+")
+_NOSQL_ERRORS = re.compile(r"(MongoError|MongoServerError|CastError|BSONTypeError|\$where|E11000)")
 
 _SEVERITY_RANK = {s: i for i, s in enumerate(_SEVERITY_ORDER)}
 
 
 class Analyzer:
     def analyze(self, results: list[TestResult]) -> list[Finding]:
+        # Baseline = one normal request per endpoint (Scanner adds it); detectors ignore markers it already shows.
+        self._baselines = {
+            r.test_case.extra.get("endpoint_key"): r.response_body
+            for r in results if r.test_case.check_id == "baseline" and not r.is_error
+        }
         raw: list[Finding] = []
 
         for result in results:
@@ -31,7 +35,11 @@ class Analyzer:
             findings = self._dispatch(result)
             raw.extend(findings)
 
+        raw.extend(self._analyze_nosqli_pairs(results))
         return self._dedup(raw)
+
+    def _baseline_body(self, result: TestResult) -> str:
+        return getattr(self, "_baselines", {}).get(result.test_case.extra.get("endpoint_key"), "")
 
     def _dispatch(self, result: TestResult) -> list[Finding]:
         check_id = result.test_case.check_id
@@ -131,7 +139,7 @@ class Analyzer:
                     f"Endpoint may allow mass assignment of protected attributes."
                 ),
                 severity=Severity.HIGH,
-                owasp_category=OWASPCategory.API6_MASS,
+                owasp_category=OWASPCategory.API3_BOPLA,
                 endpoint_method=tc.method,
                 endpoint_path=tc.url,
                 request_sample=tc.label,
@@ -144,12 +152,13 @@ class Analyzer:
 
     def _check_ssrf(self, result: TestResult) -> list[Finding]:
         tc = result.test_case
-        if _SSRF_METADATA.search(result.response_body):
+        match = _SSRF_METADATA.search(result.response_body)
+        if match and not _SSRF_METADATA.search(self._baseline_body(result)):
             return [Finding(
                 title="SSRF: Internal metadata content in response",
                 description=(
                     f"Response to {tc.label} contains content indicative of internal resource access "
-                    f"(cloud metadata, localhost, /etc/passwd)."
+                    f"(cloud metadata or /etc/passwd) that the baseline response does not."
                 ),
                 severity=Severity.CRITICAL,
                 owasp_category=OWASPCategory.API7_SSRF,
@@ -157,60 +166,97 @@ class Analyzer:
                 endpoint_path=tc.url,
                 request_sample=tc.label,
                 response_sample=result.response_body[:500],
-                evidence="Metadata pattern found in response body",
+                evidence=f"Metadata marker '{match.group(0)}' in response, absent from baseline",
                 remediation="Validate and allowlist URL parameters; block requests to internal networks.",
                 rule_id="APIFUZZ-SSRF-001",
             )]
         return []
 
+    def _injection_finding(self, result: TestResult, title: str, description: str, evidence: str,
+                           remediation: str, rule_id: str, severity: Severity = Severity.CRITICAL) -> Finding:
+        tc = result.test_case
+        return Finding(
+            title=title,
+            description=description,
+            severity=severity,
+            owasp_category=OWASPCategory.INJECTION,
+            endpoint_method=tc.method,
+            endpoint_path=tc.url,
+            request_sample=tc.label,
+            response_sample=result.response_body[:500],
+            evidence=evidence,
+            remediation=remediation,
+            rule_id=rule_id,
+        )
+
     def _check_injection(self, result: TestResult) -> list[Finding]:
         tc = result.test_case
         body = result.response_body
+        baseline = self._baseline_body(result)
         injection_type = tc.extra.get("injection_type", "")
-        findings = []
 
-        if injection_type == "sqli" and _SQLI_ERRORS.search(body):
-            findings.append(Finding(
-                title="SQL Injection: Database error in response",
-                description="Response to SQL injection probe contains a database error string.",
-                severity=Severity.CRITICAL,
-                owasp_category=OWASPCategory.API8_INJECT,
-                endpoint_method=tc.method,
-                endpoint_path=tc.url,
-                request_sample=tc.label,
-                response_sample=body[:500],
-                evidence="Database error pattern in response",
-                remediation="Use parameterized queries. Never concatenate user input into SQL.",
-                rule_id="APIFUZZ-INJECT-SQLI",
-            ))
-        elif injection_type == "ssti" and _SSTI_REFLECTED.search(body):
-            findings.append(Finding(
-                title="SSTI: Template expression evaluated in response",
-                description="{{7*7}} was reflected as 49, indicating server-side template injection.",
-                severity=Severity.CRITICAL,
-                owasp_category=OWASPCategory.API8_INJECT,
-                endpoint_method=tc.method,
-                endpoint_path=tc.url,
-                request_sample=tc.label,
-                response_sample=body[:500],
-                evidence="Template result '49' reflected in response",
-                remediation="Never render user input through template engines without sanitization.",
-                rule_id="APIFUZZ-INJECT-SSTI",
-            ))
-        elif injection_type == "cmd_injection" and _CMD_PATTERNS.search(body):
-            findings.append(Finding(
-                title="Command Injection: Shell output in response",
-                description="Response contains patterns consistent with shell command execution (uid=, gid=).",
-                severity=Severity.CRITICAL,
-                owasp_category=OWASPCategory.API8_INJECT,
-                endpoint_method=tc.method,
-                endpoint_path=tc.url,
-                request_sample=tc.label,
-                response_sample=body[:500],
-                evidence="Shell output pattern in response",
-                remediation="Never pass user input to shell commands. Use safe APIs.",
-                rule_id="APIFUZZ-INJECT-CMD",
-            ))
+        if injection_type == "sqli" and _SQLI_ERRORS.search(body) and not _SQLI_ERRORS.search(baseline):
+            return [self._injection_finding(
+                result, "SQL Injection: Database error in response",
+                "Response to SQL injection probe contains a database error string the baseline does not.",
+                "Database error pattern in response",
+                "Use parameterized queries. Never concatenate user input into SQL.", "APIFUZZ-INJECT-SQLI")]
+        if (injection_type == "ssti" and SSTI_PRODUCT in body and "1337*7331" not in body
+                and SSTI_PRODUCT not in baseline):
+            return [self._injection_finding(
+                result, "SSTI: Template expression evaluated in response",
+                f"1337*7331 was evaluated to {SSTI_PRODUCT}, indicating server-side template injection.",
+                f"'{SSTI_PRODUCT}' in response, payload not reflected literally, absent from baseline",
+                "Never render user input through template engines without sanitization.", "APIFUZZ-INJECT-SSTI")]
+        if injection_type == "cmd_injection":
+            uid = _CMD_UID.search(body)
+            shown = uid.group(0) if uid else (CMD_CANARY if CMD_CANARY in body else "")
+            if shown and not (_CMD_UID.search(baseline) or CMD_CANARY in baseline):
+                return [self._injection_finding(
+                    result, "Command Injection: Shell output in response",
+                    "Response contains output of an injected shell command.",
+                    f"Shell output '{shown}' in response",
+                    "Never pass user input to shell commands. Use safe APIs.", "APIFUZZ-INJECT-CMD")]
+        if injection_type == "xss":
+            payload = tc.extra.get("payload", "")
+            ctype = result.response_headers.get("content-type", "")
+            if payload and payload in body and "text/html" in ctype:
+                return [self._injection_finding(
+                    result, "XSS: Payload reflected unescaped in HTML response",
+                    "The script payload is reflected verbatim in a text/html response.",
+                    f"Unescaped '{payload}' in {ctype} response",
+                    "HTML-encode output and return JSON with application/json.", "APIFUZZ-INJECT-XSS",
+                    severity=Severity.MEDIUM)]
+        if injection_type == "nosqli" and _NOSQL_ERRORS.search(body) and not _NOSQL_ERRORS.search(baseline):
+            return [self._injection_finding(
+                result, "NoSQL Injection: Database error in response",
+                "Response to a NoSQL operator probe contains a MongoDB error signature.",
+                "MongoDB error pattern in response",
+                "Reject objects/operators where scalars are expected; validate input types.",
+                "APIFUZZ-INJECT-NOSQLI", severity=Severity.HIGH)]
+        return []
+
+    def _analyze_nosqli_pairs(self, results: list[TestResult]) -> list[Finding]:
+        """A $ne/$eq pair whose responses differ means the operator reached the query."""
+        pairs: dict[str, dict[str, TestResult]] = {}
+        for r in results:
+            if r.test_case.extra.get("strategy") == "nosqli_pair" and not r.is_error:
+                pairs.setdefault(r.test_case.extra["pair_id"], {})[r.test_case.extra["polarity"]] = r
+        findings = []
+        for pair in pairs.values():
+            true, false = pair.get("true"), pair.get("false")
+            if not true or not false or not true.is_success:
+                continue
+            len_t, len_f = len(true.response_body), len(false.response_body)
+            if true.status_code == false.status_code and abs(len_t - len_f) <= max(20, 0.1 * max(len_t, len_f)):
+                continue
+            findings.append(self._injection_finding(
+                true, "NoSQL Injection: Operator changes the result",
+                "A $ne probe and an $eq-nonexistent probe on the same field returned different responses, "
+                "so query operators reach the database.",
+                f"$ne: HTTP {true.status_code}, {len_t} bytes; $eq: HTTP {false.status_code}, {len_f} bytes",
+                "Reject objects/operators where scalars are expected; validate input types.",
+                "APIFUZZ-INJECT-NOSQLI-BOOL", severity=Severity.HIGH))
         return findings
 
     def _check_rate_limit(self, result: TestResult) -> list[Finding]:  # noqa: ARG002
@@ -264,7 +310,7 @@ class Analyzer:
                     f"Cross-origin requests with credentials are permitted."
                 ),
                 severity=Severity.HIGH,
-                owasp_category=OWASPCategory.API8_INJECT,
+                owasp_category=OWASPCategory.API8_MISCONFIG,
                 endpoint_method=tc.method,
                 endpoint_path=tc.url,
                 request_sample=tc.label,

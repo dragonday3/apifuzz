@@ -19,14 +19,18 @@ _SEVERITY_LEVEL = {
 _OWASP_HELP = {
     OWASPCategory.API1_BOLA: "Broken Object Level Authorization — verify object ownership before returning data.",
     OWASPCategory.API2_AUTH: "Broken Authentication — require valid credentials on all protected endpoints.",
-    OWASPCategory.API3_BOPLA: "Broken Object Property Level Authorization — restrict response fields per user.",
+    OWASPCategory.API3_BOPLA: (
+        "Broken Object Property Level Authorization / Mass Assignment — allowlist writable fields "
+        "and restrict response fields per user."
+    ),
     OWASPCategory.API4_RATE: "Unrestricted Resource Consumption — implement rate limiting per IP/user.",
     OWASPCategory.API5_BFLA: "Broken Function Level Authorization — enforce role checks on admin functions.",
-    OWASPCategory.API6_MASS: "Unrestricted Access to Sensitive Business Flows / Mass Assignment — allowlist accepted fields.",
+    OWASPCategory.API6_BUSINESS_FLOWS: "Unrestricted Access to Sensitive Business Flows — limit automated abuse of flows.",
     OWASPCategory.API7_SSRF: "Server Side Request Forgery — validate and allowlist URL-type parameters.",
-    OWASPCategory.API8_INJECT: "Security Misconfiguration / Injection — sanitize inputs and use parameterized queries.",
+    OWASPCategory.API8_MISCONFIG: "Security Misconfiguration — harden CORS, headers and defaults.",
     OWASPCategory.API9_INVENTORY: "Improper Inventory Management — document and monitor all API versions.",
     OWASPCategory.API10_UNSAFE: "Unsafe Consumption of APIs — validate data from third-party APIs.",
+    OWASPCategory.INJECTION: "Injection — use parameterized queries and never pass input to interpreters or shells.",
 }
 
 

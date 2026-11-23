@@ -107,7 +107,7 @@ class TestFinding:
             title="Test",
             description="Desc",
             severity=Severity.MEDIUM,
-            owasp_category=OWASPCategory.API8_INJECT,
+            owasp_category=OWASPCategory.INJECTION,
             endpoint_method="POST",
             endpoint_path="/login",
             request_sample="POST /login\\n{\"username\": \"' OR 1=1\"}",

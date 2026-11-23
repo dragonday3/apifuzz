@@ -29,7 +29,7 @@ class TestInjectionCheck:
             Parameter(name="q", location=ParamLocation.QUERY, schema_type="string"),
         ])
         results = self.check.generate(ep, self.auth)
-        assert len(results) == len(INJECTION_PAYLOADS)
+        assert len(results) == len(INJECTION_PAYLOADS) + 2  # + NoSQLi $ne/$eq pair
 
     def test_integer_param_not_targeted(self):
         ep = make_endpoint(params=[
@@ -43,9 +43,11 @@ class TestInjectionCheck:
             Parameter(name="q", location=ParamLocation.QUERY, schema_type="string"),
         ])
         results = self.check.generate(ep, self.auth)
-        for tc in results:
-            assert "q" in tc.params
+        probes = [tc for tc in results if tc.extra["strategy"] == "injection_probe"]
+        for tc in probes:
             assert tc.params["q"] in [p["payload"] for p in INJECTION_PAYLOADS]
+        pair = [tc.params for tc in results if tc.extra["strategy"] == "nosqli_pair"]
+        assert pair == [{"q[$ne]": "apifuzz-nonexistent"}, {"q[$eq]": "apifuzz-nonexistent"}]
 
     def test_path_param_generates_cases_with_path_override(self):
         ep = make_endpoint(
@@ -81,12 +83,12 @@ class TestInjectionCheck:
             body_schema={"username": "alice", "email": "alice@example.com"},
         )
         results = self.check.generate(ep, self.auth)
-        assert len(results) == 2 * len(INJECTION_PAYLOADS)  # one field at a time
+        assert len(results) == 2 * (len(INJECTION_PAYLOADS) + 2)  # one field at a time, + NoSQLi pair each
 
     def test_body_injection_one_field_at_a_time(self):
         example = {"username": "alice", "email": "alice@example.com", "age": 30}
         ep = make_endpoint(method="POST", body_schema=example)
-        results = self.check.generate(ep, self.auth)
+        results = [tc for tc in self.check.generate(ep, self.auth) if tc.extra["strategy"] == "injection_probe"]
         for tc in results:
             field = tc.extra["param_name"]
             assert tc.body[field] == tc.extra["payload"]
@@ -108,7 +110,7 @@ class TestInjectionCheck:
         ])
         results = self.check.generate(ep, self.auth)
         payloads = [tc.params.get("q", "") for tc in results]
-        assert "{{7*7}}" in payloads
+        assert "{{1337*7331}}" in payloads and "${1337*7331}" in payloads
 
     def test_labels_contain_injection_type(self):
         ep = make_endpoint(params=[
@@ -127,4 +129,13 @@ class TestInjectionCheck:
         results = self.check.generate(ep, self.auth)
         for tc in results:
             assert tc.extra.get("target") == "body"
-            assert tc.extra["strategy"] == "injection_probe"
+            assert tc.extra["strategy"] in ("injection_probe", "nosqli_pair")
+
+    def test_body_nosqli_pair_uses_operator_objects(self):
+        ep = make_endpoint(method="POST", body_schema={"user": "a", "n": 1})
+        pair = [tc.body for tc in self.check.generate(ep, self.auth) if tc.extra["strategy"] == "nosqli_pair"]
+        assert pair == [{"user": {"$ne": None}, "n": 1}, {"user": {"$eq": "apifuzz-nonexistent"}, "n": 1}]
+
+    def test_quote_breaker_sqli_payload_present(self):
+        # VAmPI: "' OR '1'='1" is valid SQL there (200, no error); a lone quote raises the DB error.
+        assert {"payload": "'", "type": "sqli"} in INJECTION_PAYLOADS

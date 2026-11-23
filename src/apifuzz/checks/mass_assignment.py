@@ -14,7 +14,7 @@ PRIVILEGED_FIELDS = {
 
 class MassAssignmentCheck(BaseCheck):
     check_id = "mass_assignment"
-    name = "Mass Assignment (OWASP API6)"
+    name = "Mass Assignment / Broken Object Property Level Authorization (OWASP API3)"
 
     def generate(self, endpoint: Endpoint, auth: AuthConfig) -> list[TestCase]:
         if not isinstance(endpoint.body_example, dict) or not endpoint.body_example:
