@@ -6,7 +6,7 @@ from urllib.parse import quote, urlencode, urljoin, urlsplit
 from apifuzz.checks.bola import MISSING_ID
 from apifuzz.checks.injection import CMD_CANARY, SQLI_SLEEP_SECONDS, SSTI_PRODUCT
 from apifuzz.executor import MAX_BODY, TestCase, TestResult
-from apifuzz.redact import redact_headers
+from apifuzz.redact import mask, redact_headers
 from apifuzz.models.finding import Confidence, Finding, OWASPCategory, Severity
 
 _SEVERITY_ORDER = [
@@ -108,14 +108,27 @@ def _limited(result: TestResult) -> bool:
             or any(h.startswith(("x-ratelimit-", "ratelimit-")) for h in headers))
 
 
-def _request_text(result: TestResult) -> str:
+_SECRET_KEY = re.compile(r"(pass(word)?|secret|token|api[_-]?key|credential)", re.IGNORECASE)
+
+
+def _mask_body(body: Any) -> Any:
+    """Mask values of password/secret/token-like keys (recorded HAR/Postman login bodies)."""
+    if isinstance(body, dict):
+        return {k: (mask(str(v)) if _SECRET_KEY.search(k) and isinstance(v, (str, int)) else _mask_body(v))
+                for k, v in body.items()}
+    if isinstance(body, list):
+        return [_mask_body(v) for v in body]
+    return body
+
+
+def _request_text(result: TestResult, sensitive_headers: tuple[str, ...] = ()) -> str:
     """The request as sent (sensitive headers masked here; Scanner scrubs configured tokens everywhere)."""
     tc = result.test_case
     query = ("?" + urlencode(tc.params)) if tc.params else ""
     lines = [f"# {tc.label}", f"{tc.method} {tc.url}{query}"]
-    lines += [f"{k}: {v}" for k, v in redact_headers(result.request_headers).items()]
+    lines += [f"{k}: {v}" for k, v in redact_headers(result.request_headers, sensitive_headers).items()]
     if tc.body is not None:
-        lines += ["", json.dumps(tc.body)[:1000]]
+        lines += ["", json.dumps(_mask_body(tc.body))[:1000]]
     return "\n".join(lines)
 
 
@@ -141,6 +154,10 @@ def _resembles(a: TestResult, b: TestResult) -> bool:
 
 
 class Analyzer:
+    def __init__(self, sensitive_headers: tuple[str, ...] = ()):
+        # Extra header names to mask in request samples (the configured --header-name for apikey auth).
+        self.sensitive_headers = sensitive_headers
+
     def analyze(self, results: list[TestResult]) -> list[Finding]:
         # Baseline = one normal request per endpoint with the configured auth (Scanner adds it).
         # Detectors compare against it: status, body, length, latency.
@@ -225,7 +242,7 @@ class Analyzer:
                 owasp_category=OWASPCategory.API1_BOLA,
                 endpoint_method=tc.method,
                 endpoint_path=tc.url,
-                request_sample=_request_text(result),
+                request_sample=_request_text(result, self.sensitive_headers),
                 response_sample=_response_text(result),
                 evidence=(f"HTTP {result.status_code} with cross-user token; response matches user A's object"
                           if confirmed else f"HTTP {result.status_code} with cross-user token"),
@@ -252,7 +269,7 @@ class Analyzer:
                 owasp_category=OWASPCategory.API1_BOLA,
                 endpoint_method=tc.method,
                 endpoint_path=tc.url,
-                request_sample=_request_text(result),
+                request_sample=_request_text(result, self.sensitive_headers),
                 response_sample=_response_text(result),
                 evidence=f"HTTP {result.status_code} for probe ID {tc.extra.get('probe_id')}; same schema, "
                          f"different object than the baseline",
@@ -290,7 +307,7 @@ class Analyzer:
             owasp_category=OWASPCategory.API2_AUTH,
             endpoint_method=tc.method,
             endpoint_path=tc.url,
-            request_sample=_request_text(result),
+            request_sample=_request_text(result, self.sensitive_headers),
             response_sample=_response_text(result),
             evidence=f"HTTP {result.status_code} returned with strategy: {strategy}{matched}",
             remediation="Require valid authentication on all protected endpoints.",
@@ -327,7 +344,7 @@ class Analyzer:
             owasp_category=OWASPCategory.API3_BOPLA,
             endpoint_method=tc.method,
             endpoint_path=tc.url,
-            request_sample=_request_text(result),
+            request_sample=_request_text(result, self.sensitive_headers),
             response_sample=_response_text(result),
             evidence=evidence,
             remediation="Use an allowlist for accepted fields; never bind request body directly to model.",
@@ -385,7 +402,7 @@ class Analyzer:
                 owasp_category=OWASPCategory.API7_SSRF,
                 endpoint_method=tc.method,
                 endpoint_path=tc.url,
-                request_sample=_request_text(result),
+                request_sample=_request_text(result, self.sensitive_headers),
                 response_sample=_response_text(result),
                 evidence=f"Metadata marker '{match.group(0)}' in response, absent from baseline",
                 remediation="Validate and allowlist URL parameters; block requests to internal networks.",
@@ -403,7 +420,7 @@ class Analyzer:
             owasp_category=OWASPCategory.INJECTION,
             endpoint_method=tc.method,
             endpoint_path=tc.url,
-            request_sample=_request_text(result),
+            request_sample=_request_text(result, self.sensitive_headers),
             response_sample=_response_text(result),
             evidence=evidence,
             remediation=remediation,
@@ -546,8 +563,10 @@ class Analyzer:
 
         findings = []
         for burst in bursts.values():
-            success_count = sum(1 for r in burst if 200 <= r.status_code < 300)
             total = len(burst)
+            if total < burst[0].test_case.extra.get("burst_total", total):
+                continue  # part of the burst failed or was cut off by --max-requests: no verdict
+            success_count = sum(1 for r in burst if 200 <= r.status_code < 300)
             # 4xx answers mean the burst wasn't accepted anyway; any 429, Retry-After or X-RateLimit-*
             # header means a limiter exists (it may just allow more than 50 requests).
             if success_count < total * 0.9 or any(_limited(r) for r in burst):
@@ -563,7 +582,7 @@ class Analyzer:
                 owasp_category=OWASPCategory.API4_RATE,
                 endpoint_method=tc.method,
                 endpoint_path=tc.url,
-                request_sample=_request_text(burst[0]),
+                request_sample=_request_text(burst[0], self.sensitive_headers),
                 response_sample="",
                 evidence=f"{success_count}/{total} burst requests succeeded",
                 remediation="Implement rate limiting (token bucket, sliding window) per IP or user.",
@@ -590,7 +609,7 @@ class Analyzer:
                 owasp_category=OWASPCategory.API8_MISCONFIG,
                 endpoint_method=tc.method,
                 endpoint_path=tc.url,
-                request_sample=_request_text(result),
+                request_sample=_request_text(result, self.sensitive_headers),
                 response_sample=str(redact_headers(headers))[:500],
                 evidence=f"ACAO: {acao}, ACAC: {acac}",
                 remediation=(

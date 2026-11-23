@@ -1,7 +1,10 @@
 import json
+from collections import Counter
 from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
+
+import httpx
 
 from apifuzz.analyzer import Analyzer
 from apifuzz.checks.auth import AuthCheck
@@ -96,7 +99,9 @@ class Scanner:
         self._executor_opts = dict(rate_limit_rps=rate_limit_rps, timeout=timeout, verify=verify, proxy=proxy,
                                    scope=self.base_url, budget=self.budget, retries=retries)
         self.executor = Executor(self.auth, concurrency, **self._executor_opts)  # type: ignore[arg-type]
-        self.analyzer = Analyzer()
+        self.analyzer = Analyzer(sensitive_headers=(self.auth.header_name,))
+        self.errors: Counter[str] = Counter()  # failed requests by error type (OutOfScope, ConnectError...)
+        self.sent = 0
 
         enabled = checks if checks else list(_ALL_CHECKS.keys())
         self._checks = [_ALL_CHECKS[c]() for c in enabled if c in _ALL_CHECKS]
@@ -159,10 +164,15 @@ class Scanner:
         # Rate limit aggregation (burst results need separate handling)
         findings += self.analyzer.analyze_rate_limit(results)
 
-        # Credentials never reach a report: mask every configured token wherever it was echoed.
-        secrets = secrets_for(self.auth.token, self.auth.second_token)
+        self.sent = len(results)
+        self.errors = Counter((r.error or "").split(":")[0] for r in results if r.is_error)
+
+        # Credentials never reach a report: mask every configured token (and --target userinfo) wherever
+        # it was echoed.
+        userinfo = httpx.URL(self.base_url).userinfo.decode()
+        secrets = secrets_for(self.auth.token, self.auth.second_token, userinfo)
         for f in findings:
-            for name in ("request_sample", "response_sample", "evidence", "description"):
+            for name in ("title", "endpoint_path", "request_sample", "response_sample", "evidence", "description"):
                 setattr(f, name, scrub(getattr(f, name), secrets))
         return findings
 

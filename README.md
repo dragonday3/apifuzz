@@ -113,15 +113,17 @@ apifuzz collection.json --target https://api.example.com
 apifuzz openapi.yaml --target https://api.example.com --dry-run
 
 # Route traffic through Burp/ZAP to verify findings by hand
-apifuzz openapi.yaml --target https://api.example.com --proxy http://127.0.0.1:8080
+# (TLS is verified: trust the proxy's CA, or add --insecure)
+apifuzz openapi.yaml --target https://api.example.com --proxy http://127.0.0.1:8080 --insecure
 ```
 
 ### Safety defaults
 
-- **Read-mostly by default.** `PUT`, `PATCH` and `DELETE` endpoints are skipped unless you pass `--allow-destructive`, because probes such as cross-user BOLA really modify or delete the target's data. `POST` endpoints are tested and may create records.
+- **Read-mostly by default.** `PUT`, `PATCH` and `DELETE` endpoints are skipped unless you pass `--allow-destructive`, because probes such as cross-user BOLA really modify or delete the target's data. `POST` endpoints are still tested: each gets a 50-request rate-limit burst plus injection and mass-assignment probes, so expect dozens of new records per `POST` endpoint (leave `rate_limit` out of `--checks` to avoid the burst).
 - **Scope lock.** Every request goes to the `--target` origin: hosts recorded in HAR/Postman files or spec `servers` are ignored, and redirects to another host are refused. Narrow the scan further with `--include` / `--exclude` path globs.
 - **Politeness.** `--rate-limit` paces requests, `--max-requests` caps the total, and `429`/`503` responses are retried (`--retries`, honouring `Retry-After`).
 - **TLS** certificates are verified unless you pass `--insecure`.
+- **Failures are reported.** The scan prints how many requests failed and why (TLS, scope, connection, budget). If every request failed, it exits with code `2` (inconclusive) instead of reporting a clean result.
 - **Redaction.** Reports show each finding's request as it was sent, with `Authorization`, cookies, API-key headers and your configured tokens masked (`Bear****`).
 
 ### No spec? Zero-spec workflow via HAR
@@ -179,6 +181,7 @@ Options:
 **Exit codes:**
 - `0` — scan completed, no critical/high findings
 - `1` — critical or high severity findings detected (use with `continue-on-error: true` in CI)
+- `2` — every request failed (TLS, scope, connection): the scan is inconclusive
 
 ---
 

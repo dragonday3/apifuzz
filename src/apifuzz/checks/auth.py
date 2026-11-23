@@ -56,7 +56,9 @@ class AuthCheck(BaseCheck):
             test_cases.append(case("invalid token", "invalid_token", {hdr: f"Basic {bad}"}))
         else:
             test_cases.append(case("invalid token", "invalid_token", {hdr: "Bearer INVALID_TOKEN_apifuzz"}))
-        test_cases.append(case("empty bearer", "empty_bearer", {hdr: "Bearer "}))
+        # "Bearer" with no token: a trailing space ("Bearer ") is an illegal header value that httpx
+        # refuses to send, so v0.1.0 never actually sent this probe.
+        test_cases.append(case("empty bearer", "empty_bearer", {hdr: "Bearer"}))
 
         # JWT alg:none attack (only if current auth is bearer and looks like JWT)
         if auth.type == "bearer" and auth.token.count(".") == 2:

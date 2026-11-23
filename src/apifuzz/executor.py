@@ -5,7 +5,6 @@ import time
 from dataclasses import dataclass, field
 from email.utils import parsedate_to_datetime
 from typing import Any, Literal
-from urllib.parse import urlsplit
 
 import httpx
 
@@ -59,29 +58,36 @@ class RequestBudget:
     """--max-requests: shared by every executor of one scan; retries count too."""
 
     def __init__(self, limit: int | None = None):
-        self.limit, self.used = limit, 0
+        self.limit, self.used, self.denied = limit, 0, 0
 
     def take(self) -> bool:
         if self.limit is not None and self.used >= self.limit:
+            self.denied += 1
             return False
         self.used += 1
         return True
 
 
-def origin(url: str) -> tuple[str, str]:
-    parts = urlsplit(url)
-    return parts.scheme.lower(), parts.netloc.lower()
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
+def origin(url: str) -> tuple[str, str, int | None]:
+    """(scheme, ASCII host, port) the way httpx sends it: default ports filled in, IDN hosts punycoded."""
+    u = httpx.URL(url)
+    return u.scheme, u.raw_host.decode("ascii").lower(), u.port or _DEFAULT_PORTS.get(u.scheme)
 
 
 def _retry_after(resp: httpx.Response) -> float | None:
     value = resp.headers.get("retry-after", "").strip()
     if not value:
         return None
-    if value.isdigit():
-        return float(value)
+    try:
+        return max(0.0, float(value))
+    except ValueError:
+        pass
     try:
         return max(0.0, parsedate_to_datetime(value).timestamp() - time.time())
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
@@ -108,7 +114,7 @@ class Executor:
         self._verify, self._proxy = verify, proxy
         self._scope = origin(scope) if scope else None
         self._budget = budget or RequestBudget()
-        self._retries = retries
+        self._retries = max(0, retries)
 
     async def run(self, test_cases: list[TestCase]) -> list[TestResult]:
         async with httpx.AsyncClient(
@@ -123,8 +129,8 @@ class Executor:
 
     async def _check_scope(self, request: httpx.Request) -> None:
         if self._scope and origin(str(request.url)) != self._scope:
-            raise OutOfScope(f"{request.url} is outside the target {self._scope[0]}://{self._scope[1]}",
-                             request=request)
+            scheme, host, port = self._scope
+            raise OutOfScope(f"{request.url} is outside the target {scheme}://{host}:{port}", request=request)
 
     async def _run_one(self, client: httpx.AsyncClient, tc: TestCase) -> TestResult:
         async with self._sem:
@@ -136,7 +142,9 @@ class Executor:
                 if tc.throttle:
                     await self._rate_limit()
                 result, resp = await self._send(client, tc, headers)
-                if resp is None or resp.status_code not in (429, 503) or attempt == attempts - 1:
+                # A 503'd POST may still have been processed: only 429 ("not processed") is retried for it.
+                retry_on = (429, 503) if tc.method in ("GET", "HEAD", "OPTIONS", "PUT", "DELETE") else (429,)
+                if resp is None or resp.status_code not in retry_on or attempt == attempts - 1:
                     break
                 wait = _retry_after(resp)
                 if wait is None:

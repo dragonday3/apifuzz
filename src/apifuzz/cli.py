@@ -4,6 +4,7 @@ import sys
 from collections import Counter
 from typing import List, Optional
 
+import httpx
 import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -53,13 +54,20 @@ def scan(
     include: Optional[List[str]] = typer.Option(
         None, "--include", help="Only test paths matching this glob (repeatable), e.g. '/api/v1/*'"),
     exclude: Optional[List[str]] = typer.Option(None, "--exclude", help="Skip paths matching this glob (repeatable)"),
-    max_requests: Optional[int] = typer.Option(None, "--max-requests", help="Stop sending after this many requests"),
-    retries: int = typer.Option(2, "--retries", help="Retries on 429/503 (honours Retry-After, else backoff)"),
+    max_requests: Optional[int] = typer.Option(None, "--max-requests", min=1,
+                                               help="Stop sending after this many requests"),
+    retries: int = typer.Option(2, "--retries", min=0, help="Retries on 429/503 (honours Retry-After, else backoff)"),
     insecure: bool = typer.Option(False, "--insecure", help="Skip TLS certificate verification"),
     proxy: Optional[str] = typer.Option(None, "--proxy", help="Send traffic through a proxy, e.g. http://127.0.0.1:8080"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress progress output"),
 ) -> None:
     """Scan an API for OWASP API Top 10 security issues."""
+    try:
+        target_url = httpx.URL(target)
+    except httpx.InvalidURL as e:
+        raise typer.BadParameter(str(e), param_hint="--target")
+    if target_url.scheme not in ("http", "https") or not target_url.host:
+        raise typer.BadParameter("must be an http(s) URL such as https://api.example.com", param_hint="--target")
     if min_confidence not in ("tentative", "firm"):
         raise typer.BadParameter("must be 'tentative' or 'firm'", param_hint="--min-confidence")
     auth = AuthConfig(
@@ -112,8 +120,10 @@ def scan(
         _print_summary(findings)
         if scanner.skipped:
             console.print(f"[dim]Skipped {len(scanner.skipped)} endpoint(s): " + "; ".join(scanner.skipped) + "[/]")
-        if scanner.budget.limit is not None and scanner.budget.used >= scanner.budget.limit:
-            console.print(f"[yellow]--max-requests {scanner.budget.limit} reached: the scan is incomplete.[/]")
+        if scanner.budget.denied:
+            console.print(f"[yellow]--max-requests {scanner.budget.limit} reached: {scanner.budget.denied} "
+                          f"request(s) not sent, the scan is incomplete.[/]")
+    _warn_failures(scanner)
 
     # Output
     output_text = _format_output(findings, output, out_file)
@@ -129,6 +139,19 @@ def scan(
     severity_values = {f.severity.value for f in findings}
     if "critical" in severity_values or "high" in severity_values:
         raise typer.Exit(code=1)
+
+
+def _warn_failures(scanner: Scanner) -> None:
+    """Failed requests must never pass for a clean result (TLS, scope, connection, budget)."""
+    failed = sum(scanner.errors.values())
+    if not failed:
+        return
+    kinds = ", ".join(f"{k} x{n}" for k, n in scanner.errors.most_common())
+    console.print(f"[yellow]{failed} of {scanner.sent} request(s) failed: {kinds}[/]")
+    if scanner.sent and failed == scanner.sent:
+        console.print("[bold red]Every request failed: the scan is inconclusive, not clean. "
+                      "Check --target, TLS (--insecure), the proxy, and connectivity.[/]")
+        raise typer.Exit(code=2)
 
 
 def _print_plan(scanner: Scanner) -> None:
