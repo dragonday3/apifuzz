@@ -126,10 +126,16 @@ class Scanner:
         """The first-pass test cases a scan would send (follow-up confirmations depend on responses)."""
         return self._generate(self._endpoints())
 
+    def _in_scope(self, path: str) -> bool:
+        return ((not self.include or any(fnmatchcase(path, g) for g in self.include))
+                and not any(fnmatchcase(path, g) for g in self.exclude))
+
     def _endpoints(self) -> list[Endpoint]:
         self.skipped = []
         kept = []
-        for ep in self._parse(self.spec_path):
+        self._all_endpoints = self._parse(self.spec_path)  # unfiltered: what the spec documents
+        self.analyzer.documented_paths = {ep.path.rstrip("/") or "/" for ep in self._all_endpoints}
+        for ep in self._all_endpoints:
             # --target is authoritative: HAR/Postman/spec hosts are never used, so nothing leaves the scope.
             ep.base_url = self.base_url
             name = f"{ep.method} {ep.path}"
@@ -154,10 +160,11 @@ class Scanner:
         # 4. confirmations (GET the object a mass-assignment probe created);
         # 5. rate-limit bursts last, so they can't exhaust a real limit and turn other probes into 429s,
         #    one endpoint at a time.
-        baselines = [tc for tc in test_cases if tc.check_id == "baseline"]
+        # data_exposure reads are plain authenticated GETs: they run with the baselines.
+        baselines = [tc for tc in test_cases if tc.check_id in ("baseline", "data_exposure")]
         timed = [tc for tc in test_cases if tc.extra.get("strategy") == "sqli_time"]
         bursts = [tc for tc in test_cases if not tc.throttle]
-        probes = [tc for tc in test_cases if tc.throttle and tc.check_id != "baseline"
+        probes = [tc for tc in test_cases if tc.throttle and tc.check_id not in ("baseline", "data_exposure")
                   and tc.extra.get("strategy") != "sqli_time"]
         results = await self.executor.run(baselines)
         results += await self.executor.run(probes)
@@ -218,8 +225,11 @@ class Scanner:
             for tc in cases:
                 tc.extra["endpoint_key"] = key
             test_cases.extend(cases)
+        documented = getattr(self, "_all_endpoints", endpoints)
         for check in self._checks:
-            for tc in check.generate_global(endpoints, self.auth):
+            for tc in check.generate_global(documented, self.auth):
+                if not self._in_scope(tc.extra.get("path", "")):  # --include/--exclude apply here too
+                    continue
                 tc.extra.setdefault("endpoint_key", f"GET {tc.extra.get('path', '')} (not in spec)")
                 test_cases.append(tc)
         return test_cases

@@ -82,8 +82,13 @@ class OpenAPIParser(BaseParser):
                     operation_id=operation.get("operationId", self._gen_op_id(method, path)),
                     response_schema=self._response_schema(operation, swagger2=False),
                     summary=self._summary(operation),
+                    privileged=self._privileged(operation),
                 ))
         return endpoints
+
+    @staticmethod
+    def _privileged(operation: dict) -> bool:
+        return any(bool(operation.get(k)) for k in ("x-admin", "x-internal", "x-privileged", "x-admin-only"))
 
     @staticmethod
     def _summary(operation: dict) -> str:
@@ -146,6 +151,7 @@ class OpenAPIParser(BaseParser):
                     operation_id=operation.get("operationId", self._gen_op_id(method, path)),
                     response_schema=self._response_schema(operation, swagger2=True),
                     summary=self._summary(operation),
+                    privileged=self._privileged(operation),
                 ))
         return endpoints
 

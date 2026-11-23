@@ -1,5 +1,7 @@
+import random
 import re
 import secrets
+import string
 
 from apifuzz.checks.base import BaseCheck
 from apifuzz.executor import TestCase
@@ -11,6 +13,18 @@ _PASS_KEY = re.compile(r"^(pass(word)?|passwd|pwd)$", re.IGNORECASE)
 # accounts (which then made the "unknown" usernames real).
 _LOGIN_HINT = re.compile(r"(log-?in|sign-?in|auth|session|token)", re.IGNORECASE)
 WRONG_PASSWORD = "apifuzz-Wr0ng-passw0rd"
+
+
+def lookalike(value: str, rng: random.Random) -> str:
+    """Same length, case and character classes as `value`, different letters/digits: an unknown user that
+    passes the same format validation as the real one (emails keep their domain)."""
+    local, at, domain = value.partition("@")
+    while True:
+        out = "".join(rng.choice(string.ascii_lowercase) if c.islower() else
+                      rng.choice(string.ascii_uppercase) if c.isupper() else
+                      rng.choice(string.digits) if c.isdigit() else c for c in local)
+        if out.lower() != local.lower() or not any(c.isalnum() for c in local):
+            return out + at + domain
 
 
 class UserEnumCheck(BaseCheck):
@@ -30,11 +44,17 @@ class UserEnumCheck(BaseCheck):
         if not user_key or not pass_key or not isinstance(body[user_key], str):
             return []
         known = body[user_key]
-        email = "@" in known or "mail" in user_key.lower()
-        # Fresh random names each scan: a fixed name could have been registered by an earlier run.
-        unknown = [f"apifuzz-nouser-{secrets.token_hex(4)}" for _ in range(2)]
-        users = [("known", known)] + [(f"unknown{i}", f"{u}@example.com" if email else u)
-                                      for i, u in enumerate(unknown, 1)]
+        if not any(c.isalnum() for c in known):
+            return []
+        # Fresh lookalikes each scan: same format as the known user (so input validation answers alike),
+        # random letters (a fixed name could have been registered by an earlier run).
+        rng = random.Random(secrets.randbits(64))
+        unknown: list[str] = []
+        while len(unknown) < 2:
+            candidate = lookalike(known, rng)
+            if candidate not in unknown:
+                unknown.append(candidate)
+        users = [("known", known)] + [(f"unknown{i}", u) for i, u in enumerate(unknown, 1)]
         pair_id = f"{endpoint.method} {endpoint.path}"
         return [TestCase(
             method="POST",

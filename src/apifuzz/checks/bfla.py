@@ -4,8 +4,28 @@ from apifuzz.checks.base import BaseCheck
 from apifuzz.executor import TestCase, auth_headers
 from apifuzz.models.endpoint import AuthConfig, Endpoint
 
-# Words in the path, tags, operationId or summary that mark an operation as meant for privileged roles.
-PRIVILEGED = re.compile(r"(admin|internal|manage(ment)?|staff|superuser|privileged|moderat|root\b)", re.IGNORECASE)
+_ROLE = r"(admin|administrator|internal|manage|management|staff|superuser|moderator|backoffice|root)"
+# Anchored: a whole path segment (/admin/, /internal/...), a whole tag, an operationId word (adminDeleteUser,
+# admin_delete) or an explicit phrase in the summary. "/users/{id}/manager" or "admins can also..." don't count.
+_PATH = re.compile(rf"(^|/){_ROLE}(/|$)", re.IGNORECASE)
+_TAG = re.compile(rf"^{_ROLE}$", re.IGNORECASE)
+_OP_ID = re.compile(rf"(^|_|\b){_ROLE}([A-Z_]|$)")
+_SUMMARY = re.compile(r"\b(only\s+admin(istrator)?s?|admin(istrator)?s?\s+only|requires?\s+(an?\s+)?admin"
+                      r"|admin(istrator)?\s+(role|privileges?|access|rights))\b", re.IGNORECASE)
+
+
+def privilege_hint(endpoint: Endpoint) -> str | None:
+    """Why the spec says this operation is for privileged roles, or None."""
+    if endpoint.privileged:
+        return "x-admin/x-internal extension"
+    for text, pattern in ((endpoint.path, _PATH), (endpoint.operation_id, _OP_ID)):
+        m = pattern.search(text)
+        if m:
+            return m.group(2)  # the role word itself
+    m = _SUMMARY.search(endpoint.summary)
+    if m:
+        return m.group(0)
+    return next((t for t in endpoint.tags if _TAG.match(t)), None)
 
 
 class BFLACheck(BaseCheck):
@@ -16,11 +36,10 @@ class BFLACheck(BaseCheck):
     name = "Broken Function Level Authorization (OWASP API5)"
 
     def generate(self, endpoint: Endpoint, auth: AuthConfig) -> list[TestCase]:
-        if not auth.low_priv_token:
+        if not auth.low_priv_token or endpoint.secured is False:  # public: any token may call it
             return []
-        hints = " ".join([endpoint.path, endpoint.operation_id, endpoint.summary, *endpoint.tags])
-        match = PRIVILEGED.search(hints)
-        if not match:
+        hint = privilege_hint(endpoint)
+        if not hint:
             return []
         return [TestCase(
             method=endpoint.method,
@@ -31,6 +50,6 @@ class BFLACheck(BaseCheck):
             body=endpoint.body_example,
             label=f"BFLA: {endpoint.method} {endpoint.path} as low-privilege user",
             check_id=self.check_id,
-            extra={"strategy": "low_priv", "hint": match.group(0)},
+            extra={"strategy": "low_priv", "hint": hint},
             auth_mode="override",
         )]

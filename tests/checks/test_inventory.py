@@ -32,7 +32,10 @@ async def test_exposed_items_need_matching_content(tmp_path):
         return {
             "/actuator/env": httpx.Response(200, json={"activeProfiles": [], "propertySources": []}),
             "/.env": httpx.Response(200, text="DB_PASSWORD=x\nSECRET_KEY=y\n"),
-            "/swagger.json": httpx.Response(200, json={"openapi": "3.0.0"}),
+            # a spec describing operations the scanned spec doesn't have: a shadow API
+            "/swagger.json": httpx.Response(200, json={"openapi": "3.0.0", "paths": {"/internal/payouts": {}}}),
+            # the API's own published spec: not reported
+            "/openapi.json": httpx.Response(200, json={"openapi": "3.0.3", "paths": {"/api/v1/users": {}}}),
             "/api/v2/users": httpx.Response(200, json=[{"id": 1}]),
             "/metrics": httpx.Response(200, text="all good"),          # 200, but not Prometheus output
         }.get(request.url.path, httpx.Response(404))

@@ -108,6 +108,11 @@ _SENSITIVE_FIELD = re.compile(
     r"^(password|passwd|pwd|password_?hash|hashed_?password|client_?secret|secret_?key|api_?secret|api_?key"
     r"|private_?key"
     r"|access_?token|refresh_?token|ssn|social_?security_?number|card_?number|cvv|cvc)$", re.IGNORECASE)
+_CREDENTIAL_FIELD = re.compile(r"(api_?key|access_?token|refresh_?token|secret)", re.IGNORECASE)
+_PLACEHOLDER = re.compile(r"^\s*(\[?(filtered|redacted|hidden|masked|removed)\]?|<[^>]*>|null|none|n/?a|-+|\**|x+|•+)\s*$",
+                          re.IGNORECASE)
+# The caller's own account/settings: a key or token shown there may be the caller's own (still worth a look).
+_CALLER_SCOPED = re.compile(r"/(me|self|account|profile|settings|current|whoami)(/|$)", re.IGNORECASE)
 _MAX_WALK = 2000
 
 
@@ -122,8 +127,8 @@ def _sensitive_fields(doc: Any) -> list[str]:
         if isinstance(node, dict):
             for k, v in node.items():
                 child = f"{path}.{k}" if path else str(k)
-                if (_SENSITIVE_FIELD.match(str(k)) and isinstance(v, (str, int)) and str(v).strip()
-                        and set(str(v)) - {"*", "x", "X", "•"}):
+                if (_SENSITIVE_FIELD.match(str(k)) and isinstance(v, (str, int)) and not isinstance(v, bool)
+                        and not _PLACEHOLDER.match(str(v))):
                     found.append(child)
                 else:
                     stack.append((child, v))
@@ -141,8 +146,9 @@ def _undocumented_fields(doc: Any, schema: Any, path: str = "", depth: int = 0) 
         items = schema.get("items")
         return sorted({f for d in doc[:3] for f in _undocumented_fields(d, items, f"{path}[]", depth + 1)})
     props = schema.get("properties")
-    if not isinstance(doc, dict) or not isinstance(props, dict) or schema.get("additionalProperties") is True:
-        return []
+    if (not isinstance(doc, dict) or not isinstance(props, dict) or schema.get("additionalProperties")
+            or any(k in schema for k in ("allOf", "oneOf", "anyOf"))):
+        return []  # open or composed schema: can't tell what is undocumented
     out = [f"{path}.{k}" if path else str(k) for k in doc if k not in props]
     for k, v in doc.items():
         if k in props:
@@ -152,10 +158,8 @@ def _undocumented_fields(doc: Any, schema: Any, path: str = "", depth: int = 0) 
 
 # kind -> (content that proves it, severity, rule, title, confidence)
 _INVENTORY_SIGNATURES: dict[str, tuple[re.Pattern[str], Severity, str, str, Confidence]] = {
-    "spec": (re.compile(r'("openapi"|"swagger"|^openapi:|^swagger:)', re.M), Severity.LOW,
-             "APIFUZZ-INVENTORY-001", "API specification exposed", "firm"),
-    "docs_ui": (re.compile(r"(swagger-ui|redoc)", re.I), Severity.LOW,
-                "APIFUZZ-INVENTORY-001", "API documentation UI exposed", "firm"),
+    "spec": (re.compile(r'("openapi"|"swagger"|^openapi:|^swagger:)', re.M), Severity.MEDIUM,
+             "APIFUZZ-INVENTORY-001", "Spec for operations missing from the scanned spec exposed", "firm"),
     "actuator": (re.compile(r'"_links"\s*:'), Severity.MEDIUM,
                  "APIFUZZ-INVENTORY-002", "Spring Boot actuator exposed", "firm"),
     "actuator_env": (re.compile(r'"(propertySources|activeProfiles|contexts)"\s*:'), Severity.HIGH,
@@ -171,6 +175,20 @@ _INVENTORY_SIGNATURES: dict[str, tuple[re.Pattern[str], Severity, str, str, Conf
     "version": (re.compile(r"^\s*[\[{]"), Severity.MEDIUM,
                 "APIFUZZ-INVENTORY-003", "Undocumented API version reachable", "tentative"),
 }
+
+
+def _spec_paths(body: str) -> set[str]:
+    """Path templates of a served OpenAPI/Swagger document (JSON or YAML), or empty."""
+    import yaml
+    try:
+        doc = json.loads(body)
+    except ValueError:
+        try:
+            doc = yaml.safe_load(body)
+        except yaml.YAMLError:
+            return set()
+    paths = doc.get("paths") if isinstance(doc, dict) else None
+    return {str(p).rstrip("/") or "/" for p in paths} if isinstance(paths, dict) else set()
 
 
 def _label_endpoints(findings: list[Finding], results: list[TestResult]) -> None:
@@ -246,9 +264,11 @@ def _resembles(a: TestResult, b: TestResult) -> bool:
 
 
 class Analyzer:
-    def __init__(self, sensitive_headers: tuple[str, ...] = ()):
+    def __init__(self, sensitive_headers: tuple[str, ...] = (), documented_paths: set[str] | None = None):
         # Extra header names to mask in request samples (the configured --header-name for apikey auth).
         self.sensitive_headers = sensitive_headers
+        # Path templates of the scanned spec: a served spec describing these is the API's own.
+        self.documented_paths = documented_paths or set()
 
     def analyze(self, results: list[TestResult]) -> list[Finding]:
         # Baseline = one normal request per endpoint with the configured auth (Scanner adds it).
@@ -521,6 +541,10 @@ class Analyzer:
         if control is not None and control.is_success and _resembles(result, control):
             return []  # catch-all server: answers this way for any path
         kind, path = tc.extra.get("kind", ""), tc.extra.get("path", "")
+        if kind == "spec":
+            served = _spec_paths(result.response_body)
+            if not served or served & self.documented_paths:
+                return []  # the API's own published spec (or unparseable): not an inventory gap
         signature = _INVENTORY_SIGNATURES.get(kind)
         if signature is None or not signature[0].search(result.response_body[:MAX_BODY]):
             return []  # reachable, but not the thing we probed for
@@ -535,7 +559,9 @@ class Analyzer:
             endpoint_path=tc.url,
             request_sample=_request_text(result, self.sensitive_headers),
             response_sample=_response_text(result),
-            evidence=f"HTTP {result.status_code}, content matches {kind}; a random path answers differently",
+            evidence=(f"HTTP {result.status_code}, content matches {kind}"
+                      + ("; a random path answers differently" if control is not None
+                         else "; no catch-all control response to compare with")),
             remediation="Remove or restrict the endpoint (network, auth), or document and own it in the inventory.",
             rule_id=rule_id,
             confidence=confidence,
@@ -550,6 +576,10 @@ class Analyzer:
         findings = []
         secrets = _sensitive_fields(doc)
         if secrets:
+            # Passwords never belong in a response. A key or token on the caller's own account page may be
+            # theirs by design: tentative there.
+            own_page = bool(_CALLER_SCOPED.search(tc.extra.get("endpoint_key", "") or tc.url))
+            tentative = own_page and all(_CREDENTIAL_FIELD.search(f.rsplit(".", 1)[-1]) for f in secrets)
             findings.append(Finding(
                 title="Data Exposure: Sensitive fields returned to the client",
                 description=(f"{tc.method} {tc.url} returns sensitive fields with real values: {secrets}. "
@@ -563,6 +593,7 @@ class Analyzer:
                 evidence=f"Sensitive fields with values: {secrets}",
                 remediation="Return an explicit allowlist of fields per role; never serialize whole model objects.",
                 rule_id="APIFUZZ-EXPOSURE-001",
+                confidence="tentative" if tentative else "firm",
             ))
         extra = _undocumented_fields(doc, tc.extra.get("response_schema") or {})
         if extra:
@@ -735,9 +766,15 @@ class Analyzer:
             if any(r.status_code == 429 or r.status_code >= 500 for r in (known, u1, u2)):
                 continue
 
-            def norm(r: TestResult) -> tuple[int, str]:  # the echoed username isn't a difference
-                return r.status_code, r.response_body.replace(r.test_case.extra["user"], "<user>").strip()
+            def norm(r: TestResult) -> tuple[int, str]:
+                # An echoed username isn't a difference: replace whole-word echoes (any case) only, so a
+                # username like "user" doesn't rewrite "Invalid username or password".
+                user = re.escape(r.test_case.extra["user"])
+                return r.status_code, re.sub(rf"(?<![\w-]){user}(?![\w-])", "<user>", r.response_body,
+                                             flags=re.IGNORECASE).strip()
 
+            if (known.status_code, known.response_body) == (u1.status_code, u1.response_body):
+                continue
             if norm(u1) != norm(u2) or norm(known) == norm(u1):
                 continue
             findings.append(Finding(

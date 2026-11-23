@@ -9,8 +9,6 @@ from apifuzz.models.endpoint import AuthConfig, Endpoint
 WELL_KNOWN = [
     ("/openapi.json", "spec"), ("/openapi.yaml", "spec"), ("/swagger.json", "spec"), ("/swagger.yaml", "spec"),
     ("/v2/api-docs", "spec"), ("/v3/api-docs", "spec"), ("/api-docs", "spec"),
-    ("/swagger-ui.html", "docs_ui"), ("/swagger-ui/", "docs_ui"), ("/docs", "docs_ui"), ("/redoc", "docs_ui"),
-    ("/ui/", "docs_ui"),
     ("/actuator", "actuator"), ("/actuator/env", "actuator_env"), ("/actuator/configprops", "actuator_env"),
     ("/.env", "dotenv"), ("/debug/vars", "expvar"), ("/metrics", "metrics"), ("/server-status", "server_status"),
 ]
@@ -19,8 +17,9 @@ MAX_VERSION_PROBES = 10
 
 
 class InventoryCheck(BaseCheck):
-    """Improper inventory management (OWASP API9): API docs, debug/management endpoints and API versions
-    that are reachable but not in the spec. Runs once per scan."""
+    """Improper inventory management (OWASP API9): debug/management endpoints, API versions and specs
+    describing operations that aren't in the scanned spec. Runs once per scan. The API's own published spec
+    and docs UI aren't reported: publishing the documented API is a choice, not an inventory gap."""
 
     check_id = "inventory"
     name = "Improper Inventory Management (OWASP API9)"

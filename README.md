@@ -41,9 +41,9 @@ The spec (or HAR) provides the paths. Pass just the origin:
 | `ssrf` | API7 — Server Side Request Forgery | Cloud-metadata and internal URL probes in URL-type parameters |
 | `cors` | API8 — Security Misconfiguration | Origin reflection + credentials misconfiguration |
 | `data_exposure` | API3 — Broken Object Property Level Authorization | Sensitive fields (passwords, secrets, keys, tokens, card numbers) with real values in GET responses; response fields the spec doesn't document (tentative) |
-| `user_enum` | API2 — Broken Authentication | Login answers differently for an existing username than for unknown ones (wrong password in both) |
-| `bfla` | API5 — Broken Function Level Authorization | With `--low-priv-token`: privileged-looking operations (admin/internal/manage paths, tags, "Only Admins" summaries) called as the low-privilege user |
-| `inventory` | API9 — Improper Inventory Management | Exposed API specs/docs, Spring actuator, `.env`, expvar/metrics/server-status, and neighbouring API versions not in the spec (once per scan) |
+| `user_enum` | API2 — Broken Authentication | Login answers differently for an existing username than for unknown lookalike usernames (wrong password in all). Sends one wrong password for the spec's example user per scan |
+| `bfla` | API5 — Broken Function Level Authorization | With `--low-priv-token`: operations the spec marks as privileged (an `/admin/`-style path segment, role tag or operationId word, "only admins" in the summary, or `x-admin`/`x-internal`) called as the low-privilege user |
+| `inventory` | API9 — Improper Inventory Management | Specs describing operations missing from the scanned spec, Spring actuator, `.env`, expvar/metrics/server-status, and neighbouring API versions (once per scan). The API's own published spec and docs UI aren't reported |
 | `injection` | *(no 2023 API category; OWASP Top 10 A03:2021 Injection)* | SQLi (DB error strings, boolean true/false conditions, time-based with `--time-based`), SSTI and command injection (computed canaries), NoSQLi (Mongo errors and `$ne`/`$eq` response differences), XSS reflected unescaped in HTML |
 
 Coverage: API1, API2, API3, API4, API5, API7, API8 and API9. API6 (business flows) and API10 (unsafe consumption) are not tested.

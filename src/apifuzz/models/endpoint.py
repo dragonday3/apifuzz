@@ -45,3 +45,4 @@ class Endpoint(BaseModel):
     auth_optional: bool = False
     response_schema: dict[str, Any] = {}  # JSON schema of the documented 2xx response (OpenAPI only)
     summary: str = ""                     # summary + description: hints such as "Only Admins"
+    privileged: bool = False              # x-admin / x-internal / x-privileged extension on the operation
