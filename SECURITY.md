@@ -10,7 +10,10 @@
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Report security issues privately to: **dragon.day33@gmail.com**
+Report security issues privately through GitHub's private vulnerability reporting:
+**[Report a vulnerability](https://github.com/dragonday3/apifuzz/security/advisories/new)** (Security tab → *Report a vulnerability*).
+
+Only the maintainer can see the report.
 
 Include in your report:
 - Description of the vulnerability
