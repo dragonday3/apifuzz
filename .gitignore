@@ -53,3 +53,7 @@ Thumbs.db
 graphify-out/
 CLAUDE.md
 docs/
+CLAUDE.local.md
+.antigravitycli/
+.mypy_cache/
+.ruff_cache/
