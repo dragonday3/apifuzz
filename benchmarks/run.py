@@ -75,6 +75,17 @@ def vampi_setup(base_url: str) -> tuple[str, AuthConfig]:
     return str(seeded), AuthConfig(type="bearer", token=token_a, second_token=token_b)
 
 
+def post_retrying_5xx(client: httpx.Client, url: str, body: dict, tries: int = 5) -> httpx.Response:
+    """After a scan, crAPI's user-id sequence can collide with rows its signup probes created
+    ("duplicate key ... user_login_pkey", a 500); each failed insert advances it, so retry."""
+    for _ in range(tries):
+        r = client.post(url, json=body)
+        if r.status_code < 500:
+            break
+    r.raise_for_status()
+    return r
+
+
 def crapi_setup(base_url: str) -> tuple[str, AuthConfig]:
     """Sign up two fresh users (random credentials per run), give user A one of each object the challenges
     are about (vehicle, order, mechanic report, video, post), and seed the spec's id parameters with A's ids.
@@ -84,9 +95,9 @@ def crapi_setup(base_url: str) -> tuple[str, AuthConfig]:
     with httpx.Client(base_url=base_url, timeout=30) as client:
         def user(tag: str) -> tuple[str, str]:
             email = f"bench-{tag}-{suffix}@example.com"
-            client.post("/identity/api/auth/signup", json={
+            post_retrying_5xx(client, "/identity/api/auth/signup", {
                 "name": f"bench{tag}{suffix}", "email": email, "password": password,
-                "number": f"9{secrets.randbelow(10**9):09d}"}).raise_for_status()
+                "number": f"9{secrets.randbelow(10**9):09d}"})
             r = client.post("/identity/api/auth/login", json={"email": email, "password": password})
             r.raise_for_status()
             return email, r.json()["token"]
@@ -311,6 +322,8 @@ def main() -> int:
     secure_url = args.secure_url or target["secure_url"]
     secure_findings, secure_errors, secure_sent = scan(target, secure_url) if secure_url else ([], {}, 0)
     result = score(vulns, vuln_findings, secure_findings)
+    if not secure_url:  # no secure run: "0 false positives on the secure build" would be a false claim
+        result.update({k: None for k in result if k.startswith("secure_")})
     meta = {"date": datetime.date.today().isoformat(), "commit": git_commit(),
             "scan": json.dumps(target["scan"]), "sent_vulnerable": vuln_sent, "sent_secure": secure_sent,
             "errors_vulnerable": vuln_errors, "errors_secure": secure_errors, "has_secure": bool(secure_url)}

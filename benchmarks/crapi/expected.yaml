@@ -53,6 +53,9 @@ vulnerabilities:
     check: bfla
     rules: [APIFUZZ-BFLA-*, APIFUZZ-BOLA-*]
     toggled: false
+  # 8 and 9: the solutions doc shows the negative-quantity route (POST /workshop/api/shop/orders); the challenge
+  # text ("a shadow API endpoint that allows you to edit properties of a specific order") is
+  # OrderControlView.put, so both map to PUT .../orders/{order_id}. Neither mapping changes any score.
   - id: mass-assignment-order-status
     name: "8. Mass assignment: get an item for free (order status)"
     endpoint: PUT /workshop/api/shop/orders/{order_id}

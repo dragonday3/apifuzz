@@ -62,3 +62,13 @@ def test_report_without_a_fixed_build_lists_unmatched_findings():
     md = bench.markdown("t", meta, s)
     assert "no fixed build" in md and "secure" not in md.lower()
     assert "`APIFUZZ-CORS-001` (firm) on `GET /x`" in md
+
+
+def test_crapi_signup_retries_a_transient_500():
+    import httpx
+    import respx
+    with respx.mock(base_url="http://c") as router:
+        route = router.post("/signup").mock(side_effect=[httpx.Response(500), httpx.Response(200, json={})])
+        with httpx.Client(base_url="http://c") as client:
+            assert bench.post_retrying_5xx(client, "/signup", {}).status_code == 200
+    assert route.call_count == 2

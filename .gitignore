@@ -59,3 +59,4 @@ CLAUDE.local.md
 .ruff_cache/
 .claude/
 !benchmarks/results/*.json
+!benchmarks/crapi/*.json
