@@ -108,7 +108,21 @@ apifuzz recording.har --target https://api.example.com
 
 # Scan a Postman collection
 apifuzz collection.json --target https://api.example.com
+
+# See what would be sent, without sending anything
+apifuzz openapi.yaml --target https://api.example.com --dry-run
+
+# Route traffic through Burp/ZAP to verify findings by hand
+apifuzz openapi.yaml --target https://api.example.com --proxy http://127.0.0.1:8080
 ```
+
+### Safety defaults
+
+- **Read-mostly by default.** `PUT`, `PATCH` and `DELETE` endpoints are skipped unless you pass `--allow-destructive`, because probes such as cross-user BOLA really modify or delete the target's data. `POST` endpoints are tested and may create records.
+- **Scope lock.** Every request goes to the `--target` origin: hosts recorded in HAR/Postman files or spec `servers` are ignored, and redirects to another host are refused. Narrow the scan further with `--include` / `--exclude` path globs.
+- **Politeness.** `--rate-limit` paces requests, `--max-requests` caps the total, and `429`/`503` responses are retried (`--retries`, honouring `Retry-After`).
+- **TLS** certificates are verified unless you pass `--insecure`.
+- **Redaction.** Reports show each finding's request as it was sent, with `Authorization`, cookies, API-key headers and your configured tokens masked (`Bear****`).
 
 ### No spec? Zero-spec workflow via HAR
 
@@ -150,6 +164,14 @@ Options:
   --min-confidence TEXT      Report only: tentative (all) | firm [default: tentative]
   --time-based               Add time-based SQLi probes (each waits ~5 s on a
                              vulnerable target)
+  --allow-destructive        Also test PUT/PATCH/DELETE endpoints (modifies data)
+  --dry-run                  Print the test plan, send nothing
+  --include TEXT             Only test paths matching this glob (repeatable)
+  --exclude TEXT             Skip paths matching this glob (repeatable)
+  --max-requests INT         Stop sending after this many requests
+  --retries INT              Retries on 429/503 [default: 2]
+  --insecure                 Skip TLS certificate verification
+  --proxy TEXT               Proxy URL, e.g. http://127.0.0.1:8080
   --quiet, -q                Suppress progress output
   --help                     Show this message and exit.
 ```
@@ -264,7 +286,8 @@ Machine-readable array of findings. Each finding includes:
 - `rule_id`, `title`, `severity`, `confidence` (`firm` | `tentative`), `owasp_category`
 - `endpoint_method`, `endpoint_path`
 - `evidence` — what matched (e.g. the error string or canary found)
-- `request_sample`, `response_sample` — the probe and an excerpt of the response
+- `request_sample` — the request as sent (method, URL, headers, body), credentials masked
+- `response_sample` — an excerpt of the response (bodies over 8 KB are truncated, and the excerpt says so)
 - `remediation` — actionable fix guidance
 
 ### HTML
@@ -279,8 +302,10 @@ Run a practice target such as [OWASP crAPI](https://github.com/OWASP/crAPI) or [
 
 ```bash
 apifuzz ./target-openapi.yaml --target http://localhost:<port> \
-  --output html --out-file report.html
+  --allow-destructive --output html --out-file report.html
 ```
+
+`--allow-destructive` is fine here because these targets are disposable. VAmPI, for example, resets its data with `GET /createdb`.
 
 ---
 
@@ -305,7 +330,9 @@ Check Engine           → TestCase list
 Async Executor         → TestResult list
   httpx AsyncClient
   Semaphore concurrency control
-  Minimum-interval rate limiting (bursts exempt)
+  Scope lock to the --target origin (redirects too)
+  Minimum-interval rate limiting (bursts exempt),
+    request budget, 429/503 retry with backoff
   Auth injection (bearer / apikey / basic),
     never replacing the headers an auth/BOLA probe sets
 

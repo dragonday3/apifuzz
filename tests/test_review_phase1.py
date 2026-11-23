@@ -157,3 +157,18 @@ async def test_scan_pass_order(tmp_path, monkeypatch):
     assert calls[0] == {"baseline"}
     assert "baseline" not in calls[1] and "sqli_time" not in calls[1] and "burst" not in calls[1]
     assert calls[2] == {"sqli_time"} and calls[-1] == {"burst"}
+
+
+async def test_bursts_run_one_endpoint_at_a_time(tmp_path, monkeypatch):
+    calls: list[set[str]] = []
+    scanner = Scanner(str(tmp_path / "unused.yaml"), "http://api", checks=["rate_limit"])
+    eps = [Endpoint(method="GET", path=p, base_url="http://api") for p in ("/a", "/b", "/c")]
+    monkeypatch.setattr(scanner, "_parse", lambda path: eps)
+
+    async def fake_run(self, cases):
+        calls.append({tc.extra["endpoint_key"] for tc in cases})
+        return []
+    monkeypatch.setattr("apifuzz.executor.Executor.run", fake_run)
+    await scanner.run()
+    burst_calls = [c for c in calls if c]
+    assert burst_calls == [{"GET /a"}, {"GET /b"}, {"GET /c"}]

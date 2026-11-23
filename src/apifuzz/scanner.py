@@ -132,7 +132,8 @@ class Scanner:
         # 2. probes;
         # 3. time-based SQLi one at a time (concurrent sleeps would delay innocent probes queued behind them);
         # 4. confirmations (GET the object a mass-assignment probe created);
-        # 5. rate-limit bursts last, so they can't exhaust a real limit and turn other probes into 429s.
+        # 5. rate-limit bursts last, so they can't exhaust a real limit and turn other probes into 429s,
+        #    one endpoint at a time.
         baselines = [tc for tc in test_cases if tc.check_id == "baseline"]
         timed = [tc for tc in test_cases if tc.extra.get("strategy") == "sqli_time"]
         bursts = [tc for tc in test_cases if not tc.throttle]
@@ -145,7 +146,13 @@ class Scanner:
         followups = self.analyzer.followups(results)
         if followups:
             results += await self.executor.run(followups)
-        results += await self.executor.run(bursts)
+        # One endpoint's burst at a time: concurrent bursts interfere (a burst on a state-resetting endpoint
+        # turned another endpoint's burst into 500s) and blur which endpoint is limited.
+        by_endpoint: dict[str, list[TestCase]] = {}
+        for tc in bursts:
+            by_endpoint.setdefault(tc.extra.get("endpoint_key", ""), []).append(tc)
+        for group in by_endpoint.values():
+            results += await self.executor.run(group)
 
         findings = self.analyzer.analyze(results)
 
