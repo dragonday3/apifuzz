@@ -146,7 +146,7 @@ def git_commit() -> str:
         commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=HERE, text=True).strip()
         # A result measured on uncommitted code must say so (the results files themselves don't count).
         changes = subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=no", "--", ":/",
-                                           ":(exclude)benchmarks/results"], cwd=HERE, text=True).strip()
+                                           ":(top,exclude)benchmarks/results"], cwd=HERE, text=True).strip()
         return f"{commit}-dirty" if changes else commit
     except (OSError, subprocess.CalledProcessError):
         return "unknown"
