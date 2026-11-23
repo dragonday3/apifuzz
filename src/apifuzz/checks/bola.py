@@ -12,7 +12,12 @@ class BOLACheck(BaseCheck):
 
     def generate(self, endpoint: Endpoint, auth: AuthConfig) -> list[TestCase]:
         test_cases = []
-        id_params = [p for p in endpoint.parameters if p.location == ParamLocation.PATH and ID_PATTERNS.search(p.name)]
+        if endpoint.secured is False:  # public by design: any caller may read it
+            return []
+        path_params = [p for p in endpoint.parameters if p.location == ParamLocation.PATH]
+        # On a secured endpoint every path param can be an object reference (book_title, username);
+        # otherwise only id-looking names are worth probing.
+        id_params = path_params if endpoint.secured else [p for p in path_params if ID_PATTERNS.search(p.name)]
 
         if not id_params:
             return []

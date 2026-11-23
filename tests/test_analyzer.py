@@ -47,12 +47,40 @@ class TestAnalyzerBOLA:
         result = make_result(tc, 403)
         assert analyzer.analyze([result]) == []
 
-    def test_id_enumeration_200_is_high(self, analyzer):
+    def test_id_enumeration_200_alone_is_not_a_finding(self, analyzer):
         tc = make_tc("bola", extra={"strategy": "id_enumeration", "probe_id": "2"})
-        result = make_result(tc, 200)
-        findings = analyzer.analyze([result])
-        assert len(findings) == 1
-        assert findings[0].severity == Severity.HIGH
+        assert analyzer.analyze([make_result(tc, 200)]) == []
+
+    def test_id_enumeration_other_object_same_schema_is_tentative_high(self, analyzer):
+        key = {"endpoint_key": "GET /items/{id}"}
+        base = make_result(make_tc("baseline", extra=key), 200, body='{"id": 1, "owner": "alice"}')
+        tc = make_tc("bola", extra={"strategy": "id_enumeration", "probe_id": "2", **key})
+        [f] = analyzer.analyze([base, make_result(tc, 200, body='{"id": 2, "owner": "bob"}')])
+        assert f.severity == Severity.HIGH and f.confidence == "tentative"
+
+    def test_id_enumeration_own_object_or_other_shape_is_not_a_finding(self, analyzer):
+        key = {"endpoint_key": "GET /items/{id}"}
+        base = make_result(make_tc("baseline", extra=key), 200, body='{"id": 1, "owner": "alice"}')
+        same = make_result(make_tc("bola", extra={"strategy": "id_enumeration", "probe_id": "1", **key}),
+                           200, body='{"id": 1, "owner": "alice"}')
+        other = make_result(make_tc("bola", extra={"strategy": "id_enumeration", "probe_id": "2", **key}),
+                            200, body='{"error": "not yours"}')
+        assert analyzer.analyze([base, same, other]) == []
+
+    def test_cross_user_firm_only_when_users_object_returned(self, analyzer):
+        key = {"endpoint_key": "GET /items/{id}"}
+        base = make_result(make_tc("baseline", extra=key), 200, body='{"id": 1, "owner": "alice", "n": 5}')
+        leak = make_result(make_tc("bola", extra={"strategy": "cross_user", **key}), 200,
+                           body='{"id": 1, "owner": "alice", "n": 6}')
+        [f] = analyzer.analyze([base, leak])
+        assert f.rule_id == "APIFUZZ-BOLA-001" and f.confidence == "firm"
+
+    def test_cross_user_own_data_is_not_bola(self, analyzer):
+        key = {"endpoint_key": "GET /items/{id}"}
+        base = make_result(make_tc("baseline", extra=key), 200, body='{"id": 1, "owner": "alice"}')
+        own = make_result(make_tc("bola", extra={"strategy": "cross_user", **key}), 200,
+                          body='{"id": 9, "owner": "bob"}')
+        assert analyzer.analyze([base, own]) == []
 
     def test_id_enumeration_404_no_finding(self, analyzer):
         tc = make_tc("bola", extra={"strategy": "id_enumeration", "probe_id": "2"})
@@ -203,11 +231,16 @@ class TestAnalyzerCORS:
 
 class TestAnalyzerDedup:
     def test_dedup_keeps_highest_severity(self, analyzer):
+        key = {"endpoint_key": "GET /items/{id}"}
+        base = make_result(make_tc("baseline", url="http://api.example.com/items/1", extra=key), 200,
+                           body='{"id": 1, "owner": "alice"}')
         high = make_result(make_tc("bola", url="http://api.example.com/items/1",
-                                   extra={"strategy": "id_enumeration", "probe_id": "1"}), 200)
+                                   extra={"strategy": "id_enumeration", "probe_id": "2", **key}), 200,
+                           body='{"id": 2, "owner": "bob"}')
         critical = make_result(make_tc("bola", url="http://api.example.com/items/1",
-                                       extra={"strategy": "cross_user"}), 200)
-        findings = analyzer.analyze([high, critical])
+                                       extra={"strategy": "cross_user", **key}), 200,
+                               body='{"id": 1, "owner": "alice"}')
+        findings = analyzer.analyze([base, high, critical])
         # Both have different rule_ids so both kept
         rule_ids = {f.rule_id for f in findings}
         assert "APIFUZZ-BOLA-001" in rule_ids

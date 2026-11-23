@@ -1,4 +1,7 @@
+import json
 import re
+from typing import Any
+
 from apifuzz.checks.injection import CMD_CANARY, SSTI_PRODUCT
 from apifuzz.executor import TestResult
 from apifuzz.models.finding import Confidence, Finding, OWASPCategory, Severity
@@ -20,6 +23,27 @@ _CMD_UID = re.compile(r"uid=\d+\([\w-]+\) gid=\d+")
 _NOSQL_ERRORS = re.compile(r"(MongoError|MongoServerError|unknown operator|\$where)")
 
 _SEVERITY_RANK = {s: i for i, s in enumerate(_SEVERITY_ORDER)}
+
+
+_IDENTIFYING_KEY = re.compile(r"^(id|uuid|username|email|.+_id|.+Id)$")
+
+
+def _json(body: str) -> Any:
+    try:
+        return json.loads(body)
+    except ValueError:
+        return None
+
+
+def _same_object(a: str, b: str) -> bool:
+    """Do two response bodies describe the same object? Identical, or the same identifying fields."""
+    if a == b:
+        return True
+    ja, jb = _json(a), _json(b)
+    if not (isinstance(ja, dict) and isinstance(jb, dict)):
+        return False
+    keys = [k for k in ja if _IDENTIFYING_KEY.match(k) and k in jb and ja[k] not in (None, "")]
+    return bool(keys) and all(ja[k] == jb[k] for k in keys)
 
 
 def _resembles(a: TestResult, b: TestResult) -> bool:
@@ -77,13 +101,25 @@ class Analyzer:
     def _check_bola(self, result: TestResult) -> list[Finding]:
         tc = result.test_case
         strategy = tc.extra.get("strategy", "")
+        if not result.is_success:
+            return []
+        base = self._baseline(result)  # user A (configured token) reading the example object
 
-        if strategy == "cross_user" and result.is_success:
+        if strategy == "cross_user":
+            # User B reading user A's object. Firm only if B got A's object back; a 2xx with B's own
+            # data or a soft-fail body is not BOLA. No baseline (DELETE) -> tentative.
+            if base is not None and not (base.is_success and _same_object(base.response_body,
+                                                                           result.response_body)):
+                return []
+            confidence: Confidence = "firm" if base is not None else "tentative"
             return [Finding(
                 title="BOLA: Cross-user object access succeeded",
                 description=(
-                    f"Request using second token returned HTTP 200 on "
-                    f"{tc.method} {tc.url}. Resource may be accessible across user boundaries."
+                    f"Using the second user's token, {tc.method} {tc.url} returned the first user's object. "
+                    f"Object-level authorization is not enforced."
+                    if base is not None else
+                    f"Using the second user's token, {tc.method} {tc.url} returned HTTP {result.status_code}. "
+                    f"No baseline to confirm whose object it was; verify manually."
                 ),
                 severity=Severity.CRITICAL,
                 owasp_category=OWASPCategory.API1_BOLA,
@@ -91,17 +127,26 @@ class Analyzer:
                 endpoint_path=tc.url,
                 request_sample=tc.label,
                 response_sample=result.response_body[:500],
-                evidence=f"HTTP {result.status_code} with cross-user token",
+                evidence=(f"HTTP {result.status_code} with cross-user token; response matches user A's object"
+                          if base is not None else f"HTTP {result.status_code} with cross-user token"),
                 remediation="Enforce object-level authorization: verify the requesting user owns the resource.",
                 rule_id="APIFUZZ-BOLA-001",
+                confidence=confidence,
             )]
 
-        if strategy == "id_enumeration" and result.status_code == 200:
+        if strategy == "id_enumeration":
+            # A 200 alone isn't a finding: most APIs have an object 1. Tentative only when the probed ID
+            # returns an object shaped like the caller's own (same keys) but a different one.
+            if base is None or not base.is_success or _same_object(base.response_body, result.response_body):
+                return []
+            mine, theirs = _json(base.response_body), _json(result.response_body)
+            if not (isinstance(mine, dict) and isinstance(theirs, dict) and mine.keys() == theirs.keys()):
+                return []
             return [Finding(
-                title="BOLA: Enumerated object ID returned data",
+                title="BOLA: Enumerated object ID returned another object",
                 description=(
-                    f"Probe ID {tc.extra.get('probe_id')} on {tc.method} {tc.url} "
-                    f"returned HTTP 200. Possible IDOR vulnerability."
+                    f"Probe ID {tc.extra.get('probe_id')} on {tc.method} {tc.url} returned an object with the "
+                    f"same fields as the caller's own but different values. It may belong to another user."
                 ),
                 severity=Severity.HIGH,
                 owasp_category=OWASPCategory.API1_BOLA,
@@ -109,9 +154,11 @@ class Analyzer:
                 endpoint_path=tc.url,
                 request_sample=tc.label,
                 response_sample=result.response_body[:500],
-                evidence=f"HTTP {result.status_code} for probe ID {tc.extra.get('probe_id')}",
+                evidence=f"HTTP {result.status_code} for probe ID {tc.extra.get('probe_id')}; same schema, "
+                         f"different object than the baseline",
                 remediation="Validate that returned object belongs to the authenticated user.",
                 rule_id="APIFUZZ-BOLA-002",
+                confidence="tentative",
             )]
         return []
 

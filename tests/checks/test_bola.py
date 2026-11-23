@@ -133,3 +133,21 @@ def test_build_url_does_not_clobber_longer_param_names():
         Parameter(name="user", location=ParamLocation.PATH, example="bob"),
         Parameter(name="userId", location=ParamLocation.PATH, example="7")])
     assert build_url(ep) == "http://x/u/bob/items/7"
+
+
+
+def test_secured_endpoint_probes_non_id_path_params():
+    from apifuzz.checks.bola import BOLACheck
+    from apifuzz.models.endpoint import AuthConfig, Endpoint, Parameter, ParamLocation
+    ep = Endpoint(method="GET", path="/books/{book_title}", base_url="http://x", secured=True,
+                  parameters=[Parameter(name="book_title", location=ParamLocation.PATH, example="bookTitle77")])
+    cases = BOLACheck().generate(ep, AuthConfig(type="bearer", token="a", second_token="b"))
+    assert any(c.extra["strategy"] == "cross_user" and c.url == "http://x/books/bookTitle77" for c in cases)
+
+
+def test_public_endpoint_not_probed():
+    from apifuzz.checks.bola import BOLACheck
+    from apifuzz.models.endpoint import AuthConfig, Endpoint, Parameter, ParamLocation
+    ep = Endpoint(method="GET", path="/users/{userId}", base_url="http://x", secured=False,
+                  parameters=[Parameter(name="userId", location=ParamLocation.PATH)])
+    assert BOLACheck().generate(ep, AuthConfig(type="bearer", token="a", second_token="b")) == []

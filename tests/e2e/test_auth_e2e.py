@@ -1,6 +1,4 @@
 """Phase 0.1: configured auth must not overwrite the headers the auth/BOLA probes send."""
-import pytest
-
 from apifuzz.models.endpoint import AuthConfig
 from apifuzz.scanner import Scanner
 
@@ -63,12 +61,16 @@ async def full_scan_secure(mock_api):
     return findings
 
 
-async def test_full_scan_secure_api_only_known_limitation(mock_api):
-    """All checks against a secure, rate-limited API. The one remaining false positive is BOLA ID
-    enumeration of the caller's own object (README known limitation, plan 1.3)."""
-    assert {f.rule_id for f in await full_scan_secure(mock_api)} <= {"APIFUZZ-BOLA-002"}
-
-
-@pytest.mark.xfail(strict=True, reason="BOLA ID enumeration flags any 200 until plan 1.3")
 async def test_full_scan_secure_api_zero_findings(mock_api):
+    """Every check, against a secure, rate-limited API: no findings at all."""
     assert await full_scan_secure(mock_api) == []
+
+
+async def test_full_scan_vulnerable_api_findings(mock_api):
+    """Same scan against an API that verifies neither tokens nor ownership."""
+    mock_api(rate_limit=SECURE_BUDGET, accept_any_token=True, enforce_ownership=False)
+    findings = await Scanner(PETSTORE, BASE, auth=ALICE, rate_limit_rps=0).run()
+    found = {(f.rule_id, f.endpoint_method, f.endpoint_path.removeprefix(BASE), f.confidence) for f in findings}
+    assert ("APIFUZZ-BOLA-001", "GET", "/pets/1", "firm") in found         # bob reads alice's pet
+    assert ("APIFUZZ-BOLA-002", "GET", "/pets/2", "tentative") in found    # alice reads bob's pet
+    assert ("APIFUZZ-AUTH-INVALID_TO", "GET", "/pets", "firm") in found
