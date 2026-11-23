@@ -13,6 +13,7 @@ from apifuzz.checks.bola import BOLACheck
 from apifuzz.checks.cors import CORSCheck
 from apifuzz.checks.data_exposure import DataExposureCheck
 from apifuzz.checks.injection import InjectionCheck
+from apifuzz.checks.inventory import InventoryCheck
 from apifuzz.checks.mass_assignment import MassAssignmentCheck
 from apifuzz.checks.rate_limit import RateLimitCheck
 from apifuzz.checks.ssrf import SSRFCheck
@@ -36,6 +37,7 @@ _ALL_CHECKS: dict[str, type[BaseCheck]] = {
     "cors": CORSCheck,
     "data_exposure": DataExposureCheck,
     "user_enum": UserEnumCheck,
+    "inventory": InventoryCheck,
 }
 
 
@@ -207,4 +209,8 @@ class Scanner:
             for tc in cases:
                 tc.extra["endpoint_key"] = key
             test_cases.extend(cases)
+        for check in self._checks:
+            for tc in check.generate_global(endpoints, self.auth):
+                tc.extra.setdefault("endpoint_key", f"GET {tc.extra.get('path', '')} (not in spec)")
+                test_cases.append(tc)
         return test_cases

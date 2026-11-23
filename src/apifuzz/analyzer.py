@@ -148,6 +148,29 @@ def _undocumented_fields(doc: Any, schema: Any, path: str = "", depth: int = 0) 
     return out
 
 
+# kind -> (content that proves it, severity, rule, title, confidence)
+_INVENTORY_SIGNATURES: dict[str, tuple[re.Pattern[str], Severity, str, str, Confidence]] = {
+    "spec": (re.compile(r'("openapi"|"swagger"|^openapi:|^swagger:)', re.M), Severity.LOW,
+             "APIFUZZ-INVENTORY-001", "API specification exposed", "firm"),
+    "docs_ui": (re.compile(r"(swagger-ui|redoc)", re.I), Severity.LOW,
+                "APIFUZZ-INVENTORY-001", "API documentation UI exposed", "firm"),
+    "actuator": (re.compile(r'"_links"\s*:'), Severity.MEDIUM,
+                 "APIFUZZ-INVENTORY-002", "Spring Boot actuator exposed", "firm"),
+    "actuator_env": (re.compile(r'"(propertySources|activeProfiles|contexts)"\s*:'), Severity.HIGH,
+                     "APIFUZZ-INVENTORY-002", "Actuator configuration endpoint exposed", "firm"),
+    "dotenv": (re.compile(r"(^[A-Z][A-Z0-9_]{2,}=.*\n){2,}", re.M), Severity.HIGH,
+               "APIFUZZ-INVENTORY-002", ".env file exposed", "firm"),
+    "expvar": (re.compile(r'"memstats"\s*:'), Severity.MEDIUM,
+               "APIFUZZ-INVENTORY-002", "Go expvar debug endpoint exposed", "firm"),
+    "metrics": (re.compile(r"^# (HELP|TYPE) ", re.M), Severity.MEDIUM,
+                "APIFUZZ-INVENTORY-002", "Prometheus metrics exposed", "firm"),
+    "server_status": (re.compile(r"Server Status for", re.I), Severity.MEDIUM,
+                      "APIFUZZ-INVENTORY-002", "Apache server-status exposed", "firm"),
+    "version": (re.compile(r"^\s*[\[{]"), Severity.MEDIUM,
+                "APIFUZZ-INVENTORY-003", "Undocumented API version reachable", "tentative"),
+}
+
+
 def _label_endpoints(findings: list[Finding], results: list[TestResult]) -> None:
     """Every finding's endpoint_path is the URL of the probe that produced it: map it back to its operation."""
     keys: dict[tuple[str, str], str] = {}
@@ -232,6 +255,8 @@ class Analyzer:
             r.test_case.extra.get("endpoint_key"): r
             for r in results if r.test_case.check_id == "baseline" and not r.is_error
         }
+        self._inventory_control = next((r for r in results if not r.is_error
+                                        and r.test_case.extra.get("strategy") == "inventory_control"), None)
         # What the endpoint answers for an object that can't exist: a 200 {"message": "not found"} must
         # not count as "user B got user A's object".
         self._missing: dict[str | None, TestResult] = {
@@ -272,6 +297,7 @@ class Analyzer:
             "rate_limit": self._check_rate_limit,
             "cors": self._check_cors,
             "data_exposure": self._check_data_exposure,
+            "inventory": self._check_inventory,
         }
         handler = dispatch.get(check_id)
         if handler:
@@ -457,6 +483,34 @@ class Analyzer:
                                              and f.endpoint_method == probe.test_case.method)]
             raw.append(self._mass_finding(probe, stored, "firm",
                                           f"{v.test_case.label} returned the injected values: {stored}"))
+
+    def _check_inventory(self, result: TestResult) -> list[Finding]:
+        tc = result.test_case
+        if tc.extra.get("strategy") != "inventory_probe" or not result.is_success:
+            return []
+        control = getattr(self, "_inventory_control", None)
+        if control is not None and control.is_success and _resembles(result, control):
+            return []  # catch-all server: answers this way for any path
+        kind, path = tc.extra.get("kind", ""), tc.extra.get("path", "")
+        signature = _INVENTORY_SIGNATURES.get(kind)
+        if signature is None or not signature[0].search(result.response_body[:MAX_BODY]):
+            return []  # reachable, but not the thing we probed for
+        _, severity, rule_id, title, confidence = signature
+        return [Finding(
+            title=f"Inventory: {title} ({path})",
+            description=(f"GET {tc.url} is reachable and is not in the spec. Unlisted docs, management endpoints "
+                         f"and API versions escape review, patching and monitoring."),
+            severity=severity,
+            owasp_category=OWASPCategory.API9_INVENTORY,
+            endpoint_method="GET",
+            endpoint_path=tc.url,
+            request_sample=_request_text(result, self.sensitive_headers),
+            response_sample=_response_text(result),
+            evidence=f"HTTP {result.status_code}, content matches {kind}; a random path answers differently",
+            remediation="Remove or restrict the endpoint (network, auth), or document and own it in the inventory.",
+            rule_id=rule_id,
+            confidence=confidence,
+        )]
 
     def _check_data_exposure(self, result: TestResult) -> list[Finding]:
         tc = result.test_case

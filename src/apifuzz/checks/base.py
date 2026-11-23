@@ -28,5 +28,9 @@ class BaseCheck(ABC):
         """Generate security test cases for this endpoint."""
         ...
 
+    def generate_global(self, endpoints: list[Endpoint], auth: AuthConfig) -> list[TestCase]:
+        """Test cases sent once per scan rather than per endpoint (e.g. inventory). Default: none."""
+        return []
+
     def _build_url(self, endpoint: Endpoint, path_overrides: dict[str, str] | None = None) -> str:
         return build_url(endpoint, path_overrides)
