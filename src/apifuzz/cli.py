@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import sys
 from collections import Counter
 from typing import List, Optional
@@ -12,6 +13,7 @@ from rich.table import Table
 from rich import box
 from rich.markup import escape
 
+from apifuzz import ignore as ignore_file
 from apifuzz.models.endpoint import AuthConfig
 from apifuzz.scanner import Scanner
 from apifuzz.reporters.sarif import SARIFReporter
@@ -64,6 +66,13 @@ def scan(
     proxy: Optional[str] = typer.Option(None, "--proxy", help="Send traffic through a proxy, e.g. http://127.0.0.1:8080"),
     oob_url: str = typer.Option(
         "", "--oob-url", help="Collector URL you control (interactsh, webhook) for blind SSRF payloads"),
+    fail_on: str = typer.Option(
+        "high", "--fail-on", help="Exit 1 if any finding is at least this severe: critical | high | medium | low | "
+                                  "info | never"),
+    ignore_path: Optional[str] = typer.Option(
+        None, "--ignore-file", help=f"Accepted findings to suppress (default: {ignore_file.DEFAULT_FILE} if present)"),
+    write_ignore: Optional[str] = typer.Option(
+        None, "--write-ignore", help="Write an ignore file accepting every finding of this scan, then exit 0"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress progress output"),
 ) -> None:
     """Scan an API for OWASP API Top 10 security issues."""
@@ -73,6 +82,15 @@ def scan(
         raise typer.BadParameter(str(e), param_hint="--target")
     if target_url.scheme not in ("http", "https") or not target_url.host:
         raise typer.BadParameter("must be an http(s) URL such as https://api.example.com", param_hint="--target")
+    if fail_on not in _FAIL_ON:
+        raise typer.BadParameter(f"must be one of: {', '.join(_FAIL_ON)}", param_hint="--fail-on")
+    ignore_rules: list[ignore_file.IgnoreRule] = []
+    ignore_src = ignore_path or (ignore_file.DEFAULT_FILE if os.path.exists(ignore_file.DEFAULT_FILE) else None)
+    if ignore_src:
+        try:
+            ignore_rules = ignore_file.load(ignore_src)
+        except (OSError, ValueError) as e:
+            raise typer.BadParameter(str(e), param_hint="--ignore-file")
     if min_confidence not in ("tentative", "firm"):
         raise typer.BadParameter("must be 'tentative' or 'firm'", param_hint="--min-confidence")
     auth = AuthConfig(
@@ -121,6 +139,7 @@ def scan(
         findings = asyncio.run(scanner.run())
         if min_confidence == "firm":
             findings = [f for f in findings if f.confidence == "firm"]
+        findings, suppressed, expired = ignore_file.apply(findings, ignore_rules)
         progress.update(task, description=f"Done — {len(findings)} finding(s)")
 
     if not quiet:
@@ -131,6 +150,11 @@ def scan(
             console.print(f"[yellow]--max-requests {scanner.budget.limit} reached: {scanner.budget.denied} "
                           f"request(s) not sent, the scan is incomplete.[/]")
     _warn_failures(scanner)
+    if suppressed and not quiet:
+        console.print(f"[dim]{len(suppressed)} finding(s) suppressed by {ignore_src}[/]")
+    for rule in expired:
+        console.print(f"[yellow]Ignore entry expired on {rule.expires}: {rule.rule_id} {rule.endpoint}. "
+                      f"It no longer suppresses anything.[/]")
     if scanner.oob_probes:  # printed even with --quiet: the user needs this to confirm callbacks
         console.print(f"[cyan]Sent {len(scanner.oob_probes)} blind-SSRF probe(s) to {oob_url}. A request to "
                       f"<collector>/apifuzz-<id> means that parameter fetches attacker URLs:[/]")
@@ -147,10 +171,18 @@ def scan(
         if output_text:
             sys.stdout.write(output_text)
 
-    # Exit code: non-zero if critical/high findings
-    severity_values = {f.severity.value for f in findings}
-    if "critical" in severity_values or "high" in severity_values:
+    if write_ignore:
+        n = ignore_file.write(findings, write_ignore)
+        console.print(f"[green]Wrote {n} accepted finding(s) to {write_ignore}[/] (fill in each reason)")
+        return
+
+    # Exit code 1 if any reported (not ignored) finding reaches --fail-on.
+    threshold = _FAIL_ON.index(fail_on)
+    if fail_on != "never" and any(_FAIL_ON.index(f.severity.value) <= threshold for f in findings):
         raise typer.Exit(code=1)
+
+
+_FAIL_ON = ["critical", "high", "medium", "low", "info", "never"]
 
 
 def _warn_failures(scanner: Scanner) -> None:

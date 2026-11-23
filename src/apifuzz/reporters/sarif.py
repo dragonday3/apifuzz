@@ -1,3 +1,4 @@
+import hashlib
 import json
 from typing import Any
 from apifuzz.models.finding import Finding, OWASPCategory
@@ -78,9 +79,18 @@ def _owasp_security_severity(finding: Finding) -> str:
     return scores.get(finding.severity.value, "0.0")
 
 
+def _fingerprint(finding: Finding) -> str:
+    """Stable across runs: rule + method + spec operation. Probe URLs carry random ids and payloads, so the
+    concrete URL is used only when the operation is unknown."""
+    key = "|".join([finding.rule_id, finding.endpoint_method, finding.endpoint or finding.endpoint_path])
+    return hashlib.sha256(key.encode()).hexdigest()
+
+
 def _build_result(finding: Finding) -> dict[str, Any]:
     result: dict[str, Any] = {
         "ruleId": _rule_id(finding),
+        # GitHub code scanning uses this to recognise the same alert across runs instead of opening a new one.
+        "partialFingerprints": {"apifuzzFinding/v1": _fingerprint(finding)},
         # Tentative findings need manual verification: never "error", so they don't fail a PR check.
         "level": "note" if finding.confidence == "tentative" else _SEVERITY_LEVEL.get(finding.severity.value,
                                                                                        "warning"),
