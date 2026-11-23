@@ -1,4 +1,5 @@
 import hashlib
+from urllib.parse import quote
 import json
 from typing import Any
 from apifuzz.models.finding import Finding, OWASPCategory
@@ -79,10 +80,17 @@ def _owasp_security_severity(finding: Finding) -> str:
     return scores.get(finding.severity.value, "0.0")
 
 
+def _location_uri(finding: Finding) -> str:
+    if finding.endpoint and " " in finding.endpoint:
+        return quote(finding.endpoint.split(" ", 1)[1], safe="/")
+    return finding.endpoint_path
+
+
 def _fingerprint(finding: Finding) -> str:
     """Stable across runs: rule + method + spec operation. Probe URLs carry random ids and payloads, so the
     concrete URL is used only when the operation is unknown."""
-    key = "|".join([finding.rule_id, finding.endpoint_method, finding.endpoint or finding.endpoint_path])
+    key = "|".join([finding.rule_id, finding.endpoint_method, finding.endpoint or finding.endpoint_path,
+                    finding.parameter])
     return hashlib.sha256(key.encode()).hexdigest()
 
 
@@ -99,7 +107,8 @@ def _build_result(finding: Finding) -> dict[str, Any]:
             {
                 "physicalLocation": {
                     "artifactLocation": {
-                        "uri": finding.endpoint_path,
+                        # The spec operation's path when known: probe URLs change every run.
+                        "uri": _location_uri(finding),
                         "uriBaseId": "%APIROOT%",
                     }
                 },

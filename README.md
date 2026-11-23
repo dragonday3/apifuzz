@@ -208,7 +208,7 @@ Options:
 ```
 
 **Exit codes:**
-- `0` — scan completed, no critical/high findings
+- `0` — scan completed, no finding at or above `--fail-on` (default `high`) outside the ignore file
 - `1` — a finding at or above `--fail-on` (default `high`) that isn't in the ignore file
 - `2` — every request failed (TLS, scope, connection): the scan is inconclusive
 

@@ -8,6 +8,9 @@ on:
   push:
     tags: ["v*"]
 
+permissions:
+  contents: read  # jobs that need more ask for it themselves
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -62,9 +65,10 @@ jobs:
         with:
           context: .
           push: true
+          # Pre-release tags (v1.2.0-rc1) don't move :latest.
           tags: |
             ${{ steps.img.outputs.name }}:${{ github.ref_name }}
-            ${{ steps.img.outputs.name }}:latest
+            ${{ !contains(github.ref_name, '-') && format('{0}:latest', steps.img.outputs.name) || '' }}
 
   github-release:
     needs: [pypi, ghcr]
@@ -81,6 +85,8 @@ jobs:
         run: |
           awk -v h="## [${GITHUB_REF_NAME#v}]" 'index($0, h) == 1 {on=1; next} on && /^## / {exit} on' CHANGELOG.md > notes.md
           test -s notes.md || { echo "no CHANGELOG section for $GITHUB_REF_NAME"; exit 1; }
-      - run: gh release create "$GITHUB_REF_NAME" dist/* --title "apifuzz $GITHUB_REF_NAME" --notes-file notes.md
+      - run: |
+          pre=""; case "$GITHUB_REF_NAME" in *-*) pre="--prerelease";; esac
+          gh release create "$GITHUB_REF_NAME" dist/* --title "apifuzz $GITHUB_REF_NAME" --notes-file notes.md $pre
         env:
           GH_TOKEN: ${{ github.token }}

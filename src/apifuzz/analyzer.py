@@ -633,6 +633,7 @@ class Analyzer:
                 evidence=f"Metadata marker '{match.group(0)}' in response, absent from baseline",
                 remediation="Validate and allowlist URL parameters; block requests to internal networks.",
                 rule_id="APIFUZZ-SSRF-001",
+                parameter=str(tc.extra.get("param_name") or ""),
             )]
         return []
 
@@ -651,6 +652,7 @@ class Analyzer:
             evidence=evidence,
             remediation=remediation,
             rule_id=rule_id,
+            parameter=str(tc.extra.get("param_name") or ""),
         )
 
     def _check_injection(self, result: TestResult) -> list[Finding]:

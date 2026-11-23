@@ -59,7 +59,7 @@ paths:
 """
 
 
-def run_cli(tmp_path, *args, cwd_ignore=None):
+def run_cli(tmp_path, *args):
     spec = tmp_path / "s.yaml"
     spec.write_text(SPEC)
     with respx.mock(assert_all_called=False) as router:
@@ -67,6 +67,11 @@ def run_cli(tmp_path, *args, cwd_ignore=None):
         router.route(host="api").mock(return_value=httpx.Response(200, json={"me": "alice"}))
         return CliRunner().invoke(app, [str(spec), "--target", "http://api", "--checks", "auth", "--quiet",
                                         "--rate-limit", "0", *args])
+
+
+@pytest.fixture(autouse=True)
+def isolated_cwd(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)  # a stray .apifuzz-ignore.yaml where pytest runs must not change results
 
 
 @pytest.mark.parametrize("level,code", [("critical", 1), ("high", 1), ("never", 0)])
@@ -83,3 +88,63 @@ def test_write_ignore_then_suppressed_run_passes(tmp_path):
     assert run_cli(tmp_path, "--write-ignore", str(ig)).exit_code == 0
     result = run_cli(tmp_path, "--ignore-file", str(ig))
     assert result.exit_code == 0 and json.loads(result.stdout) == []
+
+
+def test_default_ignore_file_is_picked_up_and_expired_entries_warned(tmp_path):
+    (tmp_path / ".apifuzz-ignore.yaml").write_text(yaml.safe_dump({"ignore": [
+        {"rule_id": "APIFUZZ-AUTH-*", "reason": "staging only"},
+        {"rule_id": "APIFUZZ-CORS-*", "expires": "2020-01-01"}]}))
+    result = run_cli(tmp_path)
+    assert result.exit_code == 0 and json.loads(result.stdout) == []
+    assert "expired on 2020-01-01" in result.output
+
+
+def test_write_ignore_keeps_existing_entries_and_reasons(tmp_path):
+    ig = tmp_path / ".apifuzz-ignore.yaml"
+    ig.write_text(yaml.safe_dump({"ignore": [
+        {"rule_id": "APIFUZZ-AUTH-NO_AUTH", "endpoint": "GET /me", "reason": "reviewed by sec team",
+         "expires": "2099-01-01"}]}))
+    assert run_cli(tmp_path, "--write-ignore", str(ig)).exit_code == 0
+    entries = yaml.safe_load(ig.read_text())["ignore"]
+    kept = [e for e in entries if e["rule_id"] == "APIFUZZ-AUTH-NO_AUTH"]
+    assert kept == [{"rule_id": "APIFUZZ-AUTH-NO_AUTH", "endpoint": "GET /me", "reason": "reviewed by sec team",
+                     "expires": "2099-01-01"}]
+    assert len(entries) > 1  # the other (previously unaccepted) findings were added
+
+
+@pytest.mark.parametrize("content", [
+    "ignore:\n",                                    # empty list: fine, no rules
+    "# nothing yet\n",
+])
+def test_ignore_load_accepts_empty(tmp_path, content):
+    p = tmp_path / "i.yaml"
+    p.write_text(content)
+    assert ignore.load(p) == []
+
+
+@pytest.mark.parametrize("content", [
+    "- rule_id: X\n",                                       # top-level list
+    "ignore: {rule_id: X}\n",                               # not a list
+    "ignore:\n  - {rule_id: X, expires: 20270131}\n",       # int date
+    "ignore:\n  - {rule_id: X, expires: soon}\n",
+])
+def test_ignore_load_rejects_bad_files_before_the_scan(tmp_path, content):
+    p = tmp_path / "i.yaml"
+    p.write_text(content)
+    with pytest.raises(ValueError):
+        ignore.load(p)
+
+
+def test_ignore_datetime_expiry_is_normalised(tmp_path):
+    p = tmp_path / "i.yaml"
+    p.write_text("ignore:\n  - {rule_id: X, expires: 2027-01-31T00:00:00}\n")
+    assert ignore.load(p)[0].expires == datetime.date(2027, 1, 31)
+
+
+def test_fingerprint_distinguishes_parameters_and_location_uses_operation():
+    a = finding()
+    b = finding()
+    b.parameter = "title"
+    assert fp(a) != fp(b)
+    loc = SARIFReporter().generate([a])["runs"][0]["results"][0]["locations"][0]
+    assert loc["physicalLocation"]["artifactLocation"]["uri"] == "/books/%7Bt%7D"

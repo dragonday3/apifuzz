@@ -46,3 +46,4 @@ class Finding(BaseModel):
     confidence: Confidence = "firm"
     # The spec operation ("GET /users/{id}"); endpoint_path is the concrete probe URL. Benchmarks score by this.
     endpoint: str = ""
+    parameter: str = ""          # the probed parameter, when the finding is about one (injection, SSRF)

@@ -55,7 +55,8 @@ version: "3.9"
 
 services:
   apifuzz:
-    image: ghcr.io/dragonday3/apifuzz:latest  # published by the release workflow
+    # Published by the release workflow from the first release on; until then: docker build -t apifuzz .
+    image: ghcr.io/dragonday3/apifuzz:latest
     volumes:
       - ./specs:/specs:ro
       - ./reports:/reports

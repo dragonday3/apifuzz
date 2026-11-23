@@ -139,6 +139,7 @@ def scan(
         findings = asyncio.run(scanner.run())
         if min_confidence == "firm":
             findings = [f for f in findings if f.confidence == "firm"]
+        all_findings = findings  # before suppression: --write-ignore must see everything
         findings, suppressed, expired = ignore_file.apply(findings, ignore_rules)
         progress.update(task, description=f"Done — {len(findings)} finding(s)")
 
@@ -172,8 +173,12 @@ def scan(
             sys.stdout.write(output_text)
 
     if write_ignore:
-        n = ignore_file.write(findings, write_ignore)
-        console.print(f"[green]Wrote {n} accepted finding(s) to {write_ignore}[/] (fill in each reason)")
+        # Keep what was already accepted there (reasons, expiry dates); add only what's new.
+        existing = ignore_rules if ignore_src and os.path.abspath(ignore_src) == os.path.abspath(write_ignore) else (
+            ignore_file.load(write_ignore) if os.path.exists(write_ignore) else [])
+        n = ignore_file.write(all_findings, write_ignore, existing)
+        console.print(f"[green]Added {n} accepted finding(s) to {write_ignore}[/] ({len(existing)} kept; "
+                      f"fill in each new reason)")
         return
 
     # Exit code 1 if any reported (not ignored) finding reaches --fail-on.
