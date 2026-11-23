@@ -54,12 +54,12 @@ Scored against [VAmPI](https://github.com/erev0s/VAmPI)'s own list of 9 document
 
 | | v0.1.0 | current |
 |---|---|---|
-| Documented vulnerabilities detected | 0 / 9 | 4 / 9: SQLi, BOLA, rate limiting (firm); unauthorized password change (tentative) |
-| ...among the 5 apifuzz has a check for | 0 / 5 | 4 / 5 |
-| False positives, vulnerable build | 25 with tokens, 12 without | 0 |
-| False positives, secure build | 25 with tokens, 12 without | 0 |
+| Documented vulnerabilities detected | 0 / 9 | 6 / 9: SQLi, BOLA, debug-endpoint data exposure, user enumeration, rate limiting (firm); unauthorized password change (tentative) |
+| ...among the 7 apifuzz has a check for | 0 | 6 / 7 |
+| False positives, vulnerable build | 25 with tokens, 12 without | 3 |
+| False positives, secure build | 25 with tokens, 12 without | 3 |
 
-Missed: mass assignment on registration (stored, but nothing in the response to confirm it with). Not covered yet: debug-endpoint data exposure, user enumeration, RegexDoS, weak JWT signing key.
+The 3 false positives are the `inventory` check reporting VAmPI's own API spec and Swagger UI (`/openapi.json`, `/openapi.yaml`, `/ui/`) as exposed. They are reachable and not in the spec, but VAmPI serves them as a feature, not a listed vulnerability. Missed: mass assignment on registration (stored, but nothing in the response to confirm it with). Not covered: RegexDoS, weak JWT signing key.
 
 **Confidence.** Each finding is `firm` (confirmed by a comparison: an authenticated baseline request, the first user's object, a follow-up `GET`, or a true/false pair) or `tentative` (a plausible signal to verify by hand). In SARIF, tentative findings are `note`s under a separate `<rule>/tentative` rule with medium security-severity, so GitHub's default check threshold (High) doesn't fail on them. `--min-confidence firm` hides them.
 

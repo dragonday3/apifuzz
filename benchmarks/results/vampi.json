@@ -1,7 +1,7 @@
 {
   "meta": {
     "date": "2026-11-23",
-    "commit": "dbe1d4c",
+    "commit": "394e4a2",
     "scan": "{\"allow_destructive\": true, \"exclude\": [\"/createdb\"], \"rate_limit_rps\": 20}",
     "sent_vulnerable": 957,
     "sent_secure": 957,
@@ -14,16 +14,16 @@
   "detected_firm": 5,
   "recall_documented": 0.667,
   "recall_covered": 0.857,
-  "vulnerable_findings": 21,
-  "vulnerable_fp": 4,
+  "vulnerable_findings": 20,
+  "vulnerable_fp": 3,
   "vulnerable_rate_findings": 11,
-  "precision": 0.81,
-  "precision_firm": 0.8,
-  "precision_excl_rate_limit": 0.6,
+  "precision": 0.85,
+  "precision_firm": 0.842,
+  "precision_excl_rate_limit": 0.667,
   "secure_rate_findings": 11,
-  "secure_findings": 16,
-  "secure_fp": 4,
-  "secure_fp_firm": 4,
+  "secure_findings": 15,
+  "secure_fp": 3,
+  "secure_fp_firm": 3,
   "per_vulnerability": [
     {
       "id": "sqli",
@@ -155,17 +155,7 @@
       "severity": "critical",
       "tp": true,
       "vuln": "bola-books",
-      "url": "http://127.0.0.1:5002/books/v1/bookTitle36"
-    },
-    {
-      "rule_id": "APIFUZZ-EXPOSURE-001",
-      "check": "data_exposure",
-      "endpoint": "GET /books/v1/{book_title}",
-      "confidence": "firm",
-      "severity": "high",
-      "tp": false,
-      "vuln": null,
-      "url": "http://127.0.0.1:5002/books/v1/bookTitle36"
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle86"
     },
     {
       "rule_id": "APIFUZZ-INVENTORY-001",
@@ -325,7 +315,7 @@
       "severity": "medium",
       "tp": true,
       "vuln": "rate-limiting",
-      "url": "http://127.0.0.1:5002/books/v1/bookTitle36"
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle86"
     }
   ],
   "findings_secure": [
@@ -338,16 +328,6 @@
       "tp": true,
       "vuln": "debug-exposure",
       "url": "http://127.0.0.1:5001/users/v1/_debug"
-    },
-    {
-      "rule_id": "APIFUZZ-EXPOSURE-001",
-      "check": "data_exposure",
-      "endpoint": "GET /books/v1/{book_title}",
-      "confidence": "firm",
-      "severity": "high",
-      "tp": false,
-      "vuln": null,
-      "url": "http://127.0.0.1:5001/books/v1/bookTitle73"
     },
     {
       "rule_id": "APIFUZZ-INVENTORY-001",
@@ -487,7 +467,7 @@
       "severity": "medium",
       "tp": true,
       "vuln": "rate-limiting",
-      "url": "http://127.0.0.1:5001/books/v1/bookTitle73"
+      "url": "http://127.0.0.1:5001/books/v1/bookTitle61"
     }
   ]
 }

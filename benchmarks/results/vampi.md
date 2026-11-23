@@ -1,18 +1,18 @@
 # apifuzz vs vampi
 
-Measured 2026-11-23 with apifuzz `dbe1d4c`. Scan settings: `{"allow_destructive": true, "exclude": ["/createdb"], "rate_limit_rps": 20}`. Requests: 957 (vulnerable) / 957 (secure); failed: none / none.
+Measured 2026-11-23 with apifuzz `394e4a2`. Scan settings: `{"allow_destructive": true, "exclude": ["/createdb"], "rate_limit_rps": 20}`. Requests: 957 (vulnerable) / 957 (secure); failed: none / none.
 
 | Metric | Value |
 |---|---|
 | Documented vulnerabilities detected | 6 / 9 (67%) |
 | ...of those apifuzz has a check for | 6 / 7 (86%) |
 | ...detected with a firm finding | 5 / 9 |
-| Findings on the vulnerable build | 21 (4 false positive) |
+| Findings on the vulnerable build | 20 (3 false positive) |
 | ...of which rate-limit (one per endpoint) | 11 |
-| Precision (all / firm only) | 81% / 80% |
-| Precision excluding rate-limit, one per (rule, operation) | 60% |
-| Findings on the secure build | 16 (11 rate-limit: VAmPI keeps that flaw in both builds) |
-| False positives on the secure build (all / firm) | 4 / 4 |
+| Precision (all / firm only) | 85% / 84% |
+| Precision excluding rate-limit, one per (rule, operation) | 67% |
+| Findings on the secure build | 15 (11 rate-limit: VAmPI keeps that flaw in both builds) |
+| False positives on the secure build (all / firm) | 3 / 3 |
 
 ## Per documented vulnerability
 
@@ -30,14 +30,12 @@ Measured 2026-11-23 with apifuzz `dbe1d4c`. Scan settings: `{"allow_destructive"
 
 ## False positives, vulnerable build
 
-- `APIFUZZ-EXPOSURE-001` (firm) on `GET /books/v1/{book_title}`
 - `APIFUZZ-INVENTORY-001` (firm) on `GET /openapi.json (not in spec)`
 - `APIFUZZ-INVENTORY-001` (firm) on `GET /openapi.yaml (not in spec)`
 - `APIFUZZ-INVENTORY-001` (firm) on `GET /ui/ (not in spec)`
 
 ## False positives, secure build
 
-- `APIFUZZ-EXPOSURE-001` (firm) on `GET /books/v1/{book_title}`
 - `APIFUZZ-INVENTORY-001` (firm) on `GET /openapi.json (not in spec)`
 - `APIFUZZ-INVENTORY-001` (firm) on `GET /openapi.yaml (not in spec)`
 - `APIFUZZ-INVENTORY-001` (firm) on `GET /ui/ (not in spec)`

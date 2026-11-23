@@ -40,10 +40,20 @@ Latest run: [`results/vampi.md`](results/vampi.md).
 
 | VAmPI (9 documented vulnerabilities) | v0.1.0 | current |
 |---|---|---|
-| Detected | 0 | 4: SQLi, BOLA, rate limiting (firm); unauthorized password change (tentative) |
-| Detected, among the 5 apifuzz has a check for | 0 / 5 | 4 / 5 |
-| False positives, vulnerable build | 25 with tokens / 12 without | 0 |
-| False positives, secure build | 25 with tokens / 12 without | 0 |
+| Detected | 0 | 6: SQLi, BOLA, debug-endpoint data exposure, user enumeration, rate limiting (firm); unauthorized password change (tentative) |
+| Detected, among the vulnerabilities apifuzz has a check for | 0 | 6 / 7 |
+| False positives, vulnerable build | 25 with tokens / 12 without | 3 |
+| False positives, secure build | 25 with tokens / 12 without | 3 |
+
+**The 3 false positives** (both builds) are `inventory` findings: VAmPI's own spec and Swagger UI
+(`/openapi.json`, `/openapi.yaml`, `/ui/`) are reachable and not in the spec. VAmPI serves them on purpose and
+doesn't list them as a vulnerability, so they count against apifuzz here.
+
+**Rule changed after seeing benchmark output (disclosed):** the first run with the `data_exposure` check also
+flagged the `secret` field of `GET /books/v1/{book_title}` on both builds. That field is the book's own
+content, shown to its owner; whether *other* users can read it is the BOLA finding. A bare `secret` field
+name was dropped from the sensitive-field list (`client_secret`, `secret_key`, `api_secret` stay), which
+removed that false positive (commit `078c980`).
 
 v0.1.0 was measured on 2026-11-23 against the same targets, seeding, expected list and scoring, through a
 compatibility adapter ([`compare_v010.py`](compare_v010.py); outputs in `results/vampi-v0.1.0*.json`). Its
@@ -56,4 +66,4 @@ on endpoints VAmPI documents as public.
 **Not detected:**
 - Mass assignment on `POST /users/v1/register`. The `admin` flag is stored, but the response has no id or
   `Location` to confirm it with. It shows only on `/me` (logged in as the new user) and the debug endpoint.
-- Four flaws apifuzz has no check for yet: debug-endpoint data exposure, user enumeration, RegexDoS and the weak JWT key.
+- Two flaws apifuzz has no check for: RegexDoS and the weak JWT signing key.
