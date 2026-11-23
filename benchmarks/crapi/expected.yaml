@@ -1,0 +1,121 @@
+# crAPI's documented challenges (docs/challenges.md at OWASP/crAPI v1.1.6, commit 700f03d), mapped to the
+# spec operation where each lives (docs/challengeSolutions.md and the service source) and to the apifuzz
+# rules that count as detecting it. Written before the first scan; not changed to fit results.
+#
+#   endpoint  spec operation ("*" = any endpoint)
+#   check     apifuzz check that covers it; null = no check for it (counts as a miss)
+#   rules     rule ids (globs allowed) that count as detecting it
+#   toggled   crAPI has no fixed build, so there is no secure run: false everywhere
+#
+# The 3 "secret challenges" are undisclosed by crAPI and not listed.
+target: crAPI
+source: https://github.com/OWASP/crAPI/blob/v1.1.6/docs/challenges.md
+vulnerabilities:
+  - id: bola-vehicle-location
+    name: "1. BOLA: another user's vehicle location"
+    endpoint: GET /identity/api/v2/vehicle/{vehicleId}/location
+    check: bola
+    rules: [APIFUZZ-BOLA-*]
+    toggled: false
+  - id: bola-mechanic-report
+    name: "2. BOLA: other users' mechanic reports"
+    endpoint: GET /workshop/api/mechanic/mechanic_report
+    check: bola
+    rules: [APIFUZZ-BOLA-*]
+    toggled: false
+  - id: otp-brute-force
+    name: "3. Broken authentication: reset another user's password (OTP brute force, v2 has no rate limit)"
+    endpoint: POST /identity/api/auth/v2/check-otp
+    check: rate_limit
+    rules: [APIFUZZ-RATE-001]
+    toggled: false
+  - id: exposure-other-users
+    name: "4. Excessive data exposure: other users' sensitive data (forum posts carry author email + vehicle id)"
+    endpoint: GET /community/api/v2/community/posts/recent
+    check: data_exposure
+    rules: [APIFUZZ-EXPOSURE-*]
+    toggled: false
+  - id: exposure-video-internal
+    name: "5. Excessive data exposure: a video's internal property (conversion_params)"
+    endpoint: GET /identity/api/v2/user/videos/{video_id}
+    check: data_exposure
+    rules: [APIFUZZ-EXPOSURE-*]
+    toggled: false
+  - id: rate-limit-contact-mechanic
+    name: "6. Rate limiting: layer 7 DoS through contact mechanic"
+    endpoint: POST /workshop/api/merchant/contact_mechanic
+    check: rate_limit
+    rules: [APIFUZZ-RATE-001]
+    toggled: false
+  - id: bfla-delete-video
+    name: "7. BFLA: delete another user's video through the admin endpoint"
+    endpoint: DELETE /identity/api/v2/admin/videos/{video_id}
+    check: bfla
+    rules: [APIFUZZ-BFLA-*, APIFUZZ-BOLA-*]
+    toggled: false
+  - id: mass-assignment-order-status
+    name: "8. Mass assignment: get an item for free (order status)"
+    endpoint: PUT /workshop/api/shop/orders/{order_id}
+    check: mass_assignment
+    rules: [APIFUZZ-MASS-*]
+    toggled: false
+  - id: refund-quantity
+    name: "9. Increase balance by $1,000 (order quantity manipulation; business logic)"
+    endpoint: PUT /workshop/api/shop/orders/{order_id}
+    check: null
+    rules: []
+    toggled: false
+  - id: mass-assignment-video
+    name: "10. Mass assignment: update a video's internal property"
+    endpoint: PUT /identity/api/v2/user/videos/{video_id}
+    check: mass_assignment
+    rules: [APIFUZZ-MASS-*]
+    toggled: false
+  - id: ssrf-contact-mechanic
+    name: "11. SSRF: make crAPI call an arbitrary URL (mechanic_api)"
+    endpoint: POST /workshop/api/merchant/contact_mechanic
+    check: ssrf
+    rules: [APIFUZZ-SSRF-*]
+    toggled: false
+  - id: nosqli-coupon
+    name: "12. NoSQL injection: free coupons without the code"
+    endpoint: POST /community/api/v2/coupon/validate-coupon
+    check: injection
+    rules: [APIFUZZ-INJECT-NOSQLI*]
+    toggled: false
+  - id: sqli-coupon
+    name: "13. SQL injection: redeem an already-claimed coupon"
+    endpoint: POST /workshop/api/shop/apply_coupon
+    check: injection
+    rules: [APIFUZZ-INJECT-SQLI*]
+    toggled: false
+  - id: unauthenticated-order
+    name: "14. Unauthenticated access (order details: OrderControlView.get has no @jwt_auth_required)"
+    endpoint: GET /workshop/api/shop/orders/{order_id}
+    check: auth
+    rules: [APIFUZZ-AUTH-*]
+    toggled: false
+  - id: jwt-forgery
+    name: "15. Forge valid JWTs (alg confusion, unchecked signature, jku, kid traversal)"
+    endpoint: "*"
+    check: auth
+    rules: [APIFUZZ-AUTH-JWT*]
+    toggled: false
+  - id: llm-prompt-injection
+    name: "16. Chatbot prompt injection (LLM; needs an OpenAI key)"
+    endpoint: "*"
+    check: null
+    rules: []
+    toggled: false
+  - id: llm-credentials
+    name: "17. Chatbot leaks another user's credentials (LLM)"
+    endpoint: "*"
+    check: null
+    rules: []
+    toggled: false
+  - id: llm-action
+    name: "18. Chatbot acts on behalf of another user (LLM)"
+    endpoint: "*"
+    check: null
+    rules: []
+    toggled: false

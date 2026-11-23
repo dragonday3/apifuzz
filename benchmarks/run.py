@@ -11,9 +11,13 @@ import argparse
 import asyncio
 import datetime
 import json
+import quopri
+import re
+import secrets
 import subprocess
 import sys
 import tempfile
+from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
 
@@ -35,12 +39,12 @@ def check_of(rule_id: str) -> str:
     return RULE_CHECK.get(rule_id.split("-")[1], "?")
 
 
-def seed_path_param(spec: dict, name: str, value: str) -> None:
-    """Point the spec's example for path param `name` at an object that exists right now."""
+def seed_param(spec: dict, name: str, value: str) -> None:
+    """Point the spec's example for id parameter `name` (path or query) at an object that exists right now."""
     for item in spec.get("paths", {}).values():
         for op in [item, *[v for v in item.values() if isinstance(v, dict)]]:
             for p in op.get("parameters", []) if isinstance(op, dict) else []:
-                if isinstance(p, dict) and p.get("name") == name and p.get("in") == "path":
+                if isinstance(p, dict) and p.get("name") == name and p.get("in") in ("path", "query"):
                     p["example"] = value
                     p.setdefault("schema", {})["example"] = value
 
@@ -65,9 +69,62 @@ def vampi_setup(base_url: str) -> tuple[str, AuthConfig]:
         books = client.get("/books/v1").json()["Books"]
     title = next(b["book_title"] for b in books if b["user"] == "name1")
     spec = yaml.safe_load((HERE / "vampi" / "openapi3.yml").read_text(encoding="utf-8"))
-    seed_path_param(spec, "book_title", title)
+    seed_param(spec, "book_title", title)
     seeded = Path(tempfile.mkdtemp()) / "openapi3.seeded.yml"
     seeded.write_text(yaml.safe_dump(spec, sort_keys=False), encoding="utf-8")
+    return str(seeded), AuthConfig(type="bearer", token=token_a, second_token=token_b)
+
+
+def crapi_setup(base_url: str) -> tuple[str, AuthConfig]:
+    """Sign up two fresh users (random credentials per run), give user A one of each object the challenges
+    are about (vehicle, order, mechanic report, video, post), and seed the spec's id parameters with A's ids.
+    Nothing else in the spec is changed."""
+    suffix = secrets.token_hex(4)
+    password = f"Bench-{secrets.token_urlsafe(9)}-1a"
+    with httpx.Client(base_url=base_url, timeout=30) as client:
+        def user(tag: str) -> tuple[str, str]:
+            email = f"bench-{tag}-{suffix}@example.com"
+            client.post("/identity/api/auth/signup", json={
+                "name": f"bench{tag}{suffix}", "email": email, "password": password,
+                "number": f"9{secrets.randbelow(10**9):09d}"}).raise_for_status()
+            r = client.post("/identity/api/auth/login", json={"email": email, "password": password})
+            r.raise_for_status()
+            return email, r.json()["token"]
+
+        email_a, token_a = user("a")
+        _, token_b = user("b")
+        auth = {"Authorization": f"Bearer {token_a}"}
+
+        # The welcome email (crAPI's MailHog, proxied by crapi-web) carries the VIN + pincode of A's vehicle.
+        mails = client.get("/mailhog/api/v2/search", params={"kind": "to", "query": email_a}).json()["items"]
+        body = quopri.decodestring(mails[0]["Content"]["Body"]).decode("utf-8", "replace")
+        vin, pincode = re.search(r"VIN:\D*?(\w{17}).*?Pincode:\D*?(\d+)", re.sub(r"<[^>]+>", " ", body), re.S).groups()
+        client.post("/identity/api/v2/vehicle/add_vehicle", json={"vin": vin, "pincode": pincode},
+                    headers=auth).raise_for_status()
+        vehicle_id = client.get("/identity/api/v2/vehicle/vehicles", headers=auth).json()[0]["uuid"]
+
+        order = client.post("/workshop/api/shop/orders", json={"product_id": 1, "quantity": 1}, headers=auth)
+        order.raise_for_status()
+        mechanic = client.get("/workshop/api/mechanic/", headers=auth).json()["mechanics"][0]["mechanic_code"]
+        report = client.post("/workshop/api/merchant/contact_mechanic", headers=auth, json={
+            "mechanic_code": mechanic, "problem_details": "brakes squeak", "vin": vin,
+            "mechanic_api": "http://crapi-web/workshop/api/mechanic/receive_report",
+            "repeat_request_if_failed": False, "number_of_repeats": 1})
+        report.raise_for_status()
+        report_id = re.search(r"report_id=(\d+)", report.json()["response_from_mechanic_api"]["report_link"]).group(1)
+        video = client.post("/identity/api/v2/user/videos", headers=auth,
+                            files={"file": ("bench.mp4", b"\x00\x00\x00\x18ftypmp42", "video/mp4")})
+        video.raise_for_status()
+        post = client.post("/community/api/v2/community/posts", headers=auth,
+                           json={"title": "bench", "content": "bench post"})
+        post.raise_for_status()
+
+    spec = json.loads((HERE / "crapi" / "crapi-openapi-spec.json").read_text(encoding="utf-8"))
+    for name, value in {"vehicleId": vehicle_id, "order_id": order.json()["id"], "report_id": report_id,
+                        "video_id": video.json()["id"], "postId": post.json()["id"]}.items():
+        seed_param(spec, name, value)
+    seeded = Path(tempfile.mkdtemp()) / "crapi.seeded.json"
+    seeded.write_text(json.dumps(spec), encoding="utf-8")
     return str(seeded), AuthConfig(type="bearer", token=token_a, second_token=token_b)
 
 
@@ -78,6 +135,13 @@ TARGETS: dict[str, dict[str, Any]] = {
         "secure_url": "http://127.0.0.1:5001",
         # Disposable target: destructive methods on; /createdb resets the data mid-scan, so skip it.
         "scan": {"allow_destructive": True, "exclude": ["/createdb"], "rate_limit_rps": 20},
+    },
+    "crapi": {
+        "setup": crapi_setup,
+        "vulnerable_url": "http://127.0.0.1:8888",
+        "secure_url": None,  # crAPI has no fixed build: no false-positive run, unmatched findings get triaged
+        # Disposable target: destructive methods on (challenges 7, 8 and 10 are DELETE/PUT).
+        "scan": {"allow_destructive": True, "rate_limit_rps": 20},
     },
 }
 
@@ -90,7 +154,8 @@ def scan(target: dict, base_url: str) -> tuple[list[Finding], dict[str, int], in
 
 
 def matching(f: Finding, vulns: list[dict]) -> list[dict]:
-    return [v for v in vulns if f.rule_id in v["rules"] and v["endpoint"] in ("*", f.endpoint)]
+    return [v for v in vulns if any(fnmatchcase(f.rule_id, r) for r in v["rules"])
+            and v["endpoint"] in ("*", f.endpoint)]
 
 
 def score(vulns: list[dict], vuln_findings: list[Finding], secure_findings: list[Finding]) -> dict:
@@ -154,6 +219,8 @@ def git_commit() -> str:
 
 def markdown(name: str, meta: dict, s: dict) -> str:
     pct = lambda x: "n/a" if x is None else f"{x * 100:.0f}%"  # noqa: E731
+    if not meta.get("has_secure", True):
+        return markdown_no_secure(name, meta, s, pct)
     lines = [
         f"# apifuzz vs {name}",
         "",
@@ -194,6 +261,43 @@ def markdown(name: str, meta: dict, s: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def markdown_no_secure(name: str, meta: dict, s: dict, pct: Any) -> str:
+    unmatched = [r for r in s["findings_vulnerable"] if not r["tp"]]
+    lines = [
+        f"# apifuzz vs {name}",
+        "",
+        f"Measured {meta['date']} with apifuzz `{meta['commit']}`. Scan settings: `{meta['scan']}`. "
+        f"Requests: {meta['sent_vulnerable']}; failed: {meta['errors_vulnerable'] or 'none'}.",
+        "",
+        f"{name} has no fixed build, so there is no false-positive run. Findings that match no documented "
+        "vulnerability are listed at the end and counted against precision; each is triaged by hand in "
+        "benchmarks/README.md.",
+        "",
+        "| Metric | Value |",
+        "|---|---|",
+        f"| Documented vulnerabilities detected | {s['detected']} / {s['documented']} ({pct(s['recall_documented'])}) |",
+        f"| ...of those apifuzz has a check for | {s['detected']} / {s['covered']} ({pct(s['recall_covered'])}) |",
+        f"| ...detected with a firm finding | {s['detected_firm']} / {s['documented']} |",
+        f"| Findings | {s['vulnerable_findings']} ({len(unmatched)} match no documented vulnerability) |",
+        f"| ...of which rate-limit (one per endpoint) | {s['vulnerable_rate_findings']} |",
+        f"| Precision, unmatched counted as false (all / firm only) | {pct(s['precision'])} / "
+        f"{pct(s['precision_firm'])} |",
+        f"| Same, excluding rate-limit, one per (rule, operation) | {pct(s['precision_excl_rate_limit'])} |",
+        "",
+        "## Per documented vulnerability",
+        "",
+        "| Vulnerability | Endpoint | Check | Result |",
+        "|---|---|---|---|",
+    ]
+    for p in s["per_vulnerability"]:
+        found = "missed" if not p["detected"] else ("detected (firm)" if p["detected_firm"] else "detected (tentative)")
+        lines.append(f"| {p['name']} | `{p['endpoint']}` | {p['check'] or 'none'} | "
+                     f"{found if p['check'] else 'not covered'} |")
+    lines += ["", "## Findings matching no documented vulnerability", ""]
+    lines += [f"- `{r['rule_id']}` ({r['confidence']}) on `{r['endpoint']}`" for r in unmatched] or ["None."]
+    return "\n".join(lines) + "\n"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("target", choices=sorted(TARGETS))
@@ -204,11 +308,12 @@ def main() -> int:
     vulns = yaml.safe_load((HERE / args.target / "expected.yaml").read_text(encoding="utf-8"))["vulnerabilities"]
 
     vuln_findings, vuln_errors, vuln_sent = scan(target, args.vulnerable_url or target["vulnerable_url"])
-    secure_findings, secure_errors, secure_sent = scan(target, args.secure_url or target["secure_url"])
+    secure_url = args.secure_url or target["secure_url"]
+    secure_findings, secure_errors, secure_sent = scan(target, secure_url) if secure_url else ([], {}, 0)
     result = score(vulns, vuln_findings, secure_findings)
     meta = {"date": datetime.date.today().isoformat(), "commit": git_commit(),
             "scan": json.dumps(target["scan"]), "sent_vulnerable": vuln_sent, "sent_secure": secure_sent,
-            "errors_vulnerable": vuln_errors, "errors_secure": secure_errors}
+            "errors_vulnerable": vuln_errors, "errors_secure": secure_errors, "has_secure": bool(secure_url)}
 
     out = HERE / "results"
     out.mkdir(exist_ok=True)
