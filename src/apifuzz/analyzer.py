@@ -3,7 +3,7 @@ import re
 from typing import Any
 from urllib.parse import quote, urljoin
 
-from apifuzz.checks.injection import CMD_CANARY, SSTI_PRODUCT
+from apifuzz.checks.injection import CMD_CANARY, SQLI_SLEEP_SECONDS, SSTI_PRODUCT
 from apifuzz.executor import TestCase, TestResult
 from apifuzz.models.finding import Confidence, Finding, OWASPCategory, Severity
 
@@ -98,6 +98,7 @@ class Analyzer:
             raw.extend(findings)
 
         raw.extend(self._analyze_nosqli_pairs(results))
+        raw.extend(self._analyze_sqli_blind(results))
         self._confirm_mass_assignment(results, raw)
         return self._dedup(raw)
 
@@ -378,6 +379,57 @@ class Analyzer:
                 "Reject objects/operators where scalars are expected; validate input types.",
                 "APIFUZZ-INJECT-NOSQLI", severity=Severity.HIGH)]
         return []
+
+    def _analyze_sqli_blind(self, results: list[TestResult]) -> list[Finding]:
+        """Boolean: true answers like the control, false doesn't. Time: every repeat of a sleep payload
+        is at least ~SLEEP seconds slower than the control."""
+        groups: dict[str, dict[str, list[TestResult]]] = {}
+        controls: dict[str, TestResult] = {}
+        for r in results:
+            extra = r.test_case.extra
+            if r.is_error and extra.get("strategy") != "sqli_time":
+                continue
+            if extra.get("strategy") == "sqli_bool":
+                groups.setdefault(extra["pair_id"], {}).setdefault(extra["polarity"], []).append(r)
+                if extra["polarity"] == "control":
+                    controls[extra["pair_id"]] = r
+            elif extra.get("strategy") == "sqli_time":
+                groups.setdefault(extra["pair_id"], {}).setdefault("time", []).append(r)
+
+        findings = []
+        for pair_id, g in groups.items():
+            if "time" in g:
+                times = g["time"]
+                control = controls.get(times[0].test_case.extra.get("control_id", ""))
+                if control is None:
+                    continue
+                threshold = control.elapsed_ms + (SQLI_SLEEP_SECONDS - 0.5) * 1000
+                if times and all(not t.is_error and t.elapsed_ms >= threshold for t in times):
+                    findings.append(self._injection_finding(
+                        times[0], "SQL Injection: Time-based (response delayed by injected sleep)",
+                        f"All {len(times)} repeats of a {SQLI_SLEEP_SECONDS}s sleep payload were delayed "
+                        f"compared with the control request.",
+                        "Elapsed ms: " + ", ".join(f"{t.elapsed_ms:.0f}" for t in times)
+                        + f"; control {control.elapsed_ms:.0f} ms",
+                        "Use parameterized queries. Never concatenate user input into SQL.",
+                        "APIFUZZ-INJECT-SQLI-TIME"))
+                continue
+            control, true, false = (g.get(k, [None])[0] for k in ("control", "true", "false"))
+            if not (control and true and false) or not control.is_success:
+                continue
+            if any(r.status_code == 429 or r.status_code >= 500 for r in (true, false)):
+                continue
+            if _resembles(true, control) and not _resembles(false, control):
+                findings.append(self._injection_finding(
+                    true, "SQL Injection: Boolean-based (true/false conditions change the response)",
+                    "Appending a true condition returned the same response as the original value, a false "
+                    "condition changed it, so the input is evaluated as SQL.",
+                    f"control: HTTP {control.status_code}, {len(control.response_body)} bytes; "
+                    f"AND '1'='1: HTTP {true.status_code}, {len(true.response_body)} bytes; "
+                    f"AND '1'='2: HTTP {false.status_code}, {len(false.response_body)} bytes",
+                    "Use parameterized queries. Never concatenate user input into SQL.",
+                    "APIFUZZ-INJECT-SQLI-BOOL"))
+        return findings
 
     def _analyze_nosqli_pairs(self, results: list[TestResult]) -> list[Finding]:
         """A $ne/$eq pair whose responses differ means the operator reached the query."""

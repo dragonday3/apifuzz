@@ -20,10 +20,39 @@ INJECTION_PAYLOADS = [
 # Query params use the qs bracket syntax (Express); JSON bodies get real operator objects.
 NOSQLI_NONEXISTENT = "apifuzz-nonexistent"
 
+# Boolean SQLi: original value + a true / false condition, next to a control request with the original
+# value alone. True must answer like the control and false must not.
+SQLI_BOOL = (("true", "' AND '1'='1"), ("false", "' AND '1'='2"))
+# Time-based SQLi (opt-in, --time-based): each payload sent TIME_REPEATS times, compared with the control.
+SQLI_SLEEP_SECONDS = 5
+SQLI_TIME_PAYLOADS = ("' AND SLEEP(5)-- -", "'||pg_sleep(5)--", "'; WAITFOR DELAY '0:0:5'--")
+TIME_REPEATS = 3
+
 
 class InjectionCheck(BaseCheck):
     check_id = "injection"
     name = "Injection (OWASP Top 10 A03:2021)"
+    time_based = False  # set by Scanner from --time-based; each probe waits ~5 s on a vulnerable target
+
+    def _value_probes(self, endpoint: Endpoint, case, target: str, value: str, place) -> list[TestCase]:
+        """Probes that append to the original value: the boolean SQLi triple and optional time-based."""
+        if endpoint.method == "DELETE":  # the control request carries the real value: it would delete it
+            return []
+        where = f"{endpoint.method} {endpoint.path} [{target}]"
+        common = {"param_name": target, "injection_type": "sqli"}
+        if target.startswith("body."):
+            common["target"] = "body"
+        out = [case(f"Injection [sqli bool {pol}]: {where}",
+                    {**common, "strategy": "sqli_bool", "pair_id": where, "polarity": pol,
+                     "payload": value + suffix}, **place(value + suffix))
+               for pol, suffix in (("control", ""), *SQLI_BOOL)]
+        if self.time_based:
+            for payload in SQLI_TIME_PAYLOADS:
+                out += [case(f"Injection [sqli time #{i + 1}]: {where}",
+                             {**common, "strategy": "sqli_time", "pair_id": f"{where} {payload}",
+                              "polarity": "probe", "control_id": where, "payload": value + payload}, **place(value + payload))
+                        for i in range(TIME_REPEATS)]
+        return out
 
     def generate(self, endpoint: Endpoint, auth: AuthConfig) -> list[TestCase]:
         test_cases: list[TestCase] = []
@@ -53,6 +82,13 @@ class InjectionCheck(BaseCheck):
                     test_cases.append(case(label, extra, params={param.name: p["payload"]}))
                 else:
                     test_cases.append(case(label, extra, url=self._build_url(endpoint, {param.name: p["payload"]})))
+            original = str(param.example) if param.example is not None else "1"
+            if param.location == ParamLocation.QUERY:
+                test_cases += self._value_probes(endpoint, case, param.name, original,
+                                                 lambda v, n=param.name: {"params": {n: v}})
+            else:
+                test_cases += self._value_probes(endpoint, case, param.name, original,
+                                                 lambda v, n=param.name: {"url": self._build_url(endpoint, {n: v})})
             if param.location == ParamLocation.QUERY:
                 pair = f"{endpoint.method} {endpoint.path} query.{param.name}"
                 for polarity, op in (("true", "$ne"), ("false", "$eq")):
@@ -73,6 +109,8 @@ class InjectionCheck(BaseCheck):
                      "injection_type": p["type"]},
                     body={**example, field_name: p["payload"]},
                 ))
+            test_cases += self._value_probes(endpoint, case, f"body.{field_name}", example[field_name],
+                                             lambda v, f=field_name: {"body": {**example, f: v}})
             pair = f"{endpoint.method} {endpoint.path} body.{field_name}"
             for polarity, value in (("true", {"$ne": None}), ("false", {"$eq": NOSQLI_NONEXISTENT})):
                 test_cases.append(case(

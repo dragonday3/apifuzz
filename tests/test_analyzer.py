@@ -444,3 +444,53 @@ class TestMassAssignmentConfirmation:
         verify = make_result(verify_tc, 200, body='{"id": 9, "role": "admin", "isAdmin": true}')
         [f] = analyzer.analyze([probe, verify])
         assert f.confidence == "firm" and "'role'" in f.evidence and "'isAdmin'" in f.evidence
+
+
+def sqli_triple(control, true, false):
+    out = []
+    for pol, (status, body) in (("control", control), ("true", true), ("false", false)):
+        tc = make_tc("injection", extra={"injection_type": "sqli", "strategy": "sqli_bool",
+                                         "pair_id": "GET /u/{n} [n]", "polarity": pol})
+        out.append(make_result(tc, status, body=body))
+    return out
+
+
+class TestBlindSQLi:
+    USER = '{"username": "name1", "email": "mail1@mail.com"}'
+
+    def test_boolean_flagged(self, analyzer):
+        [f] = analyzer.analyze(sqli_triple((200, self.USER), (200, self.USER), (404, '{"m": "not found"}')))
+        assert f.rule_id == "APIFUZZ-INJECT-SQLI-BOOL"
+
+    def test_literal_handling_not_flagged(self, analyzer):
+        # Input treated as a literal: both conditions miss the same way.
+        nf = '{"m": "not found"}'
+        assert analyzer.analyze(sqli_triple((200, self.USER), (404, nf), (404, nf))) == []
+
+    def test_echo_not_flagged(self, analyzer):
+        assert analyzer.analyze(sqli_triple((200, '{"q": "a"}'), (200, '{"q": "a\' AND \'1\'=\'1"}'),
+                                            (200, '{"q": "a\' AND \'1\'=\'2"}'))) == []
+
+    def test_rate_limited_false_not_flagged(self, analyzer):
+        assert analyzer.analyze(sqli_triple((200, self.USER), (200, self.USER), (429, "slow"))) == []
+
+    def _timed(self, control_ms, probe_ms):
+        ctl = make_tc("injection", extra={"injection_type": "sqli", "strategy": "sqli_bool",
+                                          "pair_id": "GET /u [n]", "polarity": "control"})
+        control = make_result(ctl, 200)
+        control.elapsed_ms = control_ms
+        out = [control]
+        for ms in probe_ms:
+            tc = make_tc("injection", extra={"injection_type": "sqli", "strategy": "sqli_time", "polarity": "probe",
+                                             "pair_id": "GET /u [n] sleep", "control_id": "GET /u [n]"})
+            r = make_result(tc, 200)
+            r.elapsed_ms = ms
+            out.append(r)
+        return out
+
+    def test_time_based_all_repeats_delayed(self, analyzer):
+        [f] = analyzer.analyze(self._timed(80, [5200, 5150, 5300]))
+        assert f.rule_id == "APIFUZZ-INJECT-SQLI-TIME"
+
+    def test_time_based_one_fast_repeat_not_flagged(self, analyzer):
+        assert analyzer.analyze(self._timed(80, [5200, 90, 5300])) == []

@@ -39,6 +39,11 @@ def vulnerable_api(request: httpx.Request) -> httpx.Response:
         rendered = q.replace("{{1337*7331}}", "9801547")
         return httpx.Response(200, json={"results": [], "title": rendered})
     username = unquote(request.url.path.rsplit("/", 1)[-1])
+    # WHERE username = '<input>': a true condition still finds name1, a false one finds nobody.
+    if username.startswith("name1' AND '1'='1"):
+        return httpx.Response(200, json={"username": "name1"})
+    if username.startswith("name1' AND '1'='2"):
+        return httpx.Response(404, json={"message": "User not found"})
     if username.count("'") % 2:
         return httpx.Response(500, text=f"sqlite3.OperationalError: unrecognized token: \"'{username}'\"")
     return httpx.Response(200, json={"username": username})
@@ -61,3 +66,4 @@ async def test_vulnerable_api_findings(tmp_path):
     rules = {(f.rule_id, f.endpoint_path.split("/")[3].split("?")[0]) for f in await run(tmp_path, vulnerable_api)}
     assert ("APIFUZZ-INJECT-SQLI", "users") in rules     # lone-quote payload on the path param
     assert ("APIFUZZ-INJECT-SSTI", "search") in rules
+    assert ("APIFUZZ-INJECT-SQLI-BOOL", "users") in rules  # true/false conditions differ

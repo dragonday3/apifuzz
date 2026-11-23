@@ -44,6 +44,8 @@ def scan(
     min_confidence: str = typer.Option(
         "tentative", "--min-confidence",
         help="Report only findings at or above this confidence: tentative (all) | firm"),
+    time_based: bool = typer.Option(
+        False, "--time-based", help="Add time-based SQLi probes (each waits ~5 s on a vulnerable target)"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress progress output"),
 ) -> None:
     """Scan an API for OWASP API Top 10 security issues."""
@@ -66,6 +68,7 @@ def scan(
         concurrency=concurrency,
         rate_limit_rps=rate_limit,
         timeout=timeout,
+        time_based=time_based,
     )
 
     if not quiet:

@@ -70,6 +70,7 @@ class Scanner:
         concurrency: int = 10,
         rate_limit_rps: float = 10.0,
         timeout: float = 15.0,
+        time_based: bool = False,
     ):
         self.spec_path = spec_path
         self.base_url = base_url.rstrip("/")
@@ -79,6 +80,9 @@ class Scanner:
 
         enabled = checks if checks else list(_ALL_CHECKS.keys())
         self._checks = [_ALL_CHECKS[c]() for c in enabled if c in _ALL_CHECKS]
+        for check in self._checks:
+            if isinstance(check, InjectionCheck):
+                check.time_based = time_based
         self._uses_baseline = any(c.check_id in _BASELINE_CHECKS for c in self._checks)
 
     async def run(self) -> list[Finding]:

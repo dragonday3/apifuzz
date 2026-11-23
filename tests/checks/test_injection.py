@@ -29,7 +29,7 @@ class TestInjectionCheck:
             Parameter(name="q", location=ParamLocation.QUERY, schema_type="string"),
         ])
         results = self.check.generate(ep, self.auth)
-        assert len(results) == len(INJECTION_PAYLOADS) + 2  # + NoSQLi $ne/$eq pair
+        assert len(results) == len(INJECTION_PAYLOADS) + 3 + 2  # + SQLi control/true/false + NoSQLi pair
 
     def test_integer_param_not_targeted(self):
         ep = make_endpoint(params=[
@@ -57,7 +57,7 @@ class TestInjectionCheck:
             ],
         )
         results = self.check.generate(ep, self.auth)
-        assert len(results) == len(INJECTION_PAYLOADS)
+        assert len(results) == len(INJECTION_PAYLOADS) + 3  # + SQLi control/true/false
         for tc in results:
             assert "{name}" not in tc.url
 
@@ -83,7 +83,7 @@ class TestInjectionCheck:
             body_schema={"username": "alice", "email": "alice@example.com"},
         )
         results = self.check.generate(ep, self.auth)
-        assert len(results) == 2 * (len(INJECTION_PAYLOADS) + 2)  # one field at a time, + NoSQLi pair each
+        assert len(results) == 2 * (len(INJECTION_PAYLOADS) + 3 + 2)  # per field: payloads, SQLi triple, NoSQLi pair
 
     def test_body_injection_one_field_at_a_time(self):
         example = {"username": "alice", "email": "alice@example.com", "age": 30}
@@ -129,7 +129,7 @@ class TestInjectionCheck:
         results = self.check.generate(ep, self.auth)
         for tc in results:
             assert tc.extra.get("target") == "body"
-            assert tc.extra["strategy"] in ("injection_probe", "nosqli_pair")
+            assert tc.extra["strategy"] in ("injection_probe", "nosqli_pair", "sqli_bool")
 
     def test_body_nosqli_pair_uses_operator_objects(self):
         ep = make_endpoint(method="POST", body_schema={"user": "a", "n": 1})
@@ -139,3 +139,25 @@ class TestInjectionCheck:
     def test_quote_breaker_sqli_payload_present(self):
         # VAmPI: "' OR '1'='1" is valid SQL there (200, no error); a lone quote raises the DB error.
         assert {"payload": "'", "type": "sqli"} in INJECTION_PAYLOADS
+
+
+class TestBlindSQLiProbes:
+    def _ep(self, method="GET"):
+        return make_endpoint(path="/users/{name}", method=method, params=[
+            Parameter(name="name", location=ParamLocation.PATH, schema_type="string", example="bob")])
+
+    def test_boolean_triple_appends_to_original_value(self):
+        cases = [c for c in InjectionCheck().generate(self._ep(), AuthConfig()) if c.extra["strategy"] == "sqli_bool"]
+        assert {c.extra["polarity"]: c.extra["payload"] for c in cases} == {
+            "control": "bob", "true": "bob' AND '1'='1", "false": "bob' AND '1'='2"}
+
+    def test_time_probes_only_when_enabled(self):
+        check = InjectionCheck()
+        assert not [c for c in check.generate(self._ep(), AuthConfig()) if c.extra["strategy"] == "sqli_time"]
+        check.time_based = True
+        timed = [c for c in check.generate(self._ep(), AuthConfig()) if c.extra["strategy"] == "sqli_time"]
+        assert len(timed) == 3 * 3 and all(c.extra["control_id"] for c in timed)
+
+    def test_no_value_probes_on_delete(self):
+        cases = InjectionCheck().generate(self._ep("DELETE"), AuthConfig())
+        assert not [c for c in cases if c.extra["strategy"] in ("sqli_bool", "sqli_time")]
