@@ -44,7 +44,7 @@ The spec (or HAR) provides the paths. Pass just the origin:
 
 Coverage: API1, API2, API3, API4, API7 and API8. API5, API6, API9 and API10 are not tested yet.
 
-### Benchmark: OWASP-style vulnerable API (VAmPI)
+### Benchmark: the VAmPI vulnerable API (erev0s/VAmPI)
 
 Scored against [VAmPI](https://github.com/erev0s/VAmPI)'s own list of 9 documented vulnerabilities. The scan runs against the vulnerable build and against the same API with its flaws switched off. Method and reproduction: [`benchmarks/`](benchmarks/README.md). Latest run: [`benchmarks/results/vampi.md`](benchmarks/results/vampi.md).
 
