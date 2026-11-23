@@ -36,3 +36,6 @@ class Endpoint(BaseModel):
     base_url: str = ""
     tags: list[str] = []
     operation_id: str = ""
+    # From the spec's `security` requirements: True = needs auth, False = public by design,
+    # None = the spec says nothing about auth (HAR/Postman, or no security anywhere) -> test anyway.
+    secured: bool | None = None

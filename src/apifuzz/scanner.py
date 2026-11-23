@@ -30,6 +30,10 @@ _ALL_CHECKS: dict[str, type[BaseCheck]] = {
 }
 
 
+# Checks whose detectors compare against the per-endpoint baseline request.
+_BASELINE_CHECKS = {"auth", "bola", "injection", "mass_assignment", "ssrf"}
+
+
 def _detect_format(path: str) -> str:
     p = Path(path)
     suffix = p.suffix.lower()
@@ -75,7 +79,7 @@ class Scanner:
 
         enabled = checks if checks else list(_ALL_CHECKS.keys())
         self._checks = [_ALL_CHECKS[c]() for c in enabled if c in _ALL_CHECKS]
-        self._uses_baseline = any(c.check_id in ("injection", "ssrf") for c in self._checks)
+        self._uses_baseline = any(c.check_id in _BASELINE_CHECKS for c in self._checks)
 
     async def run(self) -> list[Finding]:
         endpoints = self._parse(self.spec_path)
@@ -113,8 +117,8 @@ class Scanner:
         test_cases: list[TestCase] = []
         for endpoint in endpoints:
             key = f"{endpoint.method} {endpoint.path}"
-            # Baseline: one normal request; injection/SSRF detectors ignore markers the endpoint already
-            # returns. Only sent when such a check runs, and never for DELETE (it would remove the object).
+            # Baseline: one normal request with the configured auth, which detectors compare against.
+            # Only sent when such a check runs, and never for DELETE (it would remove the object).
             cases = []
             if self._uses_baseline and endpoint.method != "DELETE":
                 cases.append(TestCase(method=endpoint.method, url=build_url(endpoint), headers={}, params={},

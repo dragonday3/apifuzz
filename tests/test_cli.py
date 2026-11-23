@@ -115,3 +115,28 @@ class TestCLIScan:
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
         assert "owasp" in result.output.lower()
+
+
+class TestMinConfidence:
+    def _run(self, *extra):
+        import json as _json
+        respx.get(url__regex=r"http://testserver.*").mock(return_value=httpx.Response(200, json={"data": "ok"}))
+        respx.post(url__regex=r"http://testserver.*").mock(return_value=httpx.Response(200, json={}))
+        respx.delete(url__regex=r"http://testserver.*").mock(return_value=httpx.Response(204))
+        result = runner.invoke(app, [PETSTORE, "--target", "http://testserver", "--checks", "auth",
+                                     "--rate-limit", "0", "--quiet", *extra])
+        return result, (_json.loads(result.stdout) if result.stdout.strip().startswith("[") else None)
+
+    @respx.mock
+    def test_default_reports_tentative(self):
+        _, data = self._run()
+        assert {f["confidence"] for f in data} == {"firm", "tentative"}  # DELETE has no baseline
+
+    @respx.mock
+    def test_firm_filters_tentative(self):
+        _, data = self._run("--min-confidence", "firm")
+        assert data and {f["confidence"] for f in data} == {"firm"}
+
+    def test_invalid_value_rejected(self):
+        result = runner.invoke(app, [PETSTORE, "--target", "http://testserver", "--min-confidence", "maybe"])
+        assert result.exit_code == 2

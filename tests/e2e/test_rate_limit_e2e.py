@@ -32,9 +32,9 @@ async def test_each_unlimited_endpoint_gets_its_own_finding(mock_api):
 async def test_bursts_do_not_starve_other_checks(mock_api):
     # Rate-limited API that accepts any token: the invalid-token finding must survive on every
     # endpoint, i.e. the 50-request bursts must not use up the budget before the auth probes run.
-    # Per-client budget of 30: enough for the 4 baselines + 20 auth probes, not for any burst.
+    # Per-client budget of 30: enough for the 3 baselines + 20 auth probes, not for any burst.
     mock_api(rate_limit=30, rate_limit_global=True, accept_any_token=True)
     findings = await Scanner(PETSTORE, BASE, auth=ALICE, checks=["auth", "rate_limit"], rate_limit_rps=0).run()
     invalid = {(f.endpoint_method, f.endpoint_path) for f in findings if "Invalid Token" in f.title}
-    # /pets/1 belongs to alice, so the any-token user gets 403 there: only /pets is open.
-    assert invalid == {("GET", f"{BASE}/pets"), ("POST", f"{BASE}/pets")}
+    assert invalid == {("GET", f"{BASE}/pets"), ("POST", f"{BASE}/pets"),
+                       ("GET", f"{BASE}/pets/1"), ("DELETE", f"{BASE}/pets/1")}

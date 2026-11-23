@@ -70,7 +70,9 @@ def _owasp_security_severity(finding: Finding) -> str:
 def _build_result(finding: Finding) -> dict[str, Any]:
     result: dict[str, Any] = {
         "ruleId": finding.rule_id,
-        "level": _SEVERITY_LEVEL.get(finding.severity.value, "warning"),
+        # Tentative findings need manual verification: never "error", so they don't fail a PR check.
+        "level": "note" if finding.confidence == "tentative" else _SEVERITY_LEVEL.get(finding.severity.value,
+                                                                                       "warning"),
         "message": {"text": finding.description},
         "locations": [
             {
@@ -91,6 +93,7 @@ def _build_result(finding: Finding) -> dict[str, Any]:
         "properties": {
             "owasp_category": finding.owasp_category.value,
             "severity": finding.severity.value,
+            "confidence": finding.confidence,
             "remediation": finding.remediation,
         },
     }

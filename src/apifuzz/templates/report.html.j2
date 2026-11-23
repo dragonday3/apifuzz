@@ -43,6 +43,7 @@
   .badge-medium { background: var(--medium); }
   .badge-low { background: var(--low); }
   .badge-info { background: var(--info); }
+  .badge-tentative { background: transparent; color: var(--muted); border: 1px dashed var(--muted); }
   .finding-title { font-weight: 600; font-size: 14px; flex: 1; }
   .owasp-chip { font-size: 11px; color: var(--muted); background: rgba(255,255,255,0.06);
                 padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
@@ -108,6 +109,7 @@
   <div class="finding">
     <div class="finding-header" onclick="toggle(this)">
       <span class="badge badge-{{ f.severity }}">{{ f.severity }}</span>
+      {% if f.confidence == "tentative" %}<span class="badge badge-tentative" title="Needs manual verification">tentative</span>{% endif %}
       <span class="finding-title">{{ f.title }}</span>
       <span class="endpoint-pill">{{ f.endpoint_method }} {{ f.endpoint_path }}</span>
       <span class="owasp-chip">{{ f.owasp_category }}</span>

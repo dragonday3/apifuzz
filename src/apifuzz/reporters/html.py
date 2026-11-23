@@ -46,6 +46,7 @@ class HTMLReporter:
                 "response_sample": f.response_sample,
                 "remediation": f.remediation,
                 "rule_id": f.rule_id,
+                "confidence": f.confidence,
             }
             for f in sorted_findings
         ]

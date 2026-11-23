@@ -41,9 +41,14 @@ def scan(
     rate_limit: float = typer.Option(10.0, "--rate-limit", help="Max requests per second (rate_limit check bursts are exempt)"),
     timeout: float = typer.Option(15.0, "--timeout", help="HTTP request timeout in seconds"),
     checks: str = typer.Option("all", "--checks", help="Comma-separated check IDs or 'all'"),
+    min_confidence: str = typer.Option(
+        "tentative", "--min-confidence",
+        help="Report only findings at or above this confidence: tentative (all) | firm"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress progress output"),
 ) -> None:
     """Scan an API for OWASP API Top 10 security issues."""
+    if min_confidence not in ("tentative", "firm"):
+        raise typer.BadParameter("must be 'tentative' or 'firm'", param_hint="--min-confidence")
     auth = AuthConfig(
         type=auth_type,
         token=token,
@@ -74,6 +79,8 @@ def scan(
     ) as progress:
         task = progress.add_task("Running security checks…", total=None)
         findings = asyncio.run(scanner.run())
+        if min_confidence == "firm":
+            findings = [f for f in findings if f.confidence == "firm"]
         progress.update(task, description=f"Done — {len(findings)} finding(s)")
 
     if not quiet:
@@ -113,7 +120,7 @@ def _print_summary(findings) -> None:
         color = _SEVERITY_COLOR.get(f.severity.value, "white")
         table.add_row(
             f"[{color}]{f.severity.value.upper()}[/]",
-            f.title,
+            f.title + (" [dim](tentative)[/]" if f.confidence == "tentative" else ""),
             f"{f.endpoint_method} {f.endpoint_path}",
             f.rule_id,
         )

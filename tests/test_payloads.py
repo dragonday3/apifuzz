@@ -126,3 +126,38 @@ def test_read_only_properties_skipped():
     schema = {"type": "object", "properties": {"id": {"type": "integer", "readOnly": True},
                                                "name": {"type": "string"}}}
     assert example_from_schema(schema) == {"name": "apifuzz"}
+
+
+def _parse(tmp_path, body):
+    spec = tmp_path / "s.yaml"
+    spec.write_text('openapi: "3.0.3"\ninfo: {title: t, version: "1"}\n' + textwrap.dedent(body))
+    return {(e.method, e.path): e.secured for e in OpenAPIParser().parse(str(spec))}
+
+
+def test_security_global_and_per_operation(tmp_path):
+    secured = _parse(tmp_path, """
+        security: [{bearer: []}]
+        paths:
+          /a: {get: {responses: {"200": {description: ok}}}}
+          /b: {get: {security: [], responses: {"200": {description: ok}}}}
+          /c: {get: {security: [{}], responses: {"200": {description: ok}}}}
+          /d: {get: {security: [{apiKey: []}, {}], responses: {"200": {description: ok}}}}
+    """)
+    assert secured == {("GET", "/a"): True, ("GET", "/b"): False, ("GET", "/c"): False, ("GET", "/d"): False}
+
+
+def test_security_only_on_some_operations(tmp_path):
+    secured = _parse(tmp_path, """
+        paths:
+          /pub: {get: {responses: {"200": {description: ok}}}}
+          /priv: {get: {security: [{bearer: []}], responses: {"200": {description: ok}}}}
+    """)
+    assert secured == {("GET", "/pub"): False, ("GET", "/priv"): True}
+
+
+def test_security_undocumented_is_unknown(tmp_path):
+    secured = _parse(tmp_path, """
+        paths:
+          /x: {get: {responses: {"200": {description: ok}}}}
+    """)
+    assert secured == {("GET", "/x"): None}

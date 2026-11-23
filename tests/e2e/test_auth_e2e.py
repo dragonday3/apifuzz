@@ -45,7 +45,9 @@ async def test_probe_headers_reach_the_wire(mock_api):
     await scan(["auth"])
     assert None in api.auth_seen                              # no_auth
     assert "Bearer INVALID_TOKEN_apifuzz" in api.auth_seen    # invalid_token
-    assert "Bearer token-alice" not in api.auth_seen          # configured token never replaced a probe
+    # The configured token only goes out on the baseline (one per non-DELETE endpoint: 3 in petstore),
+    # never in place of a probe header.
+    assert api.auth_seen.count("Bearer token-alice") == 3
 
 
 # Per-(method, path) budget: above what one endpoint gets in the first pass, far below first pass + burst.

@@ -1,7 +1,7 @@
 import re
 from apifuzz.checks.injection import CMD_CANARY, SSTI_PRODUCT
 from apifuzz.executor import TestResult
-from apifuzz.models.finding import Finding, Severity, OWASPCategory
+from apifuzz.models.finding import Confidence, Finding, OWASPCategory, Severity
 
 _SEVERITY_ORDER = [
     Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO
@@ -22,11 +22,22 @@ _NOSQL_ERRORS = re.compile(r"(MongoError|MongoServerError|unknown operator|\$whe
 _SEVERITY_RANK = {s: i for i, s in enumerate(_SEVERITY_ORDER)}
 
 
+def _resembles(a: TestResult, b: TestResult) -> bool:
+    """Same status and essentially the same body: identical, or within 10% (min 20 bytes) in length."""
+    if a.status_code != b.status_code:
+        return False
+    if a.response_body == b.response_body:
+        return True
+    la, lb = len(a.response_body), len(b.response_body)
+    return abs(la - lb) <= max(20, 0.1 * max(la, lb))
+
+
 class Analyzer:
     def analyze(self, results: list[TestResult]) -> list[Finding]:
-        # Baseline = one normal request per endpoint (Scanner adds it); detectors ignore markers it already shows.
-        self._baselines = {
-            r.test_case.extra.get("endpoint_key"): r.response_body
+        # Baseline = one normal request per endpoint with the configured auth (Scanner adds it).
+        # Detectors compare against it: status, body, length, latency.
+        self._baselines: dict[str | None, TestResult] = {
+            r.test_case.extra.get("endpoint_key"): r
             for r in results if r.test_case.check_id == "baseline" and not r.is_error
         }
         raw: list[Finding] = []
@@ -40,8 +51,12 @@ class Analyzer:
         raw.extend(self._analyze_nosqli_pairs(results))
         return self._dedup(raw)
 
+    def _baseline(self, result: TestResult) -> TestResult | None:
+        return getattr(self, "_baselines", {}).get(result.test_case.extra.get("endpoint_key"))
+
     def _baseline_body(self, result: TestResult) -> str:
-        return getattr(self, "_baselines", {}).get(result.test_case.extra.get("endpoint_key"), "")
+        base = self._baseline(result)
+        return base.response_body if base else ""
 
     def _dispatch(self, result: TestResult) -> list[Finding]:
         check_id = result.test_case.check_id
@@ -102,30 +117,39 @@ class Analyzer:
 
     def _check_auth(self, result: TestResult) -> list[Finding]:
         tc = result.test_case
-        if result.is_success:  # any 2xx: 201/204 bypasses count too
-            strategy = tc.extra.get("strategy", "unknown")
-            descriptions = {
-                "no_auth": "Endpoint returned 2xx with no Authorization header.",
-                "invalid_token": "Endpoint returned 2xx with a known-invalid token.",
-                "empty_bearer": "Endpoint returned 2xx with an empty Bearer token.",
-                "empty_apikey": "Endpoint returned 2xx with an empty API key.",
-                "jwt_alg_none": "Endpoint accepted JWT with alg:none (signature bypass).",
-                "malformed_scheme": "Endpoint returned 2xx with a malformed auth scheme.",
-            }
-            return [Finding(
-                title=f"Broken Auth: {strategy.replace('_', ' ').title()} accepted",
-                description=descriptions.get(strategy, f"Auth bypass via {strategy}"),
-                severity=Severity.CRITICAL if strategy in ("no_auth", "jwt_alg_none") else Severity.HIGH,
-                owasp_category=OWASPCategory.API2_AUTH,
-                endpoint_method=tc.method,
-                endpoint_path=tc.url,
-                request_sample=tc.label,
-                response_sample=result.response_body[:500],
-                evidence=f"HTTP {result.status_code} returned with strategy: {strategy}",
-                remediation="Require valid authentication on all protected endpoints.",
-                rule_id=f"APIFUZZ-AUTH-{strategy.upper()[:10]}",
-            )]
-        return []
+        if not result.is_success:  # any 2xx: 201/204 bypasses count too
+            return []
+        # A 2xx alone isn't a bypass (public data, {"error": ...} bodies, login pages). Firm when the
+        # response matches what the authenticated baseline got; no baseline (DELETE) -> tentative.
+        base = self._baseline(result)
+        if base is not None and not _resembles(result, base):
+            return []
+        confidence: Confidence = "firm" if base is not None else "tentative"
+        matched = (f"; matches the authenticated baseline (HTTP {base.status_code}, "
+                   f"{len(base.response_body)} bytes)" if base is not None else "; no baseline to compare")
+        strategy = tc.extra.get("strategy", "unknown")
+        descriptions = {
+            "no_auth": "Endpoint returned 2xx with no Authorization header.",
+            "invalid_token": "Endpoint returned 2xx with a known-invalid token.",
+            "empty_bearer": "Endpoint returned 2xx with an empty Bearer token.",
+            "empty_apikey": "Endpoint returned 2xx with an empty API key.",
+            "jwt_alg_none": "Endpoint accepted JWT with alg:none (signature bypass).",
+            "malformed_scheme": "Endpoint returned 2xx with a malformed auth scheme.",
+        }
+        return [Finding(
+            title=f"Broken Auth: {strategy.replace('_', ' ').title()} accepted",
+            description=descriptions.get(strategy, f"Auth bypass via {strategy}"),
+            severity=Severity.CRITICAL if strategy in ("no_auth", "jwt_alg_none") else Severity.HIGH,
+            owasp_category=OWASPCategory.API2_AUTH,
+            endpoint_method=tc.method,
+            endpoint_path=tc.url,
+            request_sample=tc.label,
+            response_sample=result.response_body[:500],
+            evidence=f"HTTP {result.status_code} returned with strategy: {strategy}{matched}",
+            remediation="Require valid authentication on all protected endpoints.",
+            rule_id=f"APIFUZZ-AUTH-{strategy.upper()[:10]}",
+            confidence=confidence,
+        )]
 
     def _check_mass_assignment(self, result: TestResult) -> list[Finding]:
         tc = result.test_case

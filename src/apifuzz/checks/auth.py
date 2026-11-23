@@ -23,6 +23,8 @@ class AuthCheck(BaseCheck):
     name = "Broken Authentication (OWASP API2)"
 
     def generate(self, endpoint: Endpoint, auth: AuthConfig) -> list[TestCase]:
+        if endpoint.secured is False:  # public by design in the spec: nothing to bypass
+            return []
         url = self._build_url(endpoint)
         body = endpoint.body_example
         # Probe the header the API actually authenticates with (apikey may use a custom header).

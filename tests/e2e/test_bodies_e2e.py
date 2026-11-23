@@ -11,7 +11,7 @@ async def test_mass_assignment_body_is_accepted(mock_api):
     api = mock_api()
     await Scanner(PETSTORE, BASE, auth=ALICE, checks=["mass_assignment"], rate_limit_rps=0).run()
     # The mock returns 422 unless "name" is a string: a schema dict body would never get past it.
-    assert api.statuses[("POST", "/pets")] == [201]
+    assert api.statuses[("POST", "/pets")] == [201, 201]  # baseline + mass-assignment probe
 
 
 async def test_probes_hit_concrete_path(mock_api):

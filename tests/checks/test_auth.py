@@ -112,3 +112,13 @@ class TestAuthCheckModes:
         cases = AuthCheck().generate(make_endpoint(), AuthConfig(type="basic", token="u:p"))
         invalid = next(c for c in cases if c.extra["strategy"] == "invalid_token")
         assert invalid.headers["Authorization"].startswith("Basic ")
+
+
+def test_public_endpoint_not_probed():
+    ep = Endpoint(method="GET", path="/books", base_url="https://api.example.com", secured=False)
+    assert AuthCheck().generate(ep, AuthConfig(type="bearer", token="t")) == []
+
+
+def test_unknown_security_still_probed():
+    ep = Endpoint(method="GET", path="/x", base_url="https://api.example.com", secured=None)
+    assert AuthCheck().generate(ep, AuthConfig(type="bearer", token="t"))

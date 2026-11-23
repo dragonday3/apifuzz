@@ -19,7 +19,7 @@ TOKENS = {"token-alice": "alice", "token-bob": "bob"}
 class MockAPI:
     """Petstore-shaped API. Pets 1 (alice) and 2 (bob) exist.
 
-    accept_any_token: any non-empty bearer value authenticates (broken auth).
+    accept_any_token: any non-empty bearer value authenticates as alice (signature never verified).
     enforce_ownership: /pets/{id} returns 403 unless the caller owns the pet (no BOLA).
     rate_limit: per-(method, path) request budget before 429s; None disables it.
     rate_limited_paths: restrict rate_limit to these paths; None means every path.
@@ -45,7 +45,7 @@ class MockAPI:
         token = value[7:].strip()
         if token in TOKENS:
             return TOKENS[token]
-        return "anonymous" if self.accept_any_token else None
+        return "alice" if self.accept_any_token else None
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         response = self._handle(request)

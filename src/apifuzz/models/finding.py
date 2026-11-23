@@ -1,5 +1,9 @@
 from enum import Enum
+from typing import Literal
+
 from pydantic import BaseModel
+
+Confidence = Literal["firm", "tentative"]
 
 
 class Severity(str, Enum):
@@ -37,3 +41,6 @@ class Finding(BaseModel):
     evidence: str = ""
     remediation: str = ""
     rule_id: str = ""            # for SARIF output
+    # firm: confirmed by comparison (baseline, second request, persistence check);
+    # tentative: plausible signal that needs manual verification.
+    confidence: Confidence = "firm"

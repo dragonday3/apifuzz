@@ -362,3 +362,22 @@ class TestReviewRegressions:
     def test_empty_apikey_wording(self, analyzer):
         [f] = analyzer.analyze([make_result(make_tc("auth", extra={"strategy": "empty_apikey"}), 200)])
         assert "API key" in f.description
+
+
+class TestAuthAgainstBaseline:
+    def _pair(self, probe_status, probe_body, base_status=200, base_body='{"user": "alice", "role": "x"}'):
+        base = make_result(make_tc("baseline", extra={"endpoint_key": "GET /me"}), base_status, body=base_body)
+        tc = make_tc("auth", extra={"strategy": "invalid_token", "endpoint_key": "GET /me"})
+        return [base, make_result(tc, probe_status, body=probe_body)]
+
+    def test_resembling_baseline_is_firm(self, analyzer):
+        [f] = analyzer.analyze(self._pair(200, '{"user": "alice", "role": "x"}'))
+        assert f.confidence == "firm" and "matches the authenticated baseline" in f.evidence
+
+    def test_soft_fail_200_is_not_a_bypass(self, analyzer):
+        long_profile = '{"user": "alice", "email": "alice@example.com", "books": ["a", "b", "c", "d"]}'
+        assert analyzer.analyze(self._pair(200, '{"status": "fail"}', base_body=long_profile)) == []
+
+    def test_no_baseline_is_tentative(self, analyzer):
+        [f] = analyzer.analyze([make_result(make_tc("auth", extra={"strategy": "no_auth"}), 204)])
+        assert f.confidence == "tentative"

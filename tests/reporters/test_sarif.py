@@ -117,3 +117,10 @@ class TestSARIFReporter:
         sarif = reporter.generate(single_finding)
         sec_sev = sarif["runs"][0]["tool"]["driver"]["rules"][0]["properties"]["security-severity"]
         assert float(sec_sev) >= 9.0
+
+
+def test_tentative_finding_is_note_level(reporter):
+    f = make_finding(severity=Severity.CRITICAL)
+    f.confidence = "tentative"
+    result = reporter.generate([f])["runs"][0]["results"][0]
+    assert result["level"] == "note" and result["properties"]["confidence"] == "tentative"

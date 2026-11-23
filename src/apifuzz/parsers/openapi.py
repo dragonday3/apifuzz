@@ -16,11 +16,30 @@ class OpenAPIParser(BaseParser):
         spec = jsonref.replace_refs(raw)
 
         if "openapi" in spec:
-            return self._parse_openapi3(spec)
+            endpoints = self._parse_openapi3(spec)
         elif "swagger" in spec:
-            return self._parse_swagger2(spec)
+            endpoints = self._parse_swagger2(spec)
         else:
             raise ValueError(f"Cannot detect spec version in {source}")
+        self._apply_security(spec, endpoints)
+        return endpoints
+
+    @staticmethod
+    def _apply_security(spec: dict, endpoints: list[Endpoint]) -> None:
+        """Mark each endpoint secured/public from operation-level `security`, else the global one.
+
+        `security: []` means public; `[{}]` (an empty requirement) means auth is optional, which also
+        counts as public. If the spec declares security nowhere, auth is undocumented: leave None.
+        """
+        ops = {(m.upper(), path): op for path, item in spec.get("paths", {}).items()
+               for m, op in item.items() if isinstance(op, dict) and m.lower() in VALID_METHODS}
+        documented = "security" in spec or any("security" in op for op in ops.values())
+        if not documented:
+            return
+        for ep in endpoints:
+            op = ops.get((ep.method, ep.path), {})
+            reqs = op["security"] if "security" in op else spec.get("security", [])
+            ep.secured = bool(reqs) and all(bool(r) for r in reqs)
 
     def _load(self, source: str) -> dict:
         path = Path(source)
