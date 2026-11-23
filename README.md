@@ -238,6 +238,8 @@ api-security:
   allow_failure: true
 ```
 
+> **Shared staging?** The default scan still sends a 50-request burst to every endpoint (and creates records through `POST`). Use `--checks` without `rate_limit` and/or `--max-requests` against shared environments. Add `--insecure` if staging uses a self-signed certificate (otherwise every request fails and the job exits `2`).
+
 ---
 
 ## Python SDK

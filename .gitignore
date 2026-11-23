@@ -57,3 +57,4 @@ CLAUDE.local.md
 .antigravitycli/
 .mypy_cache/
 .ruff_cache/
+.claude/

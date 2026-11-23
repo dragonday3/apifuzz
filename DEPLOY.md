@@ -185,6 +185,8 @@ The CLI accepts all options as flags. For CI environments, set auth tokens via s
 | `API_TEST_TOKEN` | `--token` value for bearer auth |
 | `API_TEST_TOKEN_B` | `--second-token` for BOLA cross-user tests |
 
+**Defaults to know in CI** (see the README "Safety defaults"): TLS certificates are verified, so a staging API with a private CA or a self-signed certificate needs `--insecure`; otherwise every request fails and the run exits `2`. `PUT`/`PATCH`/`DELETE` endpoints are skipped unless you pass `--allow-destructive`.
+
 ---
 
 ## Versioning
