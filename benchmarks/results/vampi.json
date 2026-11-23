@@ -1,10 +1,10 @@
 {
   "meta": {
     "date": "2026-11-23",
-    "commit": "394e4a2",
+    "commit": "6036d56",
     "scan": "{\"allow_destructive\": true, \"exclude\": [\"/createdb\"], \"rate_limit_rps\": 20}",
-    "sent_vulnerable": 957,
-    "sent_secure": 957,
+    "sent_vulnerable": 952,
+    "sent_secure": 952,
     "errors_vulnerable": {},
     "errors_secure": {}
   },
@@ -14,16 +14,16 @@
   "detected_firm": 5,
   "recall_documented": 0.667,
   "recall_covered": 0.857,
-  "vulnerable_findings": 20,
-  "vulnerable_fp": 3,
+  "vulnerable_findings": 17,
+  "vulnerable_fp": 0,
   "vulnerable_rate_findings": 11,
-  "precision": 0.85,
-  "precision_firm": 0.842,
-  "precision_excl_rate_limit": 0.667,
+  "precision": 1.0,
+  "precision_firm": 1.0,
+  "precision_excl_rate_limit": 1.0,
   "secure_rate_findings": 11,
-  "secure_findings": 15,
-  "secure_fp": 3,
-  "secure_fp_firm": 3,
+  "secure_findings": 12,
+  "secure_fp": 0,
+  "secure_fp_firm": 0,
   "per_vulnerability": [
     {
       "id": "sqli",
@@ -155,37 +155,7 @@
       "severity": "critical",
       "tp": true,
       "vuln": "bola-books",
-      "url": "http://127.0.0.1:5002/books/v1/bookTitle86"
-    },
-    {
-      "rule_id": "APIFUZZ-INVENTORY-001",
-      "check": "inventory",
-      "endpoint": "GET /openapi.json (not in spec)",
-      "confidence": "firm",
-      "severity": "low",
-      "tp": false,
-      "vuln": null,
-      "url": "http://127.0.0.1:5002/openapi.json"
-    },
-    {
-      "rule_id": "APIFUZZ-INVENTORY-001",
-      "check": "inventory",
-      "endpoint": "GET /openapi.yaml (not in spec)",
-      "confidence": "firm",
-      "severity": "low",
-      "tp": false,
-      "vuln": null,
-      "url": "http://127.0.0.1:5002/openapi.yaml"
-    },
-    {
-      "rule_id": "APIFUZZ-INVENTORY-001",
-      "check": "inventory",
-      "endpoint": "GET /ui/ (not in spec)",
-      "confidence": "firm",
-      "severity": "low",
-      "tp": false,
-      "vuln": null,
-      "url": "http://127.0.0.1:5002/ui/"
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle34"
     },
     {
       "rule_id": "APIFUZZ-INJECT-SQLI-BOOL",
@@ -315,7 +285,7 @@
       "severity": "medium",
       "tp": true,
       "vuln": "rate-limiting",
-      "url": "http://127.0.0.1:5002/books/v1/bookTitle86"
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle34"
     }
   ],
   "findings_secure": [
@@ -328,36 +298,6 @@
       "tp": true,
       "vuln": "debug-exposure",
       "url": "http://127.0.0.1:5001/users/v1/_debug"
-    },
-    {
-      "rule_id": "APIFUZZ-INVENTORY-001",
-      "check": "inventory",
-      "endpoint": "GET /openapi.json (not in spec)",
-      "confidence": "firm",
-      "severity": "low",
-      "tp": false,
-      "vuln": null,
-      "url": "http://127.0.0.1:5001/openapi.json"
-    },
-    {
-      "rule_id": "APIFUZZ-INVENTORY-001",
-      "check": "inventory",
-      "endpoint": "GET /openapi.yaml (not in spec)",
-      "confidence": "firm",
-      "severity": "low",
-      "tp": false,
-      "vuln": null,
-      "url": "http://127.0.0.1:5001/openapi.yaml"
-    },
-    {
-      "rule_id": "APIFUZZ-INVENTORY-001",
-      "check": "inventory",
-      "endpoint": "GET /ui/ (not in spec)",
-      "confidence": "firm",
-      "severity": "low",
-      "tp": false,
-      "vuln": null,
-      "url": "http://127.0.0.1:5001/ui/"
     },
     {
       "rule_id": "APIFUZZ-RATE-001",
@@ -467,7 +407,7 @@
       "severity": "medium",
       "tp": true,
       "vuln": "rate-limiting",
-      "url": "http://127.0.0.1:5001/books/v1/bookTitle61"
+      "url": "http://127.0.0.1:5001/books/v1/bookTitle43"
     }
   ]
 }

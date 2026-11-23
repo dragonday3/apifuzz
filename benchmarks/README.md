@@ -42,14 +42,18 @@ Latest run: [`results/vampi.md`](results/vampi.md).
 |---|---|---|
 | Detected | 0 | 6: SQLi, BOLA, debug-endpoint data exposure, user enumeration, rate limiting (firm); unauthorized password change (tentative) |
 | Detected, among the vulnerabilities apifuzz has a check for | 0 | 6 / 7 |
-| False positives, vulnerable build | 25 with tokens / 12 without | 3 |
-| False positives, secure build | 25 with tokens / 12 without | 3 |
+| False positives, vulnerable build | 25 with tokens / 12 without | 0 |
+| False positives, secure build | 25 with tokens / 12 without | 0 |
 
-**The 3 false positives** (both builds) are `inventory` findings: VAmPI's own spec and Swagger UI
-(`/openapi.json`, `/openapi.yaml`, `/ui/`) are reachable and not in the spec. VAmPI serves them on purpose and
-doesn't list them as a vulnerability, so they count against apifuzz here.
+**Rules changed after seeing benchmark output (disclosed).** Each change removed false positives that showed
+up on VAmPI, so read the 0 with that in mind:
 
-**Rule changed after seeing benchmark output (disclosed):** the first run with the `data_exposure` check also
+1. The first run with the new `inventory` check reported VAmPI's own spec and Swagger UI (`/openapi.json`,
+   `/openapi.yaml`, `/ui/`) on both builds: 3 false positives each. An independent review flagged that every
+   FastAPI-style app publishes these by default. `inventory` now reports a served spec only when it
+   describes operations *missing* from the scanned spec (a shadow API), and no longer reports docs UIs
+   (commit `6036d56`).
+2. The first run with the `data_exposure` check also
 flagged the `secret` field of `GET /books/v1/{book_title}` on both builds. That field is the book's own
 content, shown to its owner; whether *other* users can read it is the BOLA finding. A bare `secret` field
 name was dropped from the sensitive-field list (`client_secret`, `secret_key`, `api_secret` stay), which
