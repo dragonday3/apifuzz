@@ -40,11 +40,14 @@ The spec (or HAR) provides the paths. Pass just the origin:
 | `rate_limit` | API4 — Unrestricted Resource Consumption | 50-request burst detection |
 | `ssrf` | API7 — Server Side Request Forgery | Cloud-metadata and internal URL probes in URL-type parameters |
 | `cors` | API8 — Security Misconfiguration | Origin reflection + credentials misconfiguration |
-| `injection` | *(no 2023 API category; OWASP Top 10 A03:2021 Injection)* | SQLi, NoSQLi, SSTI, command injection, XSS |
+| `injection` | *(no 2023 API category; OWASP Top 10 A03:2021 Injection)* | SQLi, SSTI and command injection (NoSQLi and XSS payloads are sent, but not yet detected) |
 
 Coverage: API1, API2, API3, API4, API7 and API8. API5, API6, API9 and API10 are not tested yet.
 
-> **Known issue (v0.1.0):** findings from `mass_assignment` are currently labelled `API6:2023` and `injection` findings `API8:2023` in JSON/SARIF output. The table above is the correct mapping; the output labels are being fixed.
+> **Known issues (v0.1.0), fixes in progress:**
+> - With `--auth-type` set, the configured token currently overrides the headers used by the `auth` tests and the cross-user `bola` test, so those can report false positives on correctly secured APIs. Verify auth/BOLA findings manually until this is fixed.
+> - Request bodies are built from the raw JSON schema rather than example values, so body-based tests may be rejected by strict APIs.
+> - `mass_assignment` findings are labelled `API6:2023` and `injection` findings `API8:2023` in JSON/SARIF output; the table above is the correct mapping.
 
 ----|---------------|---------------|
 | `bola` | API1 - BOLA/IDOR | ID enumeration, cross-user access |
