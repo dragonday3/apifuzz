@@ -40,9 +40,13 @@ The spec (or HAR) provides the paths. Pass just the origin:
 | `rate_limit` | API4 — Unrestricted Resource Consumption | 50-request burst per endpoint; any `429`, `Retry-After` or `X-RateLimit-*` header counts as protected |
 | `ssrf` | API7 — Server Side Request Forgery | Cloud-metadata and internal URL probes in URL-type parameters |
 | `cors` | API8 — Security Misconfiguration | Origin reflection + credentials misconfiguration |
+| `data_exposure` | API3 — Broken Object Property Level Authorization | Sensitive fields (passwords, secrets, keys, tokens, card numbers) with real values in GET responses; response fields the spec doesn't document (tentative) |
+| `user_enum` | API2 — Broken Authentication | Login answers differently for an existing username than for unknown ones (wrong password in both) |
+| `bfla` | API5 — Broken Function Level Authorization | With `--low-priv-token`: privileged-looking operations (admin/internal/manage paths, tags, "Only Admins" summaries) called as the low-privilege user |
+| `inventory` | API9 — Improper Inventory Management | Exposed API specs/docs, Spring actuator, `.env`, expvar/metrics/server-status, and neighbouring API versions not in the spec (once per scan) |
 | `injection` | *(no 2023 API category; OWASP Top 10 A03:2021 Injection)* | SQLi (DB error strings, boolean true/false conditions, time-based with `--time-based`), SSTI and command injection (computed canaries), NoSQLi (Mongo errors and `$ne`/`$eq` response differences), XSS reflected unescaped in HTML |
 
-Coverage: API1, API2, API3, API4, API7 and API8. API5, API6, API9 and API10 are not tested yet.
+Coverage: API1, API2, API3, API4, API5, API7, API8 and API9. API6 (business flows) and API10 (unsafe consumption) are not tested.
 
 ### Benchmark: the VAmPI vulnerable API (erev0s/VAmPI)
 
@@ -167,6 +171,10 @@ Options:
   --auth-type TEXT           Auth type: none | bearer | apikey | basic [default: none]
   --token TEXT               Auth token / credentials
   --second-token TEXT        Second token for BOLA cross-user tests
+  --low-priv-token TEXT      Low-privilege user's token for BFLA tests (--token
+                             should then be a privileged user)
+  --oob-url TEXT             Collector you control (interactsh, webhook) for blind
+                             SSRF; the scan prints which probe id is which parameter
   --header-name TEXT         Header name for apikey auth [default: Authorization]
   --output, -o TEXT          Output format: json | sarif | html [default: json]
   --out-file, -f TEXT        Output file path (stdout if omitted for json/sarif)
@@ -336,7 +344,7 @@ Input Parsers          → Endpoint models
   Postman Collection v2
 
 Check Engine           → TestCase list
-  7 OWASP checks:
+  11 checks:
     bola           (API1 - BOLA/IDOR)
     auth           (API2 - Broken Auth)
     mass_assignment(API3 - BOPLA / mass assignment)
@@ -344,6 +352,10 @@ Check Engine           → TestCase list
     injection      (A03:2021 - Injection)
     rate_limit     (API4 - Rate Limiting)
     cors           (API8 - CORS)
+    data_exposure  (API3 - excessive data exposure)
+    user_enum      (API2 - login user enumeration)
+    bfla           (API5 - function level authorization)
+    inventory      (API9 - inventory, once per scan)
 
 Async Executor         → TestResult list
   httpx AsyncClient

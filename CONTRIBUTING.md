@@ -36,7 +36,8 @@ All PRs must keep the test suite green across Python 3.10, 3.11, and 3.12.
 Checks only generate requests; detection lives in the analyzer. A new check touches four places:
 
 1. `src/apifuzz/checks/your_check.py`: subclass `BaseCheck`, set `check_id` and `name`, and implement
-   `generate(endpoint, auth) -> list[TestCase]`. Build URLs with `self._build_url()` and bodies from
+   `generate(endpoint, auth) -> list[TestCase]` (or `generate_global(endpoints, auth)` for probes sent once per
+   scan, like `inventory`). Build URLs with `self._build_url()` and bodies from
    `endpoint.body_example`. Pass context for the analyzer in `TestCase.extra`. If your probe sets its own
    auth headers, set `auth_mode="override"` (or `"none"`) so the configured token doesn't replace them.
 2. Register it in `_ALL_CHECKS` in `src/apifuzz/scanner.py`.
