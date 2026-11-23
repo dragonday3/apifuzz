@@ -1,0 +1,52 @@
+name: Benchmark
+
+# Re-measure against VAmPI weekly and on demand. Fails if detection drops or false positives appear
+# compared with the committed results (benchmarks/results/vampi.json).
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  vampi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+
+      - name: Start VAmPI (vulnerable :5002, secure :5001)
+        run: |
+          docker compose -f benchmarks/vampi/docker-compose.yml up -d
+          for port in 5001 5002; do
+            for i in $(seq 1 30); do curl -sf "http://127.0.0.1:$port/" >/dev/null && break; sleep 1; done
+          done
+
+      - name: Keep the committed results to compare with
+        run: cp benchmarks/results/vampi.json /tmp/committed.json
+
+      - name: Run the benchmark
+        run: python benchmarks/run.py vampi
+
+      - name: Compare with committed results
+        run: |
+          python - <<'EOF'
+          import json
+          old = json.load(open("/tmp/committed.json"))
+          new = json.load(open("benchmarks/results/vampi.json"))
+          print(f"detected {old['detected']} -> {new['detected']}, "
+                f"FP vulnerable {old['vulnerable_fp']} -> {new['vulnerable_fp']}, "
+                f"FP secure {old['secure_fp']} -> {new['secure_fp']}")
+          worse = (new["detected"] < old["detected"] or new["vulnerable_fp"] > old["vulnerable_fp"]
+                   or new["secure_fp"] > old["secure_fp"])
+          raise SystemExit("benchmark regressed" if worse else 0)
+          EOF
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: vampi-results
+          path: benchmarks/results/

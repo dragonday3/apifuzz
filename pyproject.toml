@@ -3,11 +3,27 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "apifuzz"
-version = "0.1.0"
+# PyPI name: "apifuzz" belongs to another project. The import package and CLI command stay `apifuzz`.
+name = "apifuzz-scanner"
+dynamic = ["version"]
 description = "API Security Testing Framework — OWASP API Top 10 test generation and execution"
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["security", "api", "owasp", "dast", "fuzzing", "openapi", "sarif", "pentest"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Testing",
+]
+
 dependencies = [
     "httpx>=0.27",
     "pydantic>=2.7",
@@ -18,6 +34,11 @@ dependencies = [
     "jinja2>=3.1",
     "anyio>=4.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/dragonday3/apifuzz"
+Issues = "https://github.com/dragonday3/apifuzz/issues"
+Benchmarks = "https://github.com/dragonday3/apifuzz/tree/main/benchmarks"
 
 [project.optional-dependencies]
 dev = [
@@ -33,6 +54,9 @@ dev = [
 
 [project.scripts]
 apifuzz = "apifuzz.cli:app"
+
+[tool.hatch.version]
+path = "src/apifuzz/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/apifuzz"]

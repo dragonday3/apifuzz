@@ -1,0 +1,86 @@
+name: Release
+
+# Push a tag vX.Y.Z (matching src/apifuzz/__init__.py) to publish:
+#   - the wheel/sdist to PyPI as `apifuzz-scanner` (trusted publishing: no token; see DEPLOY.md)
+#   - the image to ghcr.io/<owner>/apifuzz (GITHUB_TOKEN: no secret)
+#   - a GitHub release with the CHANGELOG section and the built files
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Tag must match the package version
+        run: |
+          version=$(python -c "import re;print(re.search(r'__version__ = \"(.+?)\"', open('src/apifuzz/__init__.py').read())[1])")
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME != version v$version"; exit 1; }
+      - run: pip install -e ".[dev]" build
+      - run: pytest -q tests/
+      - run: python -m build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # trusted publishing
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@v1.14.3
+
+  ghcr:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image name (lowercase owner)
+        id: img
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/apifuzz" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.img.outputs.name }}:${{ github.ref_name }}
+            ${{ steps.img.outputs.name }}:latest
+
+  github-release:
+    needs: [pypi, ghcr]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - name: Release notes from CHANGELOG.md
+        run: |
+          awk -v h="## [${GITHUB_REF_NAME#v}]" 'index($0, h) == 1 {on=1; next} on && /^## / {exit} on' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "no CHANGELOG section for $GITHUB_REF_NAME"; exit 1; }
+      - run: gh release create "$GITHUB_REF_NAME" dist/* --title "apifuzz $GITHUB_REF_NAME" --notes-file notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
