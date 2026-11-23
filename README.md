@@ -30,10 +30,23 @@ The spec (or HAR) provides the paths. Pass just the origin:
 --target https://api.example.com/v1/weather  ✗  (path goes in the spec)
 ```
 
-**Checks implemented:**
+**Checks implemented** (mapped to the [OWASP API Security Top 10 — 2023](https://owasp.org/API-Security/editions/2023/en/0x11-t10/)):
 
-| ID | OWASP Category | What It Tests |
-|----|---------------|---------------|
+| ID | OWASP category (2023) | What it tests |
+|----|-----------------------|---------------|
+| `bola` | API1 — Broken Object Level Authorization | ID enumeration, cross-user access with a second user's token |
+| `auth` | API2 — Broken Authentication | No auth, invalid tokens, JWT `alg:none` |
+| `mass_assignment` | API3 — Broken Object Property Level Authorization | Privileged field injection (`role`, `is_admin`, …) into request bodies |
+| `rate_limit` | API4 — Unrestricted Resource Consumption | 50-request burst detection |
+| `ssrf` | API7 — Server Side Request Forgery | Cloud-metadata and internal URL probes in URL-type parameters |
+| `cors` | API8 — Security Misconfiguration | Origin reflection + credentials misconfiguration |
+| `injection` | *(no 2023 API category; OWASP Top 10 A03:2021 Injection)* | SQLi, NoSQLi, SSTI, command injection, XSS |
+
+Coverage: API1, API2, API3, API4, API7 and API8. API5, API6, API9 and API10 are not tested yet.
+
+> **Known issue (v0.1.0):** findings from `mass_assignment` are currently labelled `API6:2023` and `injection` findings `API8:2023` in JSON/SARIF output. The table above is the correct mapping; the output labels are being fixed.
+
+----|---------------|---------------|
 | `bola` | API1 - BOLA/IDOR | ID enumeration, cross-user access |
 | `auth` | API2 - Broken Auth | No auth, invalid tokens, JWT alg:none |
 | `mass_assignment` | API6 - Mass Assignment | Privileged field injection into request body |
@@ -46,25 +59,28 @@ The spec (or HAR) provides the paths. Pass just the origin:
 
 ## Install
 
-### pip
-
-```bash
-pip install apifuzz
-```
-
-### Docker
-
-```bash
-docker pull dragonday3/apifuzz
-docker run --rm dragonday3/apifuzz --help
-```
+> **Not on PyPI.** The `apifuzz` package on PyPI is a different, unrelated project — do not `pip install apifuzz`. Install from this repository instead.
 
 ### From source
 
 ```bash
 git clone https://github.com/dragonday3/apifuzz
 cd apifuzz
-pip install -e ".[dev]"
+pip install -e .            # add ".[dev]" for tests
+```
+
+### Straight from GitHub
+
+```bash
+pip install "git+https://github.com/dragonday3/apifuzz.git"
+```
+
+### Docker (build locally)
+
+```bash
+git clone https://github.com/dragonday3/apifuzz && cd apifuzz
+docker build -t apifuzz .
+docker run --rm apifuzz --help
 ```
 
 ---
@@ -169,7 +185,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install apifuzz
-        run: pip install apifuzz
+        run: pip install "git+https://github.com/dragonday3/apifuzz.git"
 
       - name: Run API security scan
         run: |
@@ -191,8 +207,9 @@ jobs:
 
 ```yaml
 api-security:
-  image: dragonday3/apifuzz:latest
+  image: python:3.12-slim
   script:
+    - pip install "git+https://github.com/dragonday3/apifuzz.git"
     - apifuzz openapi.yaml --target $API_BASE_URL --output sarif --out-file gl-sast-report.sarif
   artifacts:
     reports:
@@ -243,7 +260,7 @@ HTMLReporter().write(findings, "report.html")
 
 ### SARIF 2.1
 
-Native integration with GitHub Code Scanning, GitLab SAST, and Azure DevOps. Findings appear inline on pull requests with severity, description, and remediation guidance. Rule IDs map directly to OWASP API Top 10 categories.
+Upload to GitHub Code Scanning (workflow above) and findings appear in the Security tab and inline on pull requests, with severity, description and remediation guidance. Any SARIF 2.1-compatible tool can read the file.
 
 ### JSON
 
@@ -259,18 +276,13 @@ Dark-theme interactive report with collapsible findings, severity badges, eviden
 
 ---
 
-## Verifying Against Real Vulnerable APIs
+## Trying It Against a Deliberately Vulnerable API
+
+Run a practice target such as [OWASP crAPI](https://github.com/OWASP/crAPI) or [VAmPI](https://github.com/erev0s/VAmPI) locally using their own setup instructions, then point apifuzz at it with that project's OpenAPI spec:
 
 ```bash
-# OWASP crAPI (deliberately vulnerable API)
-docker run -d --name crapi -p 8888:8888 crapi/crapi:latest
-apifuzz ./crapi-openapi.yaml --target http://localhost:8888 \
-  --output html --out-file crapi-report.html
-
-# vAPI (vulnerable API)
-docker run -d --name vapi -p 9090:80 roottusk/vapi
-apifuzz ./vapi-openapi.yaml --target http://localhost:9090 \
-  --output sarif --out-file vapi.sarif
+apifuzz ./target-openapi.yaml --target http://localhost:<port> \
+  --output html --out-file report.html
 ```
 
 ---
@@ -287,16 +299,16 @@ Check Engine           → TestCase list
   7 OWASP checks:
     bola           (API1 - BOLA/IDOR)
     auth           (API2 - Broken Auth)
-    mass_assignment(API6 - Mass Assignment)
+    mass_assignment(API3 - BOPLA / mass assignment)
     ssrf           (API7 - SSRF)
-    injection      (API8 - Injection)
+    injection      (A03:2021 - Injection)
     rate_limit     (API4 - Rate Limiting)
     cors           (API8 - CORS)
 
 Async Executor         → TestResult list
   httpx AsyncClient
   Semaphore concurrency control
-  Token-bucket rate limiting
+  Minimum-interval rate limiting
   Auth injection (bearer / apikey / basic)
 
 Response Analyzer      → Finding list
@@ -305,7 +317,7 @@ Response Analyzer      → Finding list
   Severity-based deduplication
 
 Reporters
-  SARIF 2.1 (GitHub / GitLab / Azure DevOps)
+  SARIF 2.1 (GitHub Code Scanning)
   JSON       (machine-readable)
   HTML       (interactive dark-theme report)
 ```
@@ -330,6 +342,12 @@ pytest tests/checks/test_injection.py -v
 ```
 
 **Test matrix:** Python 3.10, 3.11, 3.12 (CI runs all three on every push).
+
+---
+
+## Authorized Use Only
+
+apifuzz sends attack payloads (injection, SSRF, auth bypass, request bursts). Only scan APIs you own or have explicit written permission to test.
 
 ---
 
