@@ -15,13 +15,15 @@ SCHEMES = {
 
 @pytest.mark.parametrize("scheme", sorted(SCHEMES))
 async def test_secure_api_no_findings(mock_api, scheme):
-    mock_api()
+    api = mock_api(scheme=scheme)
     assert await Scanner(PETSTORE, BASE, auth=SCHEMES[scheme], checks=["auth", "bola"], rate_limit_rps=0).run() == []
+    # The baseline authenticated in the configured scheme (a wrong-scheme send would have been 401 everywhere).
+    assert 200 in api.statuses[("GET", "/pets")]
 
 
 @pytest.mark.parametrize("scheme", sorted(SCHEMES))
 async def test_vulnerable_api_findings(mock_api, scheme):
-    mock_api(accept_any_token=True, enforce_ownership=False)
+    mock_api(accept_any_token=True, enforce_ownership=False, scheme=scheme)
     findings = await Scanner(PETSTORE, BASE, auth=SCHEMES[scheme], checks=["auth", "bola"], rate_limit_rps=0).run()
     rules = {(f.rule_id, f.endpoint) for f in findings}
     assert ("APIFUZZ-AUTH-INVALID_TO", "GET /pets") in rules          # garbage credential accepted

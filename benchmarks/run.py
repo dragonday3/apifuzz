@@ -46,7 +46,13 @@ def seed_path_param(spec: dict, name: str, value: str) -> None:
 def vampi_setup(base_url: str) -> tuple[str, AuthConfig]:
     """Reset the data, log in two users, seed the spec with user A's real (random per reset) book title."""
     with httpx.Client(base_url=base_url, timeout=15) as client:
-        client.get("/createdb").raise_for_status()
+        # VAmPI seeds book titles as bookTitle<0-99> under a UNIQUE constraint: ~3% of resets hit a
+        # collision and answer 500. Retry instead of failing the run.
+        for _ in range(5):
+            if client.get("/createdb").status_code == 200:
+                break
+        else:
+            raise RuntimeError(f"{base_url}/createdb kept failing")
 
         def login(user: str, password: str) -> str:
             r = client.post("/users/v1/login", json={"username": user, "password": password})
@@ -122,6 +128,11 @@ def score(vulns: list[dict], vuln_findings: list[Finding], secure_findings: list
         "vulnerable_findings": len(vf), "vulnerable_fp": sum(not r["tp"] for r in vf),
         "vulnerable_rate_findings": sum(r["check"] == "rate_limit" for r in vf),
         "precision": precision(vf), "precision_firm": precision([r for r in vf if r["confidence"] == "firm"]),
+        # Rate limiting is documented API-wide, so every rate-limit finding matches: leave them out, and count
+        # each (rule, operation) once, so the number can't be flattered by repeats.
+        "precision_excl_rate_limit": precision(list({(r["rule_id"], r["endpoint"]): r for r in vf
+                                                     if r["check"] != "rate_limit"}.values())),
+        "secure_rate_findings": sum(r["check"] == "rate_limit" for r in sf),
         "secure_findings": len(sf), "secure_fp": sum(not r["tp"] for r in sf),
         "secure_fp_firm": sum(not r["tp"] and r["confidence"] == "firm" for r in sf),
         "per_vulnerability": per_vuln, "findings_vulnerable": vf, "findings_secure": sf,
@@ -130,7 +141,8 @@ def score(vulns: list[dict], vuln_findings: list[Finding], secure_findings: list
 
 def git_commit() -> str:
     try:
-        return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=HERE, text=True).strip()
+        # --dirty: a result measured on uncommitted code must say so.
+        return subprocess.check_output(["git", "describe", "--always", "--dirty"], cwd=HERE, text=True).strip()
     except (OSError, subprocess.CalledProcessError):
         return "unknown"
 
@@ -152,6 +164,9 @@ def markdown(name: str, meta: dict, s: dict) -> str:
         f"| Findings on the vulnerable build | {s['vulnerable_findings']} ({s['vulnerable_fp']} false positive) |",
         f"| ...of which rate-limit (one per endpoint) | {s['vulnerable_rate_findings']} |",
         f"| Precision (all / firm only) | {pct(s['precision'])} / {pct(s['precision_firm'])} |",
+        f"| Precision excluding rate-limit, one per (rule, operation) | {pct(s['precision_excl_rate_limit'])} |",
+        f"| Findings on the secure build | {s['secure_findings']} ({s['secure_rate_findings']} rate-limit: "
+        f"VAmPI keeps that flaw in both builds) |",
         f"| False positives on the secure build (all / firm) | {s['secure_fp']} / {s['secure_fp_firm']} |",
         "",
         "## Per documented vulnerability",

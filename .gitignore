@@ -58,3 +58,4 @@ CLAUDE.local.md
 .mypy_cache/
 .ruff_cache/
 .claude/
+!benchmarks/results/*.json

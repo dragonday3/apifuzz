@@ -104,7 +104,11 @@ def _resource_url(result: TestResult) -> str | None:
 
 def _label_endpoints(findings: list[Finding], results: list[TestResult]) -> None:
     """Every finding's endpoint_path is the URL of the probe that produced it: map it back to its operation."""
-    keys = {(r.test_case.method, r.test_case.url): r.test_case.extra.get("endpoint_key", "") for r in results}
+    keys: dict[tuple[str, str], str] = {}
+    for r in results:
+        # Confirmation GETs carry the POST probe's key: never let them relabel a real GET probe's URL.
+        if r.test_case.check_id != "mass_assignment_verify":
+            keys.setdefault((r.test_case.method, r.test_case.url), r.test_case.extra.get("endpoint_key", ""))
     for f in findings:
         f.endpoint = f.endpoint or keys.get((f.endpoint_method, f.endpoint_path), "")
 

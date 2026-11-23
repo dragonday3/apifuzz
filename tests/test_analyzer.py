@@ -535,3 +535,12 @@ def test_findings_carry_the_spec_operation(analyzer):
                                                                   "endpoint_key": "GET /users/{name}"})
     [f] = analyzer.analyze([make_result(tc, 500, body="sqlite3.OperationalError")])
     assert f.endpoint == "GET /users/{name}"
+
+
+def test_confirmation_get_does_not_relabel_a_get_probe(analyzer):
+    get_probe = make_tc("injection", url="http://api/users/7", extra={"injection_type": "sqli",
+                                                                       "endpoint_key": "GET /users/{id}"})
+    verify = make_tc("mass_assignment_verify", url="http://api/users/7", extra={"endpoint_key": "POST /users"})
+    [f] = analyzer.analyze([make_result(get_probe, 500, body="sqlite3.OperationalError"),
+                            make_result(verify, 200, body="{}")])
+    assert f.endpoint == "GET /users/{id}"

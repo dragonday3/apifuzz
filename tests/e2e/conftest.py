@@ -35,6 +35,7 @@ class MockAPI:
     rate_limit: int | None = None
     rate_limited_paths: set[str] | None = None
     rate_limit_global: bool = False
+    scheme: str | None = None  # "bearer" | "apikey" | "basic": honour only that one (catches wrong-scheme sends)
     mass_assignment: str = "none"
     pets: dict[str, dict] = field(default_factory=lambda: {
         "1": {"id": 1, "name": "rex", "owner": "alice"},
@@ -48,11 +49,12 @@ class MockAPI:
         """Bearer token-<user>, X-API-Key key-<user>, or Basic <user>:pw-<user>."""
         value = request.headers.get("authorization", "")
         api_key = request.headers.get("x-api-key", "")
-        if value.startswith("Bearer ") and value[7:].strip():
+        allowed = lambda s: self.scheme in (None, s)  # noqa: E731
+        if allowed("bearer") and value.startswith("Bearer ") and value[7:].strip():
             presented, user = value[7:].strip(), TOKENS.get(value[7:].strip())
-        elif api_key:
+        elif allowed("apikey") and api_key:
             presented, user = api_key, API_KEYS.get(api_key)
-        elif value.startswith("Basic ") and value[6:].strip():
+        elif allowed("basic") and value.startswith("Basic ") and value[6:].strip():
             try:
                 presented = base64.b64decode(value[6:]).decode()
             except ValueError:
