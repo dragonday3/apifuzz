@@ -298,6 +298,7 @@ class Analyzer:
             "cors": self._check_cors,
             "data_exposure": self._check_data_exposure,
             "inventory": self._check_inventory,
+            "bfla": self._check_bfla,
         }
         handler = dispatch.get(check_id)
         if handler:
@@ -483,6 +484,32 @@ class Analyzer:
                                              and f.endpoint_method == probe.test_case.method)]
             raw.append(self._mass_finding(probe, stored, "firm",
                                           f"{v.test_case.label} returned the injected values: {stored}"))
+
+    def _check_bfla(self, result: TestResult) -> list[Finding]:
+        tc = result.test_case
+        if not result.is_success:
+            return []
+        base = self._baseline(result)  # the privileged (configured) token
+        if base is not None and not (base.is_success and _resembles(result, base)):
+            return []  # the privileged call itself failed, or the low-privilege user got something else
+        confirmed = base is not None
+        return [Finding(
+            title="BFLA: Privileged operation allowed for a low-privilege user",
+            description=(f"{tc.method} {tc.url} looks privileged ('{tc.extra.get('hint')}') and the low-privilege "
+                         f"token got " + ("the same response as the privileged token." if confirmed else
+                                          f"HTTP {result.status_code}; nothing to compare it with, verify manually.")),
+            severity=Severity.HIGH,
+            owasp_category=OWASPCategory.API5_BFLA,
+            endpoint_method=tc.method,
+            endpoint_path=tc.url,
+            request_sample=_request_text(result, self.sensitive_headers),
+            response_sample=_response_text(result),
+            evidence=(f"Low-privilege HTTP {result.status_code}"
+                      + (f"; privileged baseline HTTP {base.status_code}, same shape" if base else "")),
+            remediation="Enforce role checks on every privileged function, server-side, deny by default.",
+            rule_id="APIFUZZ-BFLA-001",
+            confidence="firm" if confirmed else "tentative",
+        )]
 
     def _check_inventory(self, result: TestResult) -> list[Finding]:
         tc = result.test_case

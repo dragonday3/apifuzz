@@ -9,6 +9,7 @@ import httpx
 from apifuzz.analyzer import Analyzer
 from apifuzz.checks.auth import AuthCheck
 from apifuzz.checks.base import BaseCheck, build_url
+from apifuzz.checks.bfla import BFLACheck
 from apifuzz.checks.bola import BOLACheck
 from apifuzz.checks.cors import CORSCheck
 from apifuzz.checks.data_exposure import DataExposureCheck
@@ -38,6 +39,7 @@ _ALL_CHECKS: dict[str, type[BaseCheck]] = {
     "data_exposure": DataExposureCheck,
     "user_enum": UserEnumCheck,
     "inventory": InventoryCheck,
+    "bfla": BFLACheck,
 }
 
 
@@ -45,7 +47,7 @@ _ALL_CHECKS: dict[str, type[BaseCheck]] = {
 DESTRUCTIVE_METHODS = {"PUT", "PATCH", "DELETE"}
 
 # Checks whose detectors compare against the per-endpoint baseline request.
-_BASELINE_CHECKS = {"auth", "bola", "injection", "mass_assignment", "ssrf"}
+_BASELINE_CHECKS = {"auth", "bfla", "bola", "injection", "mass_assignment", "ssrf"}
 
 
 def _detect_format(path: str) -> str:
@@ -176,7 +178,7 @@ class Scanner:
         # Credentials never reach a report: mask every configured token (and --target userinfo) wherever
         # it was echoed.
         userinfo = httpx.URL(self.base_url).userinfo.decode()
-        secrets = secrets_for(self.auth.token, self.auth.second_token, userinfo)
+        secrets = secrets_for(self.auth.token, self.auth.second_token, self.auth.low_priv_token, userinfo)
         for f in findings:
             for name in ("title", "endpoint_path", "request_sample", "response_sample", "evidence", "description"):
                 setattr(f, name, scrub(getattr(f, name), secrets))

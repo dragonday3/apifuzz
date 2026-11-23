@@ -24,6 +24,7 @@ class AuthConfig(BaseModel):
     token: str = ""
     header_name: str = "Authorization"
     second_token: str = ""       # for BOLA cross-user tests
+    low_priv_token: str = ""     # for BFLA: a low-privilege user's credential (the main token is privileged)
 
 
 class Endpoint(BaseModel):

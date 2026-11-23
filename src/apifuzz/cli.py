@@ -36,6 +36,8 @@ def scan(
     auth_type: str = typer.Option("none", "--auth-type", help="Auth type: none | bearer | apikey | basic"),
     token: str = typer.Option("", "--token", help="Auth token / credentials"),
     second_token: str = typer.Option("", "--second-token", help="Second token for BOLA cross-user tests"),
+    low_priv_token: str = typer.Option(
+        "", "--low-priv-token", help="Low-privilege user's token for BFLA tests (--token should be privileged)"),
     header_name: str = typer.Option("Authorization", "--header-name", help="Header name for apikey auth"),
     output: str = typer.Option("json", "--output", "-o", help="Output format: json | sarif | html"),
     out_file: Optional[str] = typer.Option(None, "--out-file", "-f", help="Output file path (default: stdout for json/sarif)"),
@@ -75,6 +77,7 @@ def scan(
         token=token,
         header_name=header_name,
         second_token=second_token,
+        low_priv_token=low_priv_token,
     )
 
     enabled_checks = None if checks == "all" else [c.strip() for c in checks.split(",")]

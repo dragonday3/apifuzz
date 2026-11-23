@@ -28,7 +28,7 @@ HERE = Path(__file__).parent
 RULE_CHECK = {"INJECT": "injection", "BOLA": "bola", "AUTH": "auth", "MASS": "mass_assignment",
               "RATE": "rate_limit", "SSRF": "ssrf", "CORS": "cors",
               "EXPOSURE": "data_exposure", "ENUM": "user_enum",
-              "INVENTORY": "inventory"}
+              "INVENTORY": "inventory", "BFLA": "bfla"}
 
 
 def check_of(rule_id: str) -> str:
