@@ -1,9 +1,10 @@
 import json
 import re
 from typing import Any
+from urllib.parse import quote, urljoin
 
 from apifuzz.checks.injection import CMD_CANARY, SSTI_PRODUCT
-from apifuzz.executor import TestResult
+from apifuzz.executor import TestCase, TestResult
 from apifuzz.models.finding import Confidence, Finding, OWASPCategory, Severity
 
 _SEVERITY_ORDER = [
@@ -46,6 +47,30 @@ def _same_object(a: str, b: str) -> bool:
     return bool(keys) and all(ja[k] == jb[k] for k in keys)
 
 
+def _fields_with_values(body: str, injected: dict[str, Any]) -> list[str]:
+    """Injected fields present with the injected value, top level or under a data/user/result wrapper."""
+    doc = _json(body)
+    candidates = [doc] + [doc.get(k) for k in ("data", "user", "result")] if isinstance(doc, dict) else []
+    found: list[str] = []
+    for obj in candidates:
+        if isinstance(obj, dict):
+            found += [k for k, v in injected.items() if k in obj and obj[k] == v and k not in found]
+    return found
+
+
+def _resource_url(result: TestResult) -> str | None:
+    tc = result.test_case
+    location = result.response_headers.get("location")
+    if location:
+        return urljoin(tc.url, location)
+    if tc.method in ("PUT", "PATCH"):
+        return tc.url
+    doc = _json(result.response_body)
+    if tc.method == "POST" and isinstance(doc, dict) and doc.get("id") not in (None, ""):
+        return f"{tc.url.rstrip('/')}/{quote(str(doc['id']), safe='')}"
+    return None
+
+
 def _resembles(a: TestResult, b: TestResult) -> bool:
     """Same status and essentially the same body: identical, or within 10% (min 20 bytes) in length."""
     if a.status_code != b.status_code:
@@ -73,6 +98,7 @@ class Analyzer:
             raw.extend(findings)
 
         raw.extend(self._analyze_nosqli_pairs(results))
+        self._confirm_mass_assignment(results, raw)
         return self._dedup(raw)
 
     def _baseline(self, result: TestResult) -> TestResult | None:
@@ -202,27 +228,70 @@ class Analyzer:
         tc = result.test_case
         if not result.is_success:
             return []
-        body = result.response_body.lower()
-        injected = tc.extra.get("injected_fields", [])
-        reflected = [f for f in injected if f.lower() in body]
-        if reflected:
-            return [Finding(
-                title="Mass Assignment: Privileged fields reflected in response",
-                description=(
-                    f"Server reflected injected privileged fields in response: {reflected}. "
-                    f"Endpoint may allow mass assignment of protected attributes."
-                ),
-                severity=Severity.HIGH,
-                owasp_category=OWASPCategory.API3_BOPLA,
-                endpoint_method=tc.method,
-                endpoint_path=tc.url,
-                request_sample=tc.label,
-                response_sample=result.response_body[:500],
-                evidence=f"Reflected fields: {reflected}",
-                remediation="Use an allowlist for accepted fields; never bind request body directly to model.",
-                rule_id="APIFUZZ-MASS-001",
-            )]
-        return []
+        reflected = _fields_with_values(result.response_body, tc.extra.get("injected_values", {}))
+        if not reflected:
+            return []
+        # Reflection alone may be an echo of the request; persistence (follow-up GET) makes it firm.
+        return [self._mass_finding(result, reflected, "tentative",
+                                   f"Injected values echoed in the response: {reflected}")]
+
+    def _mass_finding(self, result: TestResult, fields: list[str], confidence: Confidence,
+                      evidence: str) -> Finding:
+        tc = result.test_case
+        persisted = confidence == "firm"
+        return Finding(
+            title="Mass Assignment: Privileged fields " + ("persisted" if persisted else "reflected in response"),
+            description=(
+                f"Injected privileged fields {fields} were "
+                + ("stored: a follow-up GET returns the injected values." if persisted else
+                   "returned with the injected values. Verify they were stored (no follow-up URL was found or "
+                   "it did not confirm).")
+            ),
+            severity=Severity.HIGH,
+            owasp_category=OWASPCategory.API3_BOPLA,
+            endpoint_method=tc.method,
+            endpoint_path=tc.url,
+            request_sample=tc.label,
+            response_sample=result.response_body[:500],
+            evidence=evidence,
+            remediation="Use an allowlist for accepted fields; never bind request body directly to model.",
+            rule_id="APIFUZZ-MASS-001",
+            confidence=confidence,
+        )
+
+    def followups(self, results: list[TestResult]) -> list[TestCase]:
+        """Second-pass requests that confirm first-pass signals. Mass assignment: GET the resource the
+        probe created or updated (Location header, the same URL for PUT/PATCH, or <url>/<id> for POST)."""
+        out = []
+        for r in results:
+            tc = r.test_case
+            if tc.check_id != "mass_assignment" or not r.is_success:
+                continue
+            url = _resource_url(r)
+            if url:
+                out.append(TestCase(
+                    method="GET", url=url, headers={}, params={}, body=None,
+                    label=f"MassAssignment verify: GET {url}", check_id="mass_assignment_verify",
+                    extra={"verifies": f"{tc.method} {tc.url}", "endpoint_key": tc.extra.get("endpoint_key")},
+                ))
+        return out
+
+    def _confirm_mass_assignment(self, results: list[TestResult], raw: list[Finding]) -> None:
+        probes = {f"{r.test_case.method} {r.test_case.url}": r for r in results
+                  if r.test_case.check_id == "mass_assignment" and r.is_success}
+        for v in results:
+            if v.test_case.check_id != "mass_assignment_verify" or not v.is_success:
+                continue
+            probe = probes.get(v.test_case.extra.get("verifies", ""))
+            if probe is None:
+                continue
+            stored = _fields_with_values(v.response_body, probe.test_case.extra.get("injected_values", {}))
+            if not stored:
+                continue
+            raw[:] = [f for f in raw if not (f.rule_id == "APIFUZZ-MASS-001" and f.endpoint_path == probe.test_case.url
+                                             and f.endpoint_method == probe.test_case.method)]
+            raw.append(self._mass_finding(probe, stored, "firm",
+                                          f"{v.test_case.label} returned the injected values: {stored}"))
 
     def _check_ssrf(self, result: TestResult) -> list[Finding]:
         tc = result.test_case

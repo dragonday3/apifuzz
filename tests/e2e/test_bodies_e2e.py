@@ -25,3 +25,22 @@ async def test_baseline_only_for_checks_that_use_it_and_never_delete(mock_api):
     await Scanner(PETSTORE, BASE, auth=ALICE, checks=["injection"], rate_limit_rps=0).run()
     assert "Bearer token-alice" in api.auth_seen       # baseline sent for injection
     assert ("DELETE", "/pets/1") not in api.hits       # ...but never a destructive baseline
+
+
+async def mass_scan(mock_api, mode):
+    mock_api(mass_assignment=mode)
+    findings = await Scanner(PETSTORE, BASE, auth=ALICE, checks=["mass_assignment"], rate_limit_rps=0).run()
+    return [(f.rule_id, f.confidence) for f in findings]
+
+
+async def test_mass_assignment_persisted_is_firm(mock_api):
+    assert await mass_scan(mock_api, "persist") == [("APIFUZZ-MASS-001", "firm")]
+
+
+async def test_mass_assignment_echo_only_is_tentative(mock_api):
+    # Echoed back, and the follow-up GET /pets/3 finds nothing stored.
+    assert await mass_scan(mock_api, "reflect") == [("APIFUZZ-MASS-001", "tentative")]
+
+
+async def test_allowlisted_fields_no_finding(mock_api):
+    assert await mass_scan(mock_api, "none") == []

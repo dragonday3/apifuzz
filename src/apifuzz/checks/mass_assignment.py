@@ -3,6 +3,8 @@ from apifuzz.executor import TestCase
 from apifuzz.models.endpoint import Endpoint, AuthConfig
 
 PRIVILEGED_FIELDS = {
+    "admin": True,
+    "is_admin": True,
     "isAdmin": True,
     "role": "admin",
     "is_verified": True,
@@ -33,6 +35,7 @@ class MassAssignmentCheck(BaseCheck):
             check_id=self.check_id,
             extra={
                 "injected_fields": list(PRIVILEGED_FIELDS.keys()),
+                "injected_values": PRIVILEGED_FIELDS,
                 "strategy": "privileged_field_injection",
             },
         )]

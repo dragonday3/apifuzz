@@ -24,12 +24,15 @@ class MockAPI:
     rate_limit: per-(method, path) request budget before 429s; None disables it.
     rate_limited_paths: restrict rate_limit to these paths; None means every path.
     rate_limit_global: one budget for all requests (per-client limiter) instead of per (method, path).
+    mass_assignment: "none" (allowlisted fields), "reflect" (echoes the body, stores nothing) or
+        "persist" (binds the whole body to the new pet, returns 201 + Location without echoing).
     """
     accept_any_token: bool = False
     enforce_ownership: bool = True
     rate_limit: int | None = None
     rate_limited_paths: set[str] | None = None
     rate_limit_global: bool = False
+    mass_assignment: str = "none"
     pets: dict[str, dict] = field(default_factory=lambda: {
         "1": {"id": 1, "name": "rex", "owner": "alice"},
         "2": {"id": 2, "name": "tom", "owner": "bob"},
@@ -78,6 +81,11 @@ class MockAPI:
                 return httpx.Response(400, json={"error": "bad json"})
             if not isinstance(body, dict) or not isinstance(body.get("name"), str):
                 return httpx.Response(422, json={"error": "name required"})
+            if self.mass_assignment == "reflect":
+                return httpx.Response(201, json={**body, "id": 3, "owner": user})
+            if self.mass_assignment == "persist":
+                self.pets["3"] = {**body, "id": 3, "owner": user}
+                return httpx.Response(201, json={"status": "created"}, headers={"Location": "/pets/3"})
             return httpx.Response(201, json={"id": 3, "name": body["name"], "owner": user})
         if path.startswith("/pets/"):
             pet = self.pets.get(path.removeprefix("/pets/"))

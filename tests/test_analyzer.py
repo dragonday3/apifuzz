@@ -122,7 +122,8 @@ class TestAnalyzerAuth:
 
 class TestAnalyzerMassAssignment:
     def test_reflected_privileged_field_is_high(self, analyzer):
-        tc = make_tc("mass_assignment", extra={"injected_fields": ["isAdmin", "role"]})
+        tc = make_tc("mass_assignment", extra={"injected_fields": ["isAdmin", "role"],
+                                                "injected_values": {"isAdmin": True, "role": "admin"}})
         result = make_result(tc, 200, body='{"isAdmin": true, "name": "test"}')
         findings = analyzer.analyze([result])
         assert len(findings) == 1
@@ -130,12 +131,13 @@ class TestAnalyzerMassAssignment:
         assert findings[0].owasp_category == OWASPCategory.API3_BOPLA
 
     def test_no_reflection_no_finding(self, analyzer):
-        tc = make_tc("mass_assignment", extra={"injected_fields": ["isAdmin", "role"]})
+        tc = make_tc("mass_assignment", extra={"injected_fields": ["isAdmin", "role"],
+                                                "injected_values": {"isAdmin": True, "role": "admin"}})
         result = make_result(tc, 200, body='{"name": "test"}')
         assert analyzer.analyze([result]) == []
 
     def test_non_200_no_finding(self, analyzer):
-        tc = make_tc("mass_assignment", extra={"injected_fields": ["isAdmin"]})
+        tc = make_tc("mass_assignment", extra={"injected_fields": ["isAdmin"], "injected_values": {"isAdmin": True}})
         result = make_result(tc, 400, body='{"isAdmin": true}')
         assert analyzer.analyze([result]) == []
 
@@ -257,7 +259,7 @@ class TestAnalyzerDedup:
 
 class TestOWASP2023Labels:
     def test_mass_assignment_is_api3(self, analyzer):
-        tc = make_tc("mass_assignment", extra={"injected_fields": ["role"]})
+        tc = make_tc("mass_assignment", extra={"injected_fields": ["role"], "injected_values": {"role": "admin"}})
         [f] = analyzer.analyze([make_result(tc, 201, body='{"role": "admin"}')])
         assert f.owasp_category.value.startswith("API3:2023")
 
@@ -414,3 +416,31 @@ class TestAuthAgainstBaseline:
     def test_no_baseline_is_tentative(self, analyzer):
         [f] = analyzer.analyze([make_result(make_tc("auth", extra={"strategy": "no_auth"}), 204)])
         assert f.confidence == "tentative"
+
+
+class TestMassAssignmentConfirmation:
+    VALUES = {"role": "admin", "isAdmin": True}
+
+    def _probe(self, method="POST", url="http://api/users", status=201, body="{}", headers=None):
+        tc = make_tc("mass_assignment", method=method, url=url,
+                     extra={"injected_fields": list(self.VALUES), "injected_values": self.VALUES})
+        return make_result(tc, status, body=body, headers=headers)
+
+    def test_field_name_with_normal_value_is_not_reflection(self, analyzer):
+        # v0.1.0 flagged this: "role" appears in every user object.
+        assert analyzer.analyze([self._probe(body='{"name": "a", "role": "user"}')]) == []
+
+    def test_followup_url_derivation(self, analyzer):
+        loc = self._probe(headers={"location": "/users/7"})
+        put = self._probe(method="PUT", url="http://api/users/5", status=200)
+        post_id = self._probe(body='{"id": 9}')
+        none = self._probe(body='{"message": "ok"}')
+        urls = [tc.url for tc in analyzer.followups([loc, put, post_id, none])]
+        assert urls == ["http://api/users/7", "http://api/users/5", "http://api/users/9"]
+
+    def test_persisted_values_make_finding_firm(self, analyzer):
+        probe = self._probe(body='{"id": 9}')
+        [verify_tc] = analyzer.followups([probe])
+        verify = make_result(verify_tc, 200, body='{"id": 9, "role": "admin", "isAdmin": true}')
+        [f] = analyzer.analyze([probe, verify])
+        assert f.confidence == "firm" and "'role'" in f.evidence and "'isAdmin'" in f.evidence

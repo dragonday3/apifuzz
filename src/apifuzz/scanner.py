@@ -94,6 +94,10 @@ class Scanner:
         # auth/injection probes into 429s.
         bursts = [tc for tc in test_cases if not tc.throttle]
         results = await self.executor.run([tc for tc in test_cases if tc.throttle])
+        # Confirmation pass (e.g. GET the object a mass-assignment probe created), then the bursts.
+        followups = self.analyzer.followups(results)
+        if followups:
+            results += await self.executor.run(followups)
         results += await self.executor.run(bursts)
 
         findings = self.analyzer.analyze(results)
