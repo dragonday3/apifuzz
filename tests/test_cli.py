@@ -124,7 +124,7 @@ class TestMinConfidence:
         respx.post(url__regex=r"http://testserver.*").mock(return_value=httpx.Response(200, json={}))
         respx.delete(url__regex=r"http://testserver.*").mock(return_value=httpx.Response(204))
         result = runner.invoke(app, [PETSTORE, "--target", "http://testserver", "--checks", "auth",
-                                     "--rate-limit", "0", "--quiet", *extra])
+                                     "--rate-limit", "0", "--allow-destructive", "--quiet", *extra])
         return result, (_json.loads(result.stdout) if result.stdout.strip().startswith("[") else None)
 
     @respx.mock

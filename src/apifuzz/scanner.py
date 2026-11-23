@@ -1,4 +1,5 @@
 import json
+from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
 
@@ -11,13 +12,14 @@ from apifuzz.checks.injection import InjectionCheck
 from apifuzz.checks.mass_assignment import MassAssignmentCheck
 from apifuzz.checks.rate_limit import RateLimitCheck
 from apifuzz.checks.ssrf import SSRFCheck
-from apifuzz.executor import Executor, TestCase
+from apifuzz.executor import Executor, RequestBudget, TestCase
 from apifuzz.models.endpoint import AuthConfig, Endpoint
 from apifuzz.models.finding import Finding
 from apifuzz.parsers.base import BaseParser
 from apifuzz.parsers.har import HARParser
 from apifuzz.parsers.openapi import OpenAPIParser
 from apifuzz.parsers.postman import PostmanParser
+from apifuzz.redact import scrub, secrets_for
 
 _ALL_CHECKS: dict[str, type[BaseCheck]] = {
     "bola": BOLACheck,
@@ -29,6 +31,9 @@ _ALL_CHECKS: dict[str, type[BaseCheck]] = {
     "cors": CORSCheck,
 }
 
+
+# Methods that modify or remove existing objects: skipped unless --allow-destructive.
+DESTRUCTIVE_METHODS = {"PUT", "PATCH", "DELETE"}
 
 # Checks whose detectors compare against the per-endpoint baseline request.
 _BASELINE_CHECKS = {"auth", "bola", "injection", "mass_assignment", "ssrf"}
@@ -71,12 +76,26 @@ class Scanner:
         rate_limit_rps: float = 10.0,
         timeout: float = 15.0,
         time_based: bool = False,
+        *,
+        allow_destructive: bool = False,
+        include: list[str] | None = None,
+        exclude: list[str] | None = None,
+        max_requests: int | None = None,
+        verify: bool = True,
+        proxy: str | None = None,
+        retries: int = 2,
     ):
         self.spec_path = spec_path
         self.base_url = base_url.rstrip("/")
         self.auth = auth or AuthConfig()
-        self.executor = Executor(self.auth, concurrency, rate_limit_rps, timeout)
-        self._rate_limit_rps, self._timeout = rate_limit_rps, timeout
+        self.allow_destructive = allow_destructive
+        self.include, self.exclude = include or [], exclude or []
+        self.skipped: list[str] = []  # "METHOD /path (reason)" for endpoints filtered out
+        self.budget = RequestBudget(max_requests)
+        # Every executor of the scan shares the scope lock (target origin), TLS/proxy settings and budget.
+        self._executor_opts = dict(rate_limit_rps=rate_limit_rps, timeout=timeout, verify=verify, proxy=proxy,
+                                   scope=self.base_url, budget=self.budget, retries=retries)
+        self.executor = Executor(self.auth, concurrency, **self._executor_opts)  # type: ignore[arg-type]
         self.analyzer = Analyzer()
 
         enabled = checks if checks else list(_ALL_CHECKS.keys())
@@ -85,15 +104,29 @@ class Scanner:
             if isinstance(check, InjectionCheck):
                 check.time_based = time_based
 
+    def plan(self) -> list[TestCase]:
+        """The first-pass test cases a scan would send (follow-up confirmations depend on responses)."""
+        return self._generate(self._endpoints())
+
+    def _endpoints(self) -> list[Endpoint]:
+        self.skipped = []
+        kept = []
+        for ep in self._parse(self.spec_path):
+            # --target is authoritative: HAR/Postman/spec hosts are never used, so nothing leaves the scope.
+            ep.base_url = self.base_url
+            name = f"{ep.method} {ep.path}"
+            if ep.method in DESTRUCTIVE_METHODS and not self.allow_destructive:
+                self.skipped.append(f"{name} (destructive; use --allow-destructive)")
+            elif self.include and not any(fnmatchcase(ep.path, g) for g in self.include):
+                self.skipped.append(f"{name} (not in --include)")
+            elif any(fnmatchcase(ep.path, g) for g in self.exclude):
+                self.skipped.append(f"{name} (--exclude)")
+            else:
+                kept.append(ep)
+        return kept
+
     async def run(self) -> list[Finding]:
-        endpoints = self._parse(self.spec_path)
-
-        # Inject base_url from CLI into each endpoint that doesn't have one
-        for ep in endpoints:
-            if not ep.base_url:
-                ep.base_url = self.base_url
-
-        test_cases = self._generate(endpoints)
+        test_cases = self.plan()
         # Passes, in order:
         # 1. baselines, before any probe can change the object they read;
         # 2. probes;
@@ -108,7 +141,7 @@ class Scanner:
         results = await self.executor.run(baselines)
         results += await self.executor.run(probes)
         if timed:
-            results += await Executor(self.auth, 1, self._rate_limit_rps, self._timeout).run(timed)
+            results += await Executor(self.auth, 1, **self._executor_opts).run(timed)  # type: ignore[arg-type]
         followups = self.analyzer.followups(results)
         if followups:
             results += await self.executor.run(followups)
@@ -119,6 +152,11 @@ class Scanner:
         # Rate limit aggregation (burst results need separate handling)
         findings += self.analyzer.analyze_rate_limit(results)
 
+        # Credentials never reach a report: mask every configured token wherever it was echoed.
+        secrets = secrets_for(self.auth.token, self.auth.second_token)
+        for f in findings:
+            for name in ("request_sample", "response_sample", "evidence", "description"):
+                setattr(f, name, scrub(getattr(f, name), secrets))
         return findings
 
     def _parse(self, path: str) -> list[Endpoint]:

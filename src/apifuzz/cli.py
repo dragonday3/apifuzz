@@ -1,7 +1,8 @@
 import asyncio
 import json
 import sys
-from typing import Optional
+from collections import Counter
+from typing import List, Optional
 
 import typer
 from rich.console import Console
@@ -46,6 +47,16 @@ def scan(
         help="Report only findings at or above this confidence: tentative (all) | firm"),
     time_based: bool = typer.Option(
         False, "--time-based", help="Add time-based SQLi probes (each waits ~5 s on a vulnerable target)"),
+    allow_destructive: bool = typer.Option(
+        False, "--allow-destructive", help="Also test PUT/PATCH/DELETE endpoints (they modify or delete data)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Print the test plan (requests per check/endpoint), send nothing"),
+    include: Optional[List[str]] = typer.Option(
+        None, "--include", help="Only test paths matching this glob (repeatable), e.g. '/api/v1/*'"),
+    exclude: Optional[List[str]] = typer.Option(None, "--exclude", help="Skip paths matching this glob (repeatable)"),
+    max_requests: Optional[int] = typer.Option(None, "--max-requests", help="Stop sending after this many requests"),
+    retries: int = typer.Option(2, "--retries", help="Retries on 429/503 (honours Retry-After, else backoff)"),
+    insecure: bool = typer.Option(False, "--insecure", help="Skip TLS certificate verification"),
+    proxy: Optional[str] = typer.Option(None, "--proxy", help="Send traffic through a proxy, e.g. http://127.0.0.1:8080"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress progress output"),
 ) -> None:
     """Scan an API for OWASP API Top 10 security issues."""
@@ -69,7 +80,18 @@ def scan(
         rate_limit_rps=rate_limit,
         timeout=timeout,
         time_based=time_based,
+        allow_destructive=allow_destructive,
+        include=include,
+        exclude=exclude,
+        max_requests=max_requests,
+        verify=not insecure,
+        proxy=proxy,
+        retries=retries,
     )
+
+    if dry_run:
+        _print_plan(scanner)
+        return
 
     if not quiet:
         console.print(f"[bold cyan]apifuzz[/] scanning [green]{spec}[/] → [green]{target}[/]")
@@ -88,6 +110,10 @@ def scan(
 
     if not quiet:
         _print_summary(findings)
+        if scanner.skipped:
+            console.print(f"[dim]Skipped {len(scanner.skipped)} endpoint(s): " + "; ".join(scanner.skipped) + "[/]")
+        if scanner.budget.limit is not None and scanner.budget.used >= scanner.budget.limit:
+            console.print(f"[yellow]--max-requests {scanner.budget.limit} reached: the scan is incomplete.[/]")
 
     # Output
     output_text = _format_output(findings, output, out_file)
@@ -103,6 +129,23 @@ def scan(
     severity_values = {f.severity.value for f in findings}
     if "critical" in severity_values or "high" in severity_values:
         raise typer.Exit(code=1)
+
+
+def _print_plan(scanner: Scanner) -> None:
+    """--dry-run: what a scan would send (first pass; confirmations depend on responses)."""
+    cases = scanner.plan()
+    table = Table(title="Test plan (nothing sent)", box=box.ROUNDED)
+    table.add_column("Endpoint", style="cyan")
+    table.add_column("Check")
+    table.add_column("Requests", justify="right")
+    counts = Counter((tc.extra.get("endpoint_key", ""), tc.check_id) for tc in cases)
+    for (endpoint, check_id), n in sorted(counts.items()):
+        table.add_row(endpoint, check_id, str(n))
+    console.print(table)
+    console.print(f"Total: {len(cases)} request(s) to {scanner.base_url}"
+                  + (f" (capped at --max-requests {scanner.budget.limit})" if scanner.budget.limit else ""))
+    for s in scanner.skipped:
+        console.print(f"[dim]Skipped: {s}[/]")
 
 
 def _print_summary(findings) -> None:

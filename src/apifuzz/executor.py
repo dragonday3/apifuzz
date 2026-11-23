@@ -1,8 +1,11 @@
 import asyncio
 import base64
+import random
 import time
 from dataclasses import dataclass, field
+from email.utils import parsedate_to_datetime
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -32,6 +35,8 @@ class TestResult:
     response_headers: dict[str, str]
     elapsed_ms: float
     error: str | None = None
+    request_headers: dict[str, str] = field(default_factory=dict)  # as sent (auth applied); redact before output
+    truncated: bool = False  # body longer than MAX_BODY; detectors only saw the first MAX_BODY characters
 
     @property
     def is_error(self) -> bool:
@@ -42,6 +47,44 @@ class TestResult:
         return not self.is_error and 200 <= self.status_code < 300
 
 
+MAX_BODY = 8192
+MAX_RETRY_WAIT = 30.0  # seconds; a Retry-After longer than this is capped
+
+
+class OutOfScope(httpx.RequestError):
+    """Raised by the request hook for any URL (including a redirect target) outside the target origin."""
+
+
+class RequestBudget:
+    """--max-requests: shared by every executor of one scan; retries count too."""
+
+    def __init__(self, limit: int | None = None):
+        self.limit, self.used = limit, 0
+
+    def take(self) -> bool:
+        if self.limit is not None and self.used >= self.limit:
+            return False
+        self.used += 1
+        return True
+
+
+def origin(url: str) -> tuple[str, str]:
+    parts = urlsplit(url)
+    return parts.scheme.lower(), parts.netloc.lower()
+
+
+def _retry_after(resp: httpx.Response) -> float | None:
+    value = resp.headers.get("retry-after", "").strip()
+    if not value:
+        return None
+    if value.isdigit():
+        return float(value)
+    try:
+        return max(0.0, parsedate_to_datetime(value).timestamp() - time.time())
+    except (TypeError, ValueError):
+        return None
+
+
 class Executor:
     def __init__(
         self,
@@ -49,6 +92,12 @@ class Executor:
         concurrency: int = 10,
         rate_limit_rps: float = 10.0,
         timeout: float = 15.0,
+        *,
+        verify: bool = True,
+        proxy: str | None = None,
+        scope: str | None = None,
+        budget: RequestBudget | None = None,
+        retries: int = 2,
     ):
         self.auth = auth
         self._sem = asyncio.Semaphore(concurrency)
@@ -56,47 +105,80 @@ class Executor:
         self._timeout = timeout
         self._last_request_time: float = 0.0
         self._rate_lock = asyncio.Lock()
+        self._verify, self._proxy = verify, proxy
+        self._scope = origin(scope) if scope else None
+        self._budget = budget or RequestBudget()
+        self._retries = retries
 
     async def run(self, test_cases: list[TestCase]) -> list[TestResult]:
         async with httpx.AsyncClient(
             timeout=self._timeout,
-            follow_redirects=True,
-            verify=False,  # target APIs may use self-signed certs
+            follow_redirects=True,  # each hop passes the scope hook, so off-host redirects fail
+            verify=self._verify,
+            proxy=self._proxy,
+            event_hooks={"request": [self._check_scope]},
         ) as client:
             tasks = [self._run_one(client, tc) for tc in test_cases]
             return await asyncio.gather(*tasks)
 
+    async def _check_scope(self, request: httpx.Request) -> None:
+        if self._scope and origin(str(request.url)) != self._scope:
+            raise OutOfScope(f"{request.url} is outside the target {self._scope[0]}://{self._scope[1]}",
+                             request=request)
+
     async def _run_one(self, client: httpx.AsyncClient, tc: TestCase) -> TestResult:
         async with self._sem:
-            if tc.throttle:
-                await self._rate_limit()
             headers = self._apply_auth(dict(tc.headers), tc.auth_mode)
-            start = time.monotonic()
-            try:
-                resp = await client.request(
-                    method=tc.method,
-                    url=tc.url,
-                    headers=headers,
-                    params=tc.params or None,
-                    json=tc.body if tc.body else None,
-                )
-                elapsed = (time.monotonic() - start) * 1000
-                return TestResult(
-                    test_case=tc,
-                    status_code=resp.status_code,
-                    response_body=resp.text[:8192],
-                    response_headers=dict(resp.headers),
-                    elapsed_ms=elapsed,
-                )
-            except Exception as e:
-                return TestResult(
-                    test_case=tc,
-                    status_code=0,
-                    response_body="",
-                    response_headers={},
-                    elapsed_ms=(time.monotonic() - start) * 1000,  # time-based SQLi counts timeouts
-                    error=f"{type(e).__name__}: {e}",
-                )
+            # Bursts measure the target's limiter: never retried, and 429s are the signal.
+            attempts = 1 + (self._retries if tc.throttle else 0)
+            result = None
+            for attempt in range(attempts):
+                if tc.throttle:
+                    await self._rate_limit()
+                result, resp = await self._send(client, tc, headers)
+                if resp is None or resp.status_code not in (429, 503) or attempt == attempts - 1:
+                    break
+                wait = _retry_after(resp)
+                if wait is None:
+                    wait = 0.5 * 2 ** attempt + random.uniform(0, 0.5)  # exponential backoff with jitter
+                await asyncio.sleep(min(wait, MAX_RETRY_WAIT))
+            assert result is not None
+            return result
+
+    async def _send(self, client: httpx.AsyncClient, tc: TestCase,
+                    headers: dict[str, str]) -> tuple[TestResult, httpx.Response | None]:
+        if not self._budget.take():
+            return TestResult(test_case=tc, status_code=0, response_body="", response_headers={}, elapsed_ms=0.0,
+                              error="BudgetExhausted: --max-requests reached", request_headers=headers), None
+        start = time.monotonic()
+        try:
+            resp = await client.request(
+                method=tc.method,
+                url=tc.url,
+                headers=headers,
+                params=tc.params or None,
+                json=tc.body if tc.body else None,
+            )
+        except Exception as e:
+            return TestResult(
+                test_case=tc,
+                status_code=0,
+                response_body="",
+                response_headers={},
+                elapsed_ms=(time.monotonic() - start) * 1000,  # time-based SQLi counts timeouts
+                error=f"{type(e).__name__}: {e}",
+                request_headers=headers,
+            ), None
+        text = resp.text
+        return TestResult(
+            test_case=tc,
+            status_code=resp.status_code,
+            response_body=text[:MAX_BODY],
+            response_headers=dict(resp.headers),
+            elapsed_ms=(time.monotonic() - start) * 1000,
+            request_headers=headers,
+            truncated=len(text) > MAX_BODY,
+        ), resp
 
     async def _rate_limit(self) -> None:
         if self._min_interval <= 0:

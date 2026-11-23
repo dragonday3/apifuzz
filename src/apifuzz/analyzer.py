@@ -1,11 +1,12 @@
 import json
 import re
 from typing import Any
-from urllib.parse import quote, urljoin, urlsplit
+from urllib.parse import quote, urlencode, urljoin, urlsplit
 
 from apifuzz.checks.bola import MISSING_ID
 from apifuzz.checks.injection import CMD_CANARY, SQLI_SLEEP_SECONDS, SSTI_PRODUCT
-from apifuzz.executor import TestCase, TestResult
+from apifuzz.executor import MAX_BODY, TestCase, TestResult
+from apifuzz.redact import redact_headers
 from apifuzz.models.finding import Confidence, Finding, OWASPCategory, Severity
 
 _SEVERITY_ORDER = [
@@ -107,6 +108,24 @@ def _limited(result: TestResult) -> bool:
             or any(h.startswith(("x-ratelimit-", "ratelimit-")) for h in headers))
 
 
+def _request_text(result: TestResult) -> str:
+    """The request as sent (sensitive headers masked here; Scanner scrubs configured tokens everywhere)."""
+    tc = result.test_case
+    query = ("?" + urlencode(tc.params)) if tc.params else ""
+    lines = [f"# {tc.label}", f"{tc.method} {tc.url}{query}"]
+    lines += [f"{k}: {v}" for k, v in redact_headers(result.request_headers).items()]
+    if tc.body is not None:
+        lines += ["", json.dumps(tc.body)[:1000]]
+    return "\n".join(lines)
+
+
+def _response_text(result: TestResult) -> str:
+    excerpt = result.response_body[:500]
+    if result.truncated:
+        excerpt += f"\n[response truncated at {MAX_BODY} bytes; detection only saw the first {MAX_BODY}]"
+    return excerpt
+
+
 def _resembles(a: TestResult, b: TestResult) -> bool:
     """Same status, same content type, same JSON shape (top-level keys), and a body within 10% (min 20
     bytes) in length. An {"error": ...} body never resembles a user object of similar length."""
@@ -206,8 +225,8 @@ class Analyzer:
                 owasp_category=OWASPCategory.API1_BOLA,
                 endpoint_method=tc.method,
                 endpoint_path=tc.url,
-                request_sample=tc.label,
-                response_sample=result.response_body[:500],
+                request_sample=_request_text(result),
+                response_sample=_response_text(result),
                 evidence=(f"HTTP {result.status_code} with cross-user token; response matches user A's object"
                           if confirmed else f"HTTP {result.status_code} with cross-user token"),
                 remediation="Enforce object-level authorization: verify the requesting user owns the resource.",
@@ -233,8 +252,8 @@ class Analyzer:
                 owasp_category=OWASPCategory.API1_BOLA,
                 endpoint_method=tc.method,
                 endpoint_path=tc.url,
-                request_sample=tc.label,
-                response_sample=result.response_body[:500],
+                request_sample=_request_text(result),
+                response_sample=_response_text(result),
                 evidence=f"HTTP {result.status_code} for probe ID {tc.extra.get('probe_id')}; same schema, "
                          f"different object than the baseline",
                 remediation="Validate that returned object belongs to the authenticated user.",
@@ -271,8 +290,8 @@ class Analyzer:
             owasp_category=OWASPCategory.API2_AUTH,
             endpoint_method=tc.method,
             endpoint_path=tc.url,
-            request_sample=tc.label,
-            response_sample=result.response_body[:500],
+            request_sample=_request_text(result),
+            response_sample=_response_text(result),
             evidence=f"HTTP {result.status_code} returned with strategy: {strategy}{matched}",
             remediation="Require valid authentication on all protected endpoints.",
             rule_id=f"APIFUZZ-AUTH-{strategy.upper()[:10]}",
@@ -308,8 +327,8 @@ class Analyzer:
             owasp_category=OWASPCategory.API3_BOPLA,
             endpoint_method=tc.method,
             endpoint_path=tc.url,
-            request_sample=tc.label,
-            response_sample=result.response_body[:500],
+            request_sample=_request_text(result),
+            response_sample=_response_text(result),
             evidence=evidence,
             remediation="Use an allowlist for accepted fields; never bind request body directly to model.",
             rule_id="APIFUZZ-MASS-001",
@@ -366,8 +385,8 @@ class Analyzer:
                 owasp_category=OWASPCategory.API7_SSRF,
                 endpoint_method=tc.method,
                 endpoint_path=tc.url,
-                request_sample=tc.label,
-                response_sample=result.response_body[:500],
+                request_sample=_request_text(result),
+                response_sample=_response_text(result),
                 evidence=f"Metadata marker '{match.group(0)}' in response, absent from baseline",
                 remediation="Validate and allowlist URL parameters; block requests to internal networks.",
                 rule_id="APIFUZZ-SSRF-001",
@@ -384,8 +403,8 @@ class Analyzer:
             owasp_category=OWASPCategory.INJECTION,
             endpoint_method=tc.method,
             endpoint_path=tc.url,
-            request_sample=tc.label,
-            response_sample=result.response_body[:500],
+            request_sample=_request_text(result),
+            response_sample=_response_text(result),
             evidence=evidence,
             remediation=remediation,
             rule_id=rule_id,
@@ -544,7 +563,7 @@ class Analyzer:
                 owasp_category=OWASPCategory.API4_RATE,
                 endpoint_method=tc.method,
                 endpoint_path=tc.url,
-                request_sample=tc.label,
+                request_sample=_request_text(burst[0]),
                 response_sample="",
                 evidence=f"{success_count}/{total} burst requests succeeded",
                 remediation="Implement rate limiting (token bucket, sliding window) per IP or user.",
@@ -571,8 +590,8 @@ class Analyzer:
                 owasp_category=OWASPCategory.API8_MISCONFIG,
                 endpoint_method=tc.method,
                 endpoint_path=tc.url,
-                request_sample=tc.label,
-                response_sample=str(dict(headers))[:500],
+                request_sample=_request_text(result),
+                response_sample=str(redact_headers(headers))[:500],
                 evidence=f"ACAO: {acao}, ACAC: {acac}",
                 remediation=(
                     "Use a strict CORS allowlist. Never reflect Origin dynamically "
