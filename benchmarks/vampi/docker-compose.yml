@@ -1,0 +1,16 @@
+# VAmPI (https://github.com/erev0s/VAmPI, MIT) in both modes, pinned to the image the published
+# results were measured against. `vulnerable=0` serves the same API with the toggled flaws fixed:
+# findings there that match a toggled vulnerability are false positives.
+services:
+  vampi-vulnerable:
+    image: erev0s/vampi@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12
+    ports: ["127.0.0.1:5002:5000"]
+    environment:
+      - vulnerable=1
+      - tokentimetolive=3600
+  vampi-secure:
+    image: erev0s/vampi@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12
+    ports: ["127.0.0.1:5001:5000"]
+    environment:
+      - vulnerable=0
+      - tokentimetolive=3600

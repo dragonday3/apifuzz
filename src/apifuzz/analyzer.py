@@ -102,6 +102,13 @@ def _resource_url(result: TestResult) -> str | None:
     return None
 
 
+def _label_endpoints(findings: list[Finding], results: list[TestResult]) -> None:
+    """Every finding's endpoint_path is the URL of the probe that produced it: map it back to its operation."""
+    keys = {(r.test_case.method, r.test_case.url): r.test_case.extra.get("endpoint_key", "") for r in results}
+    for f in findings:
+        f.endpoint = f.endpoint or keys.get((f.endpoint_method, f.endpoint_path), "")
+
+
 def _limited(result: TestResult) -> bool:
     headers = {k.lower() for k in result.response_headers}
     return (result.status_code == 429 or "retry-after" in headers
@@ -183,6 +190,7 @@ class Analyzer:
         raw.extend(self._analyze_nosqli_pairs(results))
         raw.extend(self._analyze_sqli_blind(results))
         self._confirm_mass_assignment(results, raw)
+        _label_endpoints(raw, results)
         return self._dedup(raw)
 
     def _baseline(self, result: TestResult) -> TestResult | None:
@@ -588,6 +596,7 @@ class Analyzer:
                 remediation="Implement rate limiting (token bucket, sliding window) per IP or user.",
                 rule_id="APIFUZZ-RATE-001",
             ))
+        _label_endpoints(findings, results)
         return findings
 
     def _check_cors(self, result: TestResult) -> list[Finding]:

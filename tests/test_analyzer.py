@@ -528,3 +528,10 @@ def test_cross_user_empty_write_response_is_tentative(analyzer):
     probe = make_result(make_tc("bola", method="PUT", extra={"strategy": "cross_user", **key}), 204, body="")
     [f] = analyzer.analyze([base, probe])
     assert f.confidence == "tentative"
+
+
+def test_findings_carry_the_spec_operation(analyzer):
+    tc = make_tc("injection", url="http://api/users/x%27", extra={"injection_type": "sqli",
+                                                                  "endpoint_key": "GET /users/{name}"})
+    [f] = analyzer.analyze([make_result(tc, 500, body="sqlite3.OperationalError")])
+    assert f.endpoint == "GET /users/{name}"

@@ -1,5 +1,6 @@
 """End-to-end harness: run the real Scanner against a respx-mocked API whose security
 behaviour is configurable, so tests can assert on false positives as well as detections."""
+import base64
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -13,6 +14,8 @@ PETSTORE = str(FIXTURES / "petstore.yaml")
 BASE = "http://testserver"
 
 TOKENS = {"token-alice": "alice", "token-bob": "bob"}
+API_KEYS = {"key-alice": "alice", "key-bob": "bob"}
+BASIC = {"alice:pw-alice": "alice", "bob:pw-bob": "bob"}
 
 
 @dataclass
@@ -42,13 +45,24 @@ class MockAPI:
     statuses: dict[tuple[str, str], list[int]] = field(default_factory=dict)  # responses per (method, path)
 
     def _user(self, request: httpx.Request) -> str | None:
+        """Bearer token-<user>, X-API-Key key-<user>, or Basic <user>:pw-<user>."""
         value = request.headers.get("authorization", "")
-        if not value.startswith("Bearer ") or not value[7:].strip():
+        api_key = request.headers.get("x-api-key", "")
+        if value.startswith("Bearer ") and value[7:].strip():
+            presented, user = value[7:].strip(), TOKENS.get(value[7:].strip())
+        elif api_key:
+            presented, user = api_key, API_KEYS.get(api_key)
+        elif value.startswith("Basic ") and value[6:].strip():
+            try:
+                presented = base64.b64decode(value[6:]).decode()
+            except ValueError:
+                return None
+            user = BASIC.get(presented)
+        else:
             return None
-        token = value[7:].strip()
-        if token in TOKENS:
-            return TOKENS[token]
-        return "alice" if self.accept_any_token else None
+        if user:
+            return user
+        return "alice" if self.accept_any_token and presented else None
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         response = self._handle(request)

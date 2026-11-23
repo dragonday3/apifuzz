@@ -44,3 +44,5 @@ class Finding(BaseModel):
     # firm: confirmed by comparison (baseline, second request, persistence check);
     # tentative: plausible signal that needs manual verification.
     confidence: Confidence = "firm"
+    # The spec operation ("GET /users/{id}"); endpoint_path is the concrete probe URL. Benchmarks score by this.
+    endpoint: str = ""
