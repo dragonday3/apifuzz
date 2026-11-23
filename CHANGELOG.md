@@ -16,6 +16,7 @@ false positives, makes scans safe to point at real systems, adds coverage, and m
   `benchmarks/README.md`.
 
 ### Fixed (correctness)
+- `--token` without `--auth-type` now authenticates as bearer. Before, the default `none` silently ignored the token and scanned unauthenticated; `--auth-type none` together with a token is now an error.
 - The configured token no longer overwrites the auth and cross-user BOLA probes' headers (v0.1.0 reported false
   CRITICAL bypasses on secure APIs). The second user's credential is sent in the same scheme.
 - Request bodies are built from schema examples instead of sending the JSON schema itself; path parameters are

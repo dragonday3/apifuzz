@@ -171,7 +171,7 @@ Arguments:
 
 Options:
   --target, -t TEXT          Base URL of the API to test [required]
-  --auth-type TEXT           Auth type: none | bearer | apikey | basic [default: none]
+  --auth-type TEXT           Auth type: none | bearer | apikey | basic [default: bearer with --token, else none]
   --token TEXT               Auth token / credentials
   --second-token TEXT        Second token for BOLA cross-user tests
   --low-priv-token TEXT      Low-privilege user's token for BFLA tests (--token

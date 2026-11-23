@@ -36,7 +36,8 @@ _SEVERITY_COLOR = {
 def scan(
     spec: str = typer.Argument(..., help="Path to OpenAPI spec (.yaml/.json), HAR file, or Postman collection"),
     target: str = typer.Option(..., "--target", "-t", help="Base URL of the API to test (e.g. https://api.example.com)"),
-    auth_type: str = typer.Option("none", "--auth-type", help="Auth type: none | bearer | apikey | basic"),
+    auth_type: Optional[str] = typer.Option(
+        None, "--auth-type", help="Auth type: none | bearer | apikey | basic [default: bearer with --token, else none]"),
     token: str = typer.Option("", "--token", help="Auth token / credentials"),
     second_token: str = typer.Option("", "--second-token", help="Second token for BOLA cross-user tests"),
     low_priv_token: str = typer.Option(
@@ -93,6 +94,12 @@ def scan(
             raise typer.BadParameter(str(e), param_hint="--ignore-file")
     if min_confidence not in ("tentative", "firm"):
         raise typer.BadParameter("must be 'tentative' or 'firm'", param_hint="--min-confidence")
+    # --token alone used to mean no auth at all (the default was "none"), silently scanning unauthenticated.
+    if auth_type is None:
+        auth_type = "bearer" if token else "none"
+    elif auth_type == "none" and (token or second_token or low_priv_token):
+        raise typer.BadParameter("--auth-type none ignores the tokens given; drop it or pick bearer | apikey | basic",
+                                 param_hint="--auth-type")
     auth = AuthConfig(
         type=auth_type,
         token=token,
