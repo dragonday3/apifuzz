@@ -54,10 +54,13 @@ up on VAmPI, so read the 0 with that in mind:
    describes operations *missing* from the scanned spec (a shadow API), and no longer reports docs UIs
    (commit `6036d56`).
 2. The first run with the `data_exposure` check also
-flagged the `secret` field of `GET /books/v1/{book_title}` on both builds. That field is the book's own
-content, shown to its owner; whether *other* users can read it is the BOLA finding. A bare `secret` field
-name was dropped from the sensitive-field list (`client_secret`, `secret_key`, `api_secret` stay), which
-removed that false positive (commit `078c980`).
+   flagged the `secret` field of `GET /books/v1/{book_title}` on both builds. That field is the book's own
+   content, shown to its owner; whether *other* users can read it is the BOLA finding. A bare `secret` field
+   name was dropped from the sensitive-field list (`client_secret`, `secret_key`, `api_secret` stay), which
+   removed that false positive (commit `078c980`).
+
+Other fixes from the same review (user_enum lookalike usernames, anchored BFLA hints, data_exposure placeholder
+handling) also landed after benchmark runs; they did not change any VAmPI number.
 
 v0.1.0 was measured on 2026-11-23 against the same targets, seeding, expected list and scoring, through a
 compatibility adapter ([`compare_v010.py`](compare_v010.py); outputs in `results/vampi-v0.1.0*.json`). Its
