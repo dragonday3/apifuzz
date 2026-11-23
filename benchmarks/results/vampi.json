@@ -1,7 +1,7 @@
 {
   "meta": {
     "date": "2026-11-23",
-    "commit": "94c46d0",
+    "commit": "7440fc8",
     "scan": "{\"allow_destructive\": true, \"exclude\": [\"/createdb\"], \"rate_limit_rps\": 20}",
     "sent_vulnerable": 921,
     "sent_secure": 921,
@@ -19,6 +19,8 @@
   "vulnerable_rate_findings": 11,
   "precision": 1.0,
   "precision_firm": 1.0,
+  "precision_excl_rate_limit": 1.0,
+  "secure_rate_findings": 11,
   "secure_findings": 11,
   "secure_fp": 0,
   "secure_fp_firm": 0,
@@ -143,7 +145,7 @@
       "severity": "critical",
       "tp": true,
       "vuln": "bola-books",
-      "url": "http://127.0.0.1:5002/books/v1/bookTitle60"
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle65"
     },
     {
       "rule_id": "APIFUZZ-INJECT-SQLI-BOOL",
@@ -263,7 +265,7 @@
       "severity": "medium",
       "tp": true,
       "vuln": "rate-limiting",
-      "url": "http://127.0.0.1:5002/books/v1/bookTitle60"
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle65"
     }
   ],
   "findings_secure": [
@@ -375,7 +377,7 @@
       "severity": "medium",
       "tp": true,
       "vuln": "rate-limiting",
-      "url": "http://127.0.0.1:5001/books/v1/bookTitle90"
+      "url": "http://127.0.0.1:5001/books/v1/bookTitle45"
     }
   ]
 }

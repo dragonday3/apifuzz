@@ -1,6 +1,6 @@
 # apifuzz vs vampi
 
-Measured 2026-11-23 with apifuzz `94c46d0`. Scan settings: `{"allow_destructive": true, "exclude": ["/createdb"], "rate_limit_rps": 20}`. Requests: 921 (vulnerable) / 921 (secure); failed: none / none.
+Measured 2026-11-23 with apifuzz `7440fc8`. Scan settings: `{"allow_destructive": true, "exclude": ["/createdb"], "rate_limit_rps": 20}`. Requests: 921 (vulnerable) / 921 (secure); failed: none / none.
 
 | Metric | Value |
 |---|---|
@@ -10,6 +10,8 @@ Measured 2026-11-23 with apifuzz `94c46d0`. Scan settings: `{"allow_destructive"
 | Findings on the vulnerable build | 15 (0 false positive) |
 | ...of which rate-limit (one per endpoint) | 11 |
 | Precision (all / firm only) | 100% / 100% |
+| Precision excluding rate-limit, one per (rule, operation) | 100% |
+| Findings on the secure build | 11 (11 rate-limit: VAmPI keeps that flaw in both builds) |
 | False positives on the secure build (all / firm) | 0 / 0 |
 
 ## Per documented vulnerability

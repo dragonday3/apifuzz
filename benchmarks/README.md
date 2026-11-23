@@ -27,7 +27,12 @@ py -3.10 benchmarks/run.py vampi          # writes benchmarks/results/vampi.{md,
   cross-user BOLA tests hit an object that exists. The scan uses A's token and B's token as `--second-token`,
   with `--allow-destructive --exclude /createdb` (disposable target; `/createdb` resets the data mid-scan).
   The image is pinned by digest in `docker-compose.yml`.
-- **Counted as found:** a vulnerability is detected by a firm or a tentative finding; the table says which.
+- **One target setting changed:** `tokentimetolive=3600` instead of VAmPI's default 60 s, because a scan takes
+  about 20 s per build plus setup and a token must outlive it. It doesn't change any flaw.
+- **Counted as found:** a vulnerability is detected by a firm or a tentative finding. The tables below and
+  `results/vampi.md` say which.
+- **Precision** is reported per finding, and again excluding rate-limit findings (which match every endpoint)
+  with each (rule, operation) counted once.
 
 ## Results
 
@@ -35,16 +40,20 @@ Latest run: [`results/vampi.md`](results/vampi.md).
 
 | VAmPI (9 documented vulnerabilities) | v0.1.0 | current |
 |---|---|---|
-| Detected | 0 | 4 (SQLi, BOLA, unauthorized password change, rate limiting) |
+| Detected | 0 | 4: SQLi, BOLA, rate limiting (firm); unauthorized password change (tentative) |
 | Detected, among the 5 apifuzz has a check for | 0 / 5 | 4 / 5 |
-| False positives, vulnerable build | 25 | 0 |
-| False positives, secure build | 25 | 0 |
+| False positives, vulnerable build | 25 with tokens / 12 without | 0 |
+| False positives, secure build | 25 with tokens / 12 without | 0 |
 
-v0.1.0 was measured on 2026-11-23 with the same harness, targets, seeding and scoring (its scanner takes no
-safety options and its findings were mapped to spec operations by URL). All 25 of its findings were
-broken-auth reports caused by the configured token overwriting the auth probes' headers.
+v0.1.0 was measured on 2026-11-23 against the same targets, seeding, expected list and scoring, through a
+compatibility adapter ([`compare_v010.py`](compare_v010.py); outputs in `results/vampi-v0.1.0*.json`). Its
+scanner takes no safety options and its findings have no spec operation, so the adapter maps finding URLs to
+spec templates and drops `/createdb`. With tokens configured (as `run.py` does) it hits v0.1.0's
+auth-header bug: the real token overwrote the auth probes' headers, so all 25 findings are false broken-auth
+reports. Without tokens (v0.1.0's documented default) it reports 12, also all broken-auth false positives
+on endpoints VAmPI documents as public.
 
 **Not detected:**
 - Mass assignment on `POST /users/v1/register`. The `admin` flag is stored, but the response has no id or
-  `Location` to confirm it with, and it only shows on the debug endpoint.
+  `Location` to confirm it with. It shows only on `/me` (logged in as the new user) and the debug endpoint.
 - Four flaws apifuzz has no check for yet: debug-endpoint data exposure, user enumeration, RegexDoS and the weak JWT key.

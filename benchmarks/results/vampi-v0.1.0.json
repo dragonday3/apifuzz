@@ -1,0 +1,618 @@
+{
+  "documented": 9,
+  "covered": 5,
+  "detected": 0,
+  "detected_firm": 0,
+  "recall_documented": 0.0,
+  "recall_covered": 0.0,
+  "vulnerable_findings": 25,
+  "vulnerable_fp": 25,
+  "vulnerable_rate_findings": 0,
+  "precision": 0.0,
+  "precision_firm": 0.0,
+  "precision_excl_rate_limit": 0.0,
+  "secure_rate_findings": 0,
+  "secure_findings": 25,
+  "secure_fp": 25,
+  "secure_fp_firm": 25,
+  "per_vulnerability": [
+    {
+      "id": "sqli",
+      "name": "SQLi Injection",
+      "endpoint": "GET /users/v1/{username}",
+      "check": "injection",
+      "toggled": true,
+      "detected": false,
+      "detected_firm": false,
+      "secure_mode_hits": 0
+    },
+    {
+      "id": "password-change",
+      "name": "Unauthorized Password Change",
+      "endpoint": "PUT /users/v1/{username}/password",
+      "check": "bola",
+      "toggled": true,
+      "detected": false,
+      "detected_firm": false,
+      "secure_mode_hits": 0
+    },
+    {
+      "id": "bola-books",
+      "name": "Broken Object Level Authorization",
+      "endpoint": "GET /books/v1/{book_title}",
+      "check": "bola",
+      "toggled": true,
+      "detected": false,
+      "detected_firm": false,
+      "secure_mode_hits": 0
+    },
+    {
+      "id": "mass-assignment",
+      "name": "Mass Assignment",
+      "endpoint": "POST /users/v1/register",
+      "check": "mass_assignment",
+      "toggled": true,
+      "detected": false,
+      "detected_firm": false,
+      "secure_mode_hits": 0
+    },
+    {
+      "id": "debug-exposure",
+      "name": "Excessive Data Exposure through debug endpoint",
+      "endpoint": "GET /users/v1/_debug",
+      "check": null,
+      "toggled": false,
+      "detected": false,
+      "detected_firm": false,
+      "secure_mode_hits": 0
+    },
+    {
+      "id": "user-enumeration",
+      "name": "User and Password Enumeration",
+      "endpoint": "POST /users/v1/login",
+      "check": null,
+      "toggled": true,
+      "detected": false,
+      "detected_firm": false,
+      "secure_mode_hits": 0
+    },
+    {
+      "id": "regex-dos",
+      "name": "RegexDOS (Denial of Service)",
+      "endpoint": "PUT /users/v1/{username}/email",
+      "check": null,
+      "toggled": true,
+      "detected": false,
+      "detected_firm": false,
+      "secure_mode_hits": 0
+    },
+    {
+      "id": "rate-limiting",
+      "name": "Lack of Resources & Rate Limiting",
+      "endpoint": "*",
+      "check": "rate_limit",
+      "toggled": false,
+      "detected": false,
+      "detected_firm": false,
+      "secure_mode_hits": 0
+    },
+    {
+      "id": "jwt-weak-key",
+      "name": "JWT authentication bypass via weak signing key",
+      "endpoint": "*",
+      "check": null,
+      "toggled": false,
+      "detected": false,
+      "detected_firm": false,
+      "secure_mode_hits": 0
+    }
+  ],
+  "findings_vulnerable": [
+    {
+      "rule_id": "APIFUZZ-AUTH-NO_AUTH",
+      "check": "auth",
+      "endpoint": "GET /",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-INVALID_TO",
+      "check": "auth",
+      "endpoint": "GET /",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-EMPTY_BEAR",
+      "check": "auth",
+      "endpoint": "GET /",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "check": "auth",
+      "endpoint": "GET /",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-MALFORMED_",
+      "check": "auth",
+      "endpoint": "GET /",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-NO_AUTH",
+      "check": "auth",
+      "endpoint": "GET /users/v1",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/users/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-INVALID_TO",
+      "check": "auth",
+      "endpoint": "GET /users/v1",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/users/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-EMPTY_BEAR",
+      "check": "auth",
+      "endpoint": "GET /users/v1",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/users/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "check": "auth",
+      "endpoint": "GET /users/v1",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/users/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-MALFORMED_",
+      "check": "auth",
+      "endpoint": "GET /users/v1",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/users/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-NO_AUTH",
+      "check": "auth",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-INVALID_TO",
+      "check": "auth",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-EMPTY_BEAR",
+      "check": "auth",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "check": "auth",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-MALFORMED_",
+      "check": "auth",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-NO_AUTH",
+      "check": "auth",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/me"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-INVALID_TO",
+      "check": "auth",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/me"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-EMPTY_BEAR",
+      "check": "auth",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/me"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "check": "auth",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/me"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-MALFORMED_",
+      "check": "auth",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/me"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-NO_AUTH",
+      "check": "auth",
+      "endpoint": "GET /books/v1",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/books/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-INVALID_TO",
+      "check": "auth",
+      "endpoint": "GET /books/v1",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/books/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-EMPTY_BEAR",
+      "check": "auth",
+      "endpoint": "GET /books/v1",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/books/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "check": "auth",
+      "endpoint": "GET /books/v1",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/books/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-MALFORMED_",
+      "check": "auth",
+      "endpoint": "GET /books/v1",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/books/v1"
+    }
+  ],
+  "findings_secure": [
+    {
+      "rule_id": "APIFUZZ-AUTH-NO_AUTH",
+      "check": "auth",
+      "endpoint": "GET /",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-INVALID_TO",
+      "check": "auth",
+      "endpoint": "GET /",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-EMPTY_BEAR",
+      "check": "auth",
+      "endpoint": "GET /",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "check": "auth",
+      "endpoint": "GET /",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-MALFORMED_",
+      "check": "auth",
+      "endpoint": "GET /",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-NO_AUTH",
+      "check": "auth",
+      "endpoint": "GET /users/v1",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/users/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-INVALID_TO",
+      "check": "auth",
+      "endpoint": "GET /users/v1",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/users/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-EMPTY_BEAR",
+      "check": "auth",
+      "endpoint": "GET /users/v1",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/users/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "check": "auth",
+      "endpoint": "GET /users/v1",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/users/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-MALFORMED_",
+      "check": "auth",
+      "endpoint": "GET /users/v1",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/users/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-NO_AUTH",
+      "check": "auth",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-INVALID_TO",
+      "check": "auth",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-EMPTY_BEAR",
+      "check": "auth",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "check": "auth",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-MALFORMED_",
+      "check": "auth",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-NO_AUTH",
+      "check": "auth",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/me"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-INVALID_TO",
+      "check": "auth",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/me"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-EMPTY_BEAR",
+      "check": "auth",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/me"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "check": "auth",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/me"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-MALFORMED_",
+      "check": "auth",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/me"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-NO_AUTH",
+      "check": "auth",
+      "endpoint": "GET /books/v1",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/books/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-INVALID_TO",
+      "check": "auth",
+      "endpoint": "GET /books/v1",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/books/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-EMPTY_BEAR",
+      "check": "auth",
+      "endpoint": "GET /books/v1",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/books/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "check": "auth",
+      "endpoint": "GET /books/v1",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/books/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-MALFORMED_",
+      "check": "auth",
+      "endpoint": "GET /books/v1",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/books/v1"
+    }
+  ],
+  "meta": {
+    "apifuzz": "v0.1.0",
+    "auth": "bearer + second token"
+  }
+}

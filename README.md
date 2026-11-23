@@ -50,10 +50,10 @@ Scored against [VAmPI](https://github.com/erev0s/VAmPI)'s own list of 9 document
 
 | | v0.1.0 | current |
 |---|---|---|
-| Documented vulnerabilities detected | 0 / 9 | 4 / 9 (SQLi, BOLA, unauthorized password change, rate limiting) |
+| Documented vulnerabilities detected | 0 / 9 | 4 / 9: SQLi, BOLA, rate limiting (firm); unauthorized password change (tentative) |
 | ...among the 5 apifuzz has a check for | 0 / 5 | 4 / 5 |
-| False positives, vulnerable build | 25 | 0 |
-| False positives, secure build | 25 | 0 |
+| False positives, vulnerable build | 25 with tokens, 12 without | 0 |
+| False positives, secure build | 25 with tokens, 12 without | 0 |
 
 Missed: mass assignment on registration (stored, but nothing in the response to confirm it with). Not covered yet: debug-endpoint data exposure, user enumeration, RegexDoS, weak JWT signing key.
 
