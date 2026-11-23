@@ -1,4 +1,3 @@
-import pytest
 from apifuzz.checks.bola import BOLACheck
 from apifuzz.models.endpoint import Endpoint, Parameter, ParamLocation, AuthConfig
 
@@ -9,7 +8,7 @@ def make_endpoint(path="/users/{userId}", method="GET", params=None, body=None):
         method=method,
         path=path,
         parameters=parameters,
-        body_schema=body or {},
+        body_example=body or None,
         base_url="https://api.example.com",
     )
 
@@ -95,3 +94,22 @@ class TestBOLACheck:
         )
         results = self.check.generate(ep, AuthConfig())
         assert len(results) > 0
+
+
+class TestBOLACrossUserScheme:
+    def _cross(self, auth):
+        from apifuzz.checks.bola import BOLACheck
+        from apifuzz.models.endpoint import Endpoint, Parameter, ParamLocation
+        ep = Endpoint(method="GET", path="/users/{userId}", base_url="https://api.example.com",
+                      parameters=[Parameter(name="userId", location=ParamLocation.PATH, required=True)])
+        return next(c for c in BOLACheck().generate(ep, auth) if c.extra["strategy"] == "cross_user")
+
+    def test_apikey_second_token_uses_same_header(self):
+        from apifuzz.models.endpoint import AuthConfig
+        tc = self._cross(AuthConfig(type="apikey", token="a", header_name="X-API-Key", second_token="b"))
+        assert tc.headers == {"X-API-Key": "b"} and tc.auth_mode == "override"
+
+    def test_bearer_second_token(self):
+        from apifuzz.models.endpoint import AuthConfig
+        tc = self._cross(AuthConfig(type="bearer", token="a", second_token="b"))
+        assert tc.headers == {"Authorization": "Bearer b"}

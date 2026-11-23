@@ -89,7 +89,7 @@ class PostmanParser(BaseParser):
                 break
 
         # Body
-        body_schema = {}
+        body_example = None
         body = req.get("body", {})
         if body and body.get("mode") == "raw":
             raw_text = body.get("raw", "")
@@ -99,9 +99,7 @@ class PostmanParser(BaseParser):
             )
             if is_json:
                 try:
-                    parsed_body = json.loads(raw_text)
-                    if isinstance(parsed_body, dict):
-                        body_schema = parsed_body
+                    body_example = json.loads(raw_text)
                 except (json.JSONDecodeError, TypeError):
                     pass
 
@@ -113,7 +111,7 @@ class PostmanParser(BaseParser):
             method=method,
             path=path,
             parameters=path_params + query_params,
-            body_schema=body_schema,
+            body_example=body_example,
             content_type=content_type,
             base_url="",
             operation_id=op_id,

@@ -1,4 +1,3 @@
-import pytest
 from apifuzz.models import (
     Endpoint, Parameter, ParamLocation, AuthConfig,
     Finding, Severity, OWASPCategory,

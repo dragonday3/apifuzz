@@ -8,7 +8,7 @@ def make_endpoint(method="GET", path="/items", body_schema=None):
         method=method,
         path=path,
         base_url="http://api.example.com",
-        body_schema=body_schema or {},
+        body_example=body_schema or None,
     )
 
 

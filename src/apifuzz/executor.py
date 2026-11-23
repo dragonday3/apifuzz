@@ -2,7 +2,7 @@ import asyncio
 import base64
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 
@@ -19,6 +19,9 @@ class TestCase:
     label: str                      # human-readable: "BOLA: GET /users/2 as user-A"
     check_id: str                   # "bola" | "auth" | "mass_assignment" | "ssrf" | "injection" | "rate_limit" | "cors"
     extra: dict[str, Any] = field(default_factory=dict)  # check-specific metadata
+    # default: inject configured auth | none: strip all auth headers | override: send tc.headers as-is
+    auth_mode: Literal["default", "none", "override"] = "default"
+    throttle: bool = True  # False: skip the global rps limiter (rate-limit bursts); semaphore still applies
 
 
 @dataclass
@@ -52,6 +55,7 @@ class Executor:
         self._min_interval = 1.0 / rate_limit_rps if rate_limit_rps > 0 else 0.0
         self._timeout = timeout
         self._last_request_time: float = 0.0
+        self._rate_lock = asyncio.Lock()
 
     async def run(self, test_cases: list[TestCase]) -> list[TestResult]:
         async with httpx.AsyncClient(
@@ -64,8 +68,9 @@ class Executor:
 
     async def _run_one(self, client: httpx.AsyncClient, tc: TestCase) -> TestResult:
         async with self._sem:
-            await self._rate_limit()
-            headers = self._inject_auth(dict(tc.headers))
+            if tc.throttle:
+                await self._rate_limit()
+            headers = self._apply_auth(dict(tc.headers), tc.auth_mode)
             try:
                 start = time.monotonic()
                 resp = await client.request(
@@ -96,21 +101,32 @@ class Executor:
     async def _rate_limit(self) -> None:
         if self._min_interval <= 0:
             return
-        now = time.monotonic()
-        wait = self._min_interval - (now - self._last_request_time)
-        if wait > 0:
-            await asyncio.sleep(wait)
-        self._last_request_time = time.monotonic()
+        # Lock held across the sleep: serialises slots so concurrent coroutines can't share one timestamp.
+        async with self._rate_lock:
+            wait = self._min_interval - (time.monotonic() - self._last_request_time)
+            if wait > 0:
+                await asyncio.sleep(wait)
+            self._last_request_time = time.monotonic()
 
-    def _inject_auth(self, headers: dict[str, str]) -> dict[str, str]:
-        match self.auth.type:
-            case "bearer":
-                headers["Authorization"] = f"Bearer {self.auth.token}"
-            case "apikey":
-                headers[self.auth.header_name] = self.auth.token
-            case "basic":
-                creds = base64.b64encode(self.auth.token.encode()).decode()
-                headers["Authorization"] = f"Basic {creds}"
-            case _:
-                pass  # none — no auth header
+    def _apply_auth(self, headers: dict[str, str], mode: str) -> dict[str, str]:
+        if mode == "override":
+            return headers
+        if mode == "none":
+            strip = {"authorization", self.auth.header_name.lower()}
+            return {k: v for k, v in headers.items() if k.lower() not in strip}
+        headers.update(auth_headers(self.auth.type, self.auth.token, self.auth.header_name))
         return headers
+
+
+def auth_headers(auth_type: str, token: str, header_name: str = "Authorization") -> dict[str, str]:
+    """Credential header for one auth scheme. Shared by the executor and checks that need a
+    second user's credential in the same scheme (BOLA cross-user)."""
+    match auth_type:
+        case "bearer":
+            return {"Authorization": f"Bearer {token}"}
+        case "apikey":
+            return {header_name: token}
+        case "basic":
+            return {"Authorization": f"Basic {base64.b64encode(token.encode()).decode()}"}
+        case _:
+            return {}

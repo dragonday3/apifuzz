@@ -17,11 +17,11 @@ class MassAssignmentCheck(BaseCheck):
     name = "Mass Assignment (OWASP API6)"
 
     def generate(self, endpoint: Endpoint, auth: AuthConfig) -> list[TestCase]:
-        if not endpoint.body_schema:
+        if not isinstance(endpoint.body_example, dict) or not endpoint.body_example:
             return []
 
         url = self._build_url(endpoint)
-        body = {**endpoint.body_schema, **PRIVILEGED_FIELDS}
+        body = {**endpoint.body_example, **PRIVILEGED_FIELDS}
 
         return [TestCase(
             method=endpoint.method,

@@ -15,7 +15,7 @@ class CORSCheck(BaseCheck):
 
     def generate(self, endpoint: Endpoint, auth: AuthConfig) -> list[TestCase]:
         url = self._build_url(endpoint)
-        body = endpoint.body_schema if endpoint.body_schema else None
+        body = endpoint.body_example
         test_cases = []
 
         for origin in EVIL_ORIGINS:

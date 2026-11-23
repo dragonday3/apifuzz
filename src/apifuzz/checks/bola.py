@@ -1,6 +1,6 @@
 import re
 from apifuzz.checks.base import BaseCheck
-from apifuzz.executor import TestCase
+from apifuzz.executor import TestCase, auth_headers
 from apifuzz.models.endpoint import Endpoint, AuthConfig, ParamLocation
 
 ID_PATTERNS = re.compile(r'(id|Id|ID|uuid|UUID|key|Key)$')
@@ -27,7 +27,7 @@ class BOLACheck(BaseCheck):
                     url=url,
                     headers={},
                     params={},
-                    body=endpoint.body_schema if endpoint.body_schema else None,
+                    body=endpoint.body_example,
                     label=f"BOLA: {endpoint.method} {endpoint.path} [{param.name}={probe_id}]",
                     check_id=self.check_id,
                     extra={"param_name": param.name, "probe_id": probe_id, "strategy": "id_enumeration"},
@@ -41,12 +41,16 @@ class BOLACheck(BaseCheck):
                 test_cases.append(TestCase(
                     method=endpoint.method,
                     url=url,
-                    headers={"Authorization": f"Bearer {auth.second_token}"},
+                    # Same scheme as user A; with auth type "none", assume bearer for the second token.
+                    headers=auth_headers(auth.type if auth.type != "none" else "bearer",
+                                         auth.second_token, auth.header_name),
                     params={},
-                    body=endpoint.body_schema if endpoint.body_schema else None,
+                    body=endpoint.body_example,
                     label=f"BOLA cross-user: {endpoint.method} {endpoint.path} [{param.name}={example_id}] via second token",
                     check_id=self.check_id,
-                    extra={"param_name": param.name, "probe_id": example_id, "strategy": "cross_user", "uses_second_token": True},
+                    extra={"param_name": param.name, "probe_id": example_id, "strategy": "cross_user",
+                           "uses_second_token": True},
+                    auth_mode="override",
                 ))
 
         return test_cases

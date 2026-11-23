@@ -58,14 +58,12 @@ class HARParser(BaseParser):
             # body
             post_data = req.get("postData", {})
             mime = post_data.get("mimeType", "application/json") if post_data else "application/json"
-            body_schema = {}
+            body_example = None  # the recorded body is a real example, not a schema
             if post_data and "application/json" in mime:
                 try:
-                    body_schema = json.loads(post_data.get("text", "{}"))
-                    if not isinstance(body_schema, dict):
-                        body_schema = {}
+                    body_example = json.loads(post_data.get("text", "null"))
                 except (json.JSONDecodeError, TypeError):
-                    body_schema = {}
+                    body_example = None
 
             key = (method, path)
             if key not in seen:
@@ -74,7 +72,7 @@ class HARParser(BaseParser):
                     method=method,
                     path=path,
                     parameters=path_params + query_params,
-                    body_schema=body_schema,
+                    body_example=body_example,
                     content_type=mime or "application/json",
                     base_url=base_url,
                     operation_id=op_id,

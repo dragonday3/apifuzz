@@ -1,4 +1,3 @@
-import pytest
 from pathlib import Path
 from apifuzz.parsers.har import HARParser
 from apifuzz.models.endpoint import ParamLocation
@@ -34,7 +33,7 @@ class TestHARParser:
         ep = next(e for e in self.endpoints if e.method == "POST")
         assert ep.path == "/users"
         assert ep.content_type == "application/json"
-        assert "name" in ep.body_schema
+        assert "name" in ep.body_example
 
     def test_base_url_extracted(self):
         ep = next(e for e in self.endpoints if e.method == "GET" and e.path == "/users")

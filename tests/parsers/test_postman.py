@@ -1,4 +1,3 @@
-import pytest
 from pathlib import Path
 from apifuzz.parsers.postman import PostmanParser
 from apifuzz.models.endpoint import ParamLocation
@@ -23,8 +22,8 @@ class TestPostmanParser:
 
     def test_create_user_body(self):
         ep = next(e for e in self.endpoints if e.method == "POST")
-        assert "name" in ep.body_schema
-        assert "email" in ep.body_schema
+        assert "name" in ep.body_example
+        assert "email" in ep.body_example
 
     def test_nested_folder_items_extracted(self):
         methods = {ep.method for ep in self.endpoints}

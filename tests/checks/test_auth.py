@@ -1,4 +1,3 @@
-import pytest
 from apifuzz.checks.auth import AuthCheck, _make_alg_none_jwt
 from apifuzz.models.endpoint import Endpoint, AuthConfig
 
@@ -80,7 +79,8 @@ class TestMakeAlgNoneJWT:
         token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig"
         result = _make_alg_none_jwt(token)
         parts = result.split(".")
-        import base64, json
+        import base64
+        import json
         header = json.loads(base64.urlsafe_b64decode(parts[0] + "=="))
         assert header["alg"] == "none"
 
@@ -93,3 +93,22 @@ class TestMakeAlgNoneJWT:
         token = "notajwt"
         result = _make_alg_none_jwt(token)
         assert result == token
+
+
+class TestAuthCheckModes:
+    def test_probes_use_apikey_header_name(self):
+        auth = AuthConfig(type="apikey", token="k", header_name="X-API-Key")
+        cases = AuthCheck().generate(make_endpoint(), auth)
+        probes = [c for c in cases if c.extra["strategy"] != "no_auth"]
+        assert probes and all(list(c.headers) == ["X-API-Key"] for c in probes)
+
+    def test_probe_cases_bypass_configured_auth(self):
+        cases = AuthCheck().generate(make_endpoint(), AuthConfig(type="bearer", token="a.b.c"))
+        modes = {c.extra["strategy"]: c.auth_mode for c in cases}
+        assert modes.pop("no_auth") == "none"
+        assert set(modes.values()) == {"override"}
+
+    def test_basic_invalid_probe_uses_basic_scheme(self):
+        cases = AuthCheck().generate(make_endpoint(), AuthConfig(type="basic", token="u:p"))
+        invalid = next(c for c in cases if c.extra["strategy"] == "invalid_token")
+        assert invalid.headers["Authorization"].startswith("Basic ")

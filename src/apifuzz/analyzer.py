@@ -217,19 +217,20 @@ class Analyzer:
         return []
 
     def analyze_rate_limit(self, results: list[TestResult]) -> list[Finding]:
-        """Aggregate burst results to detect missing rate limiting."""
-        burst = [r for r in results if r.test_case.check_id == "rate_limit" and not r.is_error]
-        if not burst:
-            return []
+        """Aggregate burst results per endpoint to detect missing rate limiting."""
+        bursts: dict[tuple[str, str], list[TestResult]] = {}
+        for r in results:
+            if r.test_case.check_id == "rate_limit" and not r.is_error:
+                bursts.setdefault((r.test_case.method, r.test_case.url), []).append(r)
 
-        success_count = sum(1 for r in burst if 200 <= r.status_code < 300)
-        total = len(burst)
-        if total == 0:
-            return []
-
-        if success_count >= total * 0.9:
+        findings = []
+        for burst in bursts.values():
+            success_count = sum(1 for r in burst if 200 <= r.status_code < 300)
+            total = len(burst)
+            if success_count < total * 0.9:
+                continue
             tc = burst[0].test_case
-            return [Finding(
+            findings.append(Finding(
                 title="Rate Limiting: Burst requests all succeeded",
                 description=(
                     f"{success_count}/{total} burst requests returned 2xx. "
@@ -244,8 +245,8 @@ class Analyzer:
                 evidence=f"{success_count}/{total} burst requests succeeded",
                 remediation="Implement rate limiting (token bucket, sliding window) per IP or user.",
                 rule_id="APIFUZZ-RATE-001",
-            )]
-        return []
+            ))
+        return findings
 
     def _check_cors(self, result: TestResult) -> list[Finding]:
         tc = result.test_case

@@ -47,7 +47,7 @@ class SSRFCheck(BaseCheck):
                         url=self._build_url(endpoint),
                         headers={},
                         params={param.name: payload},
-                        body=endpoint.body_schema if endpoint.body_schema else None,
+                        body=endpoint.body_example,
                         label=label,
                         check_id=self.check_id,
                         extra=extra,
@@ -59,13 +59,14 @@ class SSRFCheck(BaseCheck):
                         url=url,
                         headers={},
                         params={},
-                        body=endpoint.body_schema if endpoint.body_schema else None,
+                        body=endpoint.body_example,
                         label=label,
                         check_id=self.check_id,
                         extra=extra,
                     ))
                 elif param.location == ParamLocation.BODY:
-                    body = {**endpoint.body_schema, param.name: payload}
+                    base = endpoint.body_example if isinstance(endpoint.body_example, dict) else {}
+                    body = {**base, param.name: payload}
                     test_cases.append(TestCase(
                         method=endpoint.method,
                         url=self._build_url(endpoint),
@@ -83,7 +84,7 @@ class SSRFCheck(BaseCheck):
                         url=self._build_url(endpoint),
                         headers={param.name: payload},
                         params={},
-                        body=endpoint.body_schema if endpoint.body_schema else None,
+                        body=endpoint.body_example,
                         label=label,
                         check_id=self.check_id,
                         extra=extra,

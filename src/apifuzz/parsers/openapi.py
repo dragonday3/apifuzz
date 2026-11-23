@@ -1,10 +1,10 @@
 import json
 from pathlib import Path
-from typing import Any
 import yaml
 import jsonref
 from apifuzz.models.endpoint import Endpoint, Parameter, ParamLocation
 from apifuzz.parsers.base import BaseParser
+from apifuzz.payloads import GENERIC_STRING, example_from_schema
 
 
 VALID_METHODS = {"get", "post", "put", "delete", "patch", "options", "head"}
@@ -48,18 +48,23 @@ class OpenAPIParser(BaseParser):
                 all_params = {p.name: p for p in path_params}
                 all_params.update({p.name: p for p in op_params})
 
-                body_schema, content_type = self._extract_body_openapi3(operation)
+                body_schema, content_type, media_example = self._extract_body_openapi3(operation)
 
                 endpoints.append(Endpoint(
                     method=method.upper(),
                     path=path,
                     parameters=list(all_params.values()),
                     body_schema=body_schema,
+                    body_example=media_example if media_example is not None else self._example(body_schema),
                     content_type=content_type,
                     tags=operation.get("tags", []),
                     operation_id=operation.get("operationId", self._gen_op_id(method, path)),
                 ))
         return endpoints
+
+    @staticmethod
+    def _example(body_schema: dict) -> object:
+        return example_from_schema(body_schema) if body_schema else None
 
     def _parse_swagger2(self, spec: dict) -> list[Endpoint]:
         endpoints = []
@@ -92,6 +97,7 @@ class OpenAPIParser(BaseParser):
                     path=path,
                     parameters=list(all_params.values()),
                     body_schema=body_schema,
+                    body_example=self._example(body_schema),
                     content_type="application/json",
                     tags=operation.get("tags", []),
                     operation_id=operation.get("operationId", self._gen_op_id(method, path)),
@@ -112,7 +118,12 @@ class OpenAPIParser(BaseParser):
             # schema type: OpenAPI 3 uses p.schema.type, Swagger 2 uses p.type
             schema = p.get("schema", {})
             schema_type = schema.get("type") or p.get("type") or "string"
-            example = schema.get("example") or p.get("example")
+            example = p.get("example", schema.get("example"))
+            if example is None and location == ParamLocation.PATH:
+                # Typed placeholder so probes hit a real route (/pets/1, not /pets/{petId}).
+                example = example_from_schema(schema or {"type": schema_type})
+                if example == GENERIC_STRING:
+                    example = "1"  # string path params are usually ids; "1" is likelier to exist
 
             result.append(Parameter(
                 name=p.get("name", "unknown"),
@@ -123,20 +134,22 @@ class OpenAPIParser(BaseParser):
             ))
         return result
 
-    def _extract_body_openapi3(self, operation: dict) -> tuple[dict, str]:
+    def _extract_body_openapi3(self, operation: dict) -> tuple[dict, str, object]:
+        """Return (schema, content type, media-type example or None)."""
         request_body = operation.get("requestBody", {})
         content = request_body.get("content", {})
         if not content:
-            return {}, "application/json"
+            return {}, "application/json", None
 
         # Prefer JSON, fall back to first available
-        for ct in ("application/json", "application/x-www-form-urlencoded", "multipart/form-data"):
-            if ct in content:
-                schema = content[ct].get("schema", {})
-                return dict(schema), ct
-
-        first_ct = next(iter(content))
-        return dict(content[first_ct].get("schema", {})), first_ct
+        ct = next((c for c in ("application/json", "application/x-www-form-urlencoded", "multipart/form-data")
+                   if c in content), next(iter(content)))
+        media = content[ct]
+        example = media.get("example")
+        if example is None and isinstance(media.get("examples"), dict):
+            first = next(iter(media["examples"].values()), None)
+            example = first.get("value") if isinstance(first, dict) else None
+        return dict(media.get("schema", {})), ct, example
 
     def _gen_op_id(self, method: str, path: str) -> str:
         cleaned = path.strip("/").replace("/", "_").replace("{", "").replace("}", "")

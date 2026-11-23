@@ -120,7 +120,7 @@ def _print_summary(findings) -> None:
 
     console.print(table)
 
-    counts = {}
+    counts: dict[str, int] = {}
     for f in findings:
         counts[f.severity.value] = counts.get(f.severity.value, 0) + 1
     parts = [f"[{_SEVERITY_COLOR[k]}]{v} {k}[/]" for k, v in sorted(counts.items(), key=lambda x: {"critical":0,"high":1,"medium":2,"low":3,"info":4}.get(x[0],9))]
@@ -128,32 +128,18 @@ def _print_summary(findings) -> None:
 
 
 def _format_output(findings, output: str, out_file: Optional[str]) -> Optional[str]:
+    reporter: SARIFReporter | HTMLReporter | JSONReporter
     if output == "sarif":
         reporter = SARIFReporter()
-        sarif = reporter.generate(findings)
-        text = json.dumps(sarif, indent=2)
-        if out_file:
-            with open(out_file, "w", encoding="utf-8") as fh:
-                fh.write(text)
-            return None
-        return text + "\n"
-
-    if output == "html":
+    elif output == "html":
         reporter = HTMLReporter()
-        if out_file:
-            reporter.write(findings, out_file)
-            return None
-        return reporter.generate(findings)
-
-    # Default: json
-    reporter = JSONReporter()
-    data = reporter.generate(findings)
-    text = json.dumps(data, indent=2)
+    else:
+        reporter = JSONReporter()
     if out_file:
-        with open(out_file, "w", encoding="utf-8") as fh:
-            fh.write(text)
+        reporter.write(findings, out_file)
         return None
-    return text + "\n"
+    result = reporter.generate(findings)
+    return result if isinstance(result, str) else json.dumps(result, indent=2) + "\n"
 
 
 if __name__ == "__main__":

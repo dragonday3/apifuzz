@@ -1,5 +1,4 @@
-import pytest
-from apifuzz.models.endpoint import Endpoint, AuthConfig, Parameter, ParamLocation
+from apifuzz.models.endpoint import Endpoint, AuthConfig
 from apifuzz.checks.mass_assignment import MassAssignmentCheck, PRIVILEGED_FIELDS
 
 
@@ -8,7 +7,7 @@ def make_endpoint(body_schema=None):
         method="POST",
         path="/users",
         base_url="http://api.example.com",
-        body_schema=body_schema or {},
+        body_example=body_schema or None,
     )
 
 

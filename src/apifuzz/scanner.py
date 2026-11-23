@@ -4,6 +4,7 @@ from typing import Any
 
 from apifuzz.analyzer import Analyzer
 from apifuzz.checks.auth import AuthCheck
+from apifuzz.checks.base import BaseCheck
 from apifuzz.checks.bola import BOLACheck
 from apifuzz.checks.cors import CORSCheck
 from apifuzz.checks.injection import InjectionCheck
@@ -13,11 +14,12 @@ from apifuzz.checks.ssrf import SSRFCheck
 from apifuzz.executor import Executor, TestCase
 from apifuzz.models.endpoint import AuthConfig, Endpoint
 from apifuzz.models.finding import Finding
+from apifuzz.parsers.base import BaseParser
 from apifuzz.parsers.har import HARParser
 from apifuzz.parsers.openapi import OpenAPIParser
 from apifuzz.parsers.postman import PostmanParser
 
-_ALL_CHECKS = {
+_ALL_CHECKS: dict[str, type[BaseCheck]] = {
     "bola": BOLACheck,
     "auth": AuthCheck,
     "mass_assignment": MassAssignmentCheck,
@@ -94,7 +96,7 @@ class Scanner:
 
     def _parse(self, path: str) -> list[Endpoint]:
         fmt = _detect_format(path)
-        parsers = {
+        parsers: dict[str, type[BaseParser]] = {
             "openapi": OpenAPIParser,
             "har": HARParser,
             "postman": PostmanParser,

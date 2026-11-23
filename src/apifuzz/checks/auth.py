@@ -23,70 +23,44 @@ class AuthCheck(BaseCheck):
     name = "Broken Authentication (OWASP API2)"
 
     def generate(self, endpoint: Endpoint, auth: AuthConfig) -> list[TestCase]:
-        test_cases = []
         url = self._build_url(endpoint)
-        body = endpoint.body_schema if endpoint.body_schema else None
+        body = endpoint.body_example
+        # Probe the header the API actually authenticates with (apikey may use a custom header).
+        hdr = auth.header_name if auth.type == "apikey" else "Authorization"
 
-        # Test 1: No auth header at all
-        test_cases.append(TestCase(
-            method=endpoint.method,
-            url=url,
-            headers={},
-            params={},
-            body=body,
-            label=f"Auth: {endpoint.method} {endpoint.path} [no auth header]",
-            check_id=self.check_id,
-            extra={"strategy": "no_auth"},
-        ))
-
-        # Test 2: Invalid/garbage token
-        test_cases.append(TestCase(
-            method=endpoint.method,
-            url=url,
-            headers={"Authorization": "Bearer INVALID_TOKEN_apifuzz"},
-            params={},
-            body=body,
-            label=f"Auth: {endpoint.method} {endpoint.path} [invalid token]",
-            check_id=self.check_id,
-            extra={"strategy": "invalid_token"},
-        ))
-
-        # Test 3: Empty bearer token
-        test_cases.append(TestCase(
-            method=endpoint.method,
-            url=url,
-            headers={"Authorization": "Bearer "},
-            params={},
-            body=body,
-            label=f"Auth: {endpoint.method} {endpoint.path} [empty bearer]",
-            check_id=self.check_id,
-            extra={"strategy": "empty_bearer"},
-        ))
-
-        # Test 4: JWT alg:none attack (only if current auth is bearer and looks like JWT)
-        if auth.type == "bearer" and auth.token.count(".") == 2:
-            tampered = _make_alg_none_jwt(auth.token)
-            test_cases.append(TestCase(
+        def case(desc: str, strategy: str, headers: dict[str, str], **extra: str) -> TestCase:
+            return TestCase(
                 method=endpoint.method,
                 url=url,
-                headers={"Authorization": f"Bearer {tampered}"},
+                headers=headers,
                 params={},
                 body=body,
-                label=f"Auth: {endpoint.method} {endpoint.path} [JWT alg:none]",
+                label=f"Auth: {endpoint.method} {endpoint.path} [{desc}]",
                 check_id=self.check_id,
-                extra={"strategy": "jwt_alg_none", "tampered_token": tampered},
-            ))
+                extra={"strategy": strategy, **extra},
+                # These headers ARE the test: never let the executor replace them with the real token.
+                auth_mode="none" if strategy == "no_auth" else "override",
+            )
 
-        # Test 5: Malformed Authorization header format
-        test_cases.append(TestCase(
-            method=endpoint.method,
-            url=url,
-            headers={"Authorization": "NotBearer token123"},
-            params={},
-            body=body,
-            label=f"Auth: {endpoint.method} {endpoint.path} [malformed auth scheme]",
-            check_id=self.check_id,
-            extra={"strategy": "malformed_scheme"},
-        ))
+        test_cases = [case("no auth header", "no_auth", {})]
 
+        if auth.type == "apikey":
+            test_cases.append(case("invalid token", "invalid_token", {hdr: "INVALID_TOKEN_apifuzz"}))
+            test_cases.append(case("empty api key", "empty_bearer", {hdr: ""}))
+            return test_cases  # no auth scheme to tamper with
+
+        if auth.type == "basic":
+            bad = base64.b64encode(b"apifuzz:invalid").decode()
+            test_cases.append(case("invalid token", "invalid_token", {hdr: f"Basic {bad}"}))
+        else:
+            test_cases.append(case("invalid token", "invalid_token", {hdr: "Bearer INVALID_TOKEN_apifuzz"}))
+        test_cases.append(case("empty bearer", "empty_bearer", {hdr: "Bearer "}))
+
+        # JWT alg:none attack (only if current auth is bearer and looks like JWT)
+        if auth.type == "bearer" and auth.token.count(".") == 2:
+            tampered = _make_alg_none_jwt(auth.token)
+            test_cases.append(case("JWT alg:none", "jwt_alg_none", {hdr: f"Bearer {tampered}"},
+                                   tampered_token=tampered))
+
+        test_cases.append(case("malformed auth scheme", "malformed_scheme", {hdr: "NotBearer token123"}))
         return test_cases

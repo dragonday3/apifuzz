@@ -1,4 +1,3 @@
-import asyncio
 import base64
 import pytest
 import respx
@@ -140,3 +139,48 @@ class TestTestCaseDataclass:
         tc = make_tc()
         r = TestResult(tc, 0, '', {}, 0.0, "Connection refused")
         assert r.is_error is True
+
+
+class TestExecutorAuthModes:
+    @respx.mock
+    async def test_none_mode_strips_configured_apikey_header(self):
+        route = respx.get("https://api.example.com/users").mock(return_value=httpx.Response(200))
+        executor = Executor(auth=AuthConfig(type="apikey", token="secret", header_name="X-API-Key"))
+        tc = make_tc(headers={"x-api-key": "leftover"})
+        tc.auth_mode = "none"
+        await executor.run([tc])
+        sent = route.calls[0].request.headers
+        assert "x-api-key" not in sent and "authorization" not in sent
+
+    @respx.mock
+    async def test_override_mode_keeps_probe_header(self):
+        route = respx.get("https://api.example.com/users").mock(return_value=httpx.Response(200))
+        executor = Executor(auth=AuthConfig(type="bearer", token="real"))
+        tc = make_tc(headers={"Authorization": "Bearer probe"})
+        tc.auth_mode = "override"
+        await executor.run([tc])
+        assert route.calls[0].request.headers["authorization"] == "Bearer probe"
+
+
+class TestExecutorRateLimit:
+    @respx.mock
+    async def test_concurrent_requests_respect_rps(self):
+        import time
+        respx.get("https://api.example.com/users").mock(return_value=httpx.Response(200))
+        executor = Executor(auth=AuthConfig(), concurrency=50, rate_limit_rps=20)
+        start = time.monotonic()
+        await executor.run([make_tc() for _ in range(21)])
+        # 21 requests at 20 rps -> 20 gaps of 50 ms. Without the lock they all fire at once.
+        assert time.monotonic() - start >= 0.95
+
+    @respx.mock
+    async def test_unthrottled_cases_skip_rps_limit(self):
+        import time
+        respx.get("https://api.example.com/users").mock(return_value=httpx.Response(200))
+        executor = Executor(auth=AuthConfig(), concurrency=50, rate_limit_rps=2)
+        cases = [make_tc() for _ in range(20)]
+        for tc in cases:
+            tc.throttle = False
+        start = time.monotonic()
+        await executor.run(cases)
+        assert time.monotonic() - start < 1.0

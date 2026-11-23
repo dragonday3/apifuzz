@@ -30,7 +30,8 @@ class Endpoint(BaseModel):
     method: str                  # GET POST PUT DELETE PATCH
     path: str                    # /users/{userId}
     parameters: list[Parameter] = []
-    body_schema: dict[str, Any] = {}
+    body_schema: dict[str, Any] = {}   # JSON schema of the request body (OpenAPI only)
+    body_example: Any = None           # concrete body to send: from the schema, or recorded (HAR/Postman)
     content_type: str = "application/json"
     base_url: str = ""
     tags: list[str] = []

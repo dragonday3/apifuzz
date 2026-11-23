@@ -203,7 +203,6 @@ class TestAnalyzerCORS:
 
 class TestAnalyzerDedup:
     def test_dedup_keeps_highest_severity(self, analyzer):
-        tc = make_tc("bola", url="http://api.example.com/items/1")
         high = make_result(make_tc("bola", url="http://api.example.com/items/1",
                                    extra={"strategy": "id_enumeration", "probe_id": "1"}), 200)
         critical = make_result(make_tc("bola", url="http://api.example.com/items/1",

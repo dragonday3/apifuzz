@@ -39,7 +39,7 @@ class InjectionCheck(BaseCheck):
                         url=self._build_url(endpoint),
                         headers={},
                         params={param.name: p["payload"]},
-                        body=endpoint.body_schema if endpoint.body_schema else None,
+                        body=endpoint.body_example,
                         label=label,
                         check_id=self.check_id,
                         extra=extra,
@@ -51,17 +51,19 @@ class InjectionCheck(BaseCheck):
                         url=url,
                         headers={},
                         params={},
-                        body=endpoint.body_schema if endpoint.body_schema else None,
+                        body=endpoint.body_example,
                         label=label,
                         check_id=self.check_id,
                         extra=extra,
                     ))
 
-        # Body injection: inject all body schema keys with each payload
-        if endpoint.body_schema:
+        # Body injection: one string field at a time, the rest of the example stays valid
+        example = endpoint.body_example if isinstance(endpoint.body_example, dict) else {}
+        string_fields = [k for k, v in example.items() if isinstance(v, str)]
+        for field_name in string_fields:
             for p in INJECTION_PAYLOADS:
-                label = f"Injection [{p['type']}]: {endpoint.method} {endpoint.path} [body]"
-                body = {k: p["payload"] for k in endpoint.body_schema}
+                label = f"Injection [{p['type']}]: {endpoint.method} {endpoint.path} [body.{field_name}]"
+                body = {**example, field_name: p["payload"]}
                 test_cases.append(TestCase(
                     method=endpoint.method,
                     url=self._build_url(endpoint),
@@ -72,6 +74,7 @@ class InjectionCheck(BaseCheck):
                     check_id=self.check_id,
                     extra={
                         "target": "body",
+                        "param_name": field_name,
                         "payload": p["payload"],
                         "injection_type": p["type"],
                         "strategy": "injection_probe",

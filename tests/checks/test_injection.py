@@ -1,4 +1,3 @@
-import pytest
 from apifuzz.models.endpoint import Endpoint, AuthConfig, Parameter, ParamLocation
 from apifuzz.checks.injection import InjectionCheck, INJECTION_PAYLOADS
 
@@ -8,7 +7,7 @@ def make_endpoint(path="/search", method="GET", params=None, body_schema=None):
         method=method,
         path=path,
         parameters=params or [],
-        body_schema=body_schema or {},
+        body_example=body_schema or None,
         base_url="http://api.example.com",
     )
 
@@ -82,18 +81,18 @@ class TestInjectionCheck:
             body_schema={"username": "alice", "email": "alice@example.com"},
         )
         results = self.check.generate(ep, self.auth)
-        assert len(results) == len(INJECTION_PAYLOADS)
+        assert len(results) == 2 * len(INJECTION_PAYLOADS)  # one field at a time
 
-    def test_body_injection_all_keys_set_to_payload(self):
-        ep = make_endpoint(
-            method="POST",
-            body_schema={"username": "alice", "email": "alice@example.com"},
-        )
+    def test_body_injection_one_field_at_a_time(self):
+        example = {"username": "alice", "email": "alice@example.com", "age": 30}
+        ep = make_endpoint(method="POST", body_schema=example)
         results = self.check.generate(ep, self.auth)
         for tc in results:
-            payload = tc.extra["payload"]
-            assert tc.body["username"] == payload
-            assert tc.body["email"] == payload
+            field = tc.extra["param_name"]
+            assert tc.body[field] == tc.extra["payload"]
+            assert {k: v for k, v in tc.body.items() if k != field} == {
+                k: v for k, v in example.items() if k != field}
+        assert {tc.extra["param_name"] for tc in results} == {"username", "email"}  # non-strings skipped
 
     def test_sqli_payload_appears_in_test_cases(self):
         ep = make_endpoint(params=[

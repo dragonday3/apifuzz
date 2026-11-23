@@ -11,7 +11,7 @@ class RateLimitCheck(BaseCheck):
 
     def generate(self, endpoint: Endpoint, auth: AuthConfig) -> list[TestCase]:
         url = self._build_url(endpoint)
-        body = endpoint.body_schema if endpoint.body_schema else None
+        body = endpoint.body_example
 
         return [
             TestCase(
@@ -23,6 +23,7 @@ class RateLimitCheck(BaseCheck):
                 label=f"RateLimit burst #{i+1}: {endpoint.method} {endpoint.path}",
                 check_id=self.check_id,
                 extra={"burst_index": i, "burst_total": BURST_COUNT, "strategy": "burst"},
+                throttle=False,  # a burst paced by --rate-limit is not a burst
             )
             for i in range(BURST_COUNT)
         ]

@@ -1,6 +1,5 @@
-import pytest
 from apifuzz.models.endpoint import Endpoint, AuthConfig, Parameter, ParamLocation
-from apifuzz.checks.ssrf import SSRFCheck, SSRF_PARAM_NAMES, SSRF_PAYLOADS
+from apifuzz.checks.ssrf import SSRFCheck, SSRF_PAYLOADS
 
 
 def make_endpoint(path="/search", method="GET", params=None, body_schema=None):
@@ -8,7 +7,7 @@ def make_endpoint(path="/search", method="GET", params=None, body_schema=None):
         method=method,
         path=path,
         parameters=params or [],
-        body_schema=body_schema or {},
+        body_example=body_schema or None,
         base_url="http://api.example.com",
     )
 
@@ -65,9 +64,12 @@ class TestSSRFCheck:
                 Parameter(name="redirect", location=ParamLocation.PATH, schema_type="string"),
             ],
         )
+        from urllib.parse import quote
         results = self.check.generate(ep, self.auth)
         for tc in results:
-            assert any(payload in tc.url for payload in SSRF_PAYLOADS)
+            # percent-encoded so "/" in a URL payload doesn't split the path segment
+            assert any(quote(payload, safe="") in tc.url for payload in SSRF_PAYLOADS)
+            assert tc.url.count("/") == "https://api.example.com/goto/".count("/")
 
     def test_callback_param_generates_cases(self):
         ep = make_endpoint(params=[
