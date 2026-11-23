@@ -15,6 +15,9 @@ apifuzz takes any API spec (OpenAPI, HAR, Postman) → generates semantic securi
 
 No wordlists. No spray-and-pray. Test cases are generated from your actual schema — field names, types, and endpoint semantics drive the payloads.
 
+![apifuzz HTML report from a scan of the VAmPI vulnerable API](assets/apifuzz-report.png)
+<sub>HTML report from an authenticated scan of [VAmPI](https://github.com/erev0s/VAmPI) (rate-limit findings trimmed to one for space). Credentials in the request are masked.</sub>
+
 ### Why it needs a spec (not just a URL)
 
 apifuzz is a **test-case generator**, not a traffic interceptor. Before it can inject payloads, it needs to know what endpoints exist, what parameters they accept, and what types those parameters are. A bare URL tells it nothing — `GET /weather?q=STRING` is what lets it try `q='; DROP TABLE--`.
