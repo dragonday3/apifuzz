@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich import box
+from rich.markup import escape
 
 from apifuzz.models.endpoint import AuthConfig
 from apifuzz.scanner import Scanner
@@ -61,6 +62,8 @@ def scan(
     retries: int = typer.Option(2, "--retries", min=0, help="Retries on 429/503 (honours Retry-After, else backoff)"),
     insecure: bool = typer.Option(False, "--insecure", help="Skip TLS certificate verification"),
     proxy: Optional[str] = typer.Option(None, "--proxy", help="Send traffic through a proxy, e.g. http://127.0.0.1:8080"),
+    oob_url: str = typer.Option(
+        "", "--oob-url", help="Collector URL you control (interactsh, webhook) for blind SSRF payloads"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress progress output"),
 ) -> None:
     """Scan an API for OWASP API Top 10 security issues."""
@@ -98,6 +101,7 @@ def scan(
         verify=not insecure,
         proxy=proxy,
         retries=retries,
+        oob_url=oob_url,
     )
 
     if dry_run:
@@ -122,11 +126,16 @@ def scan(
     if not quiet:
         _print_summary(findings)
         if scanner.skipped:
-            console.print(f"[dim]Skipped {len(scanner.skipped)} endpoint(s): " + "; ".join(scanner.skipped) + "[/]")
+            console.print(f"[dim]Skipped {len(scanner.skipped)} endpoint(s): " + escape("; ".join(scanner.skipped)) + "[/]")
         if scanner.budget.denied:
             console.print(f"[yellow]--max-requests {scanner.budget.limit} reached: {scanner.budget.denied} "
                           f"request(s) not sent, the scan is incomplete.[/]")
     _warn_failures(scanner)
+    if scanner.oob_probes:  # printed even with --quiet: the user needs this to confirm callbacks
+        console.print(f"[cyan]Sent {len(scanner.oob_probes)} blind-SSRF probe(s) to {oob_url}. A request to "
+                      f"<collector>/apifuzz-<id> means that parameter fetches attacker URLs:[/]")
+        for oob_id, where in sorted(scanner.oob_probes.items()):
+            console.print(f"  apifuzz-{oob_id}  {escape(where)}")  # "[param]" isn't Rich markup
 
     # Output
     output_text = _format_output(findings, output, out_file)
@@ -171,7 +180,7 @@ def _print_plan(scanner: Scanner) -> None:
     console.print(f"Total: {len(cases)} request(s) to {scanner.base_url}"
                   + (f" (capped at --max-requests {scanner.budget.limit})" if scanner.budget.limit else ""))
     for s in scanner.skipped:
-        console.print(f"[dim]Skipped: {s}[/]")
+        console.print(f"[dim]Skipped: {escape(s)}[/]")
 
 
 def _print_summary(findings) -> None:

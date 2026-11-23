@@ -1,3 +1,5 @@
+import secrets
+
 from apifuzz.checks.base import BaseCheck
 from apifuzz.executor import TestCase
 from apifuzz.models.endpoint import Endpoint, AuthConfig, ParamLocation
@@ -19,6 +21,7 @@ SSRF_PAYLOADS = [
 class SSRFCheck(BaseCheck):
     check_id = "ssrf"
     name = "Server Side Request Forgery (OWASP API7)"
+    oob_url = ""  # set by Scanner from --oob-url: a collector you control, for blind SSRF
 
     def generate(self, endpoint: Endpoint, auth: AuthConfig) -> list[TestCase]:
         test_cases = []
@@ -32,13 +35,19 @@ class SSRFCheck(BaseCheck):
             return []
 
         for param in ssrf_params:
-            for payload in SSRF_PAYLOADS:
+            payloads = [(p, "") for p in SSRF_PAYLOADS]
+            if self.oob_url:
+                # Unique id per probe: a callback to <collector>/apifuzz-<id> names the parameter that fired.
+                oob_id = secrets.token_hex(4)
+                payloads.append((f"{self.oob_url.rstrip('/')}/apifuzz-{oob_id}", oob_id))
+            for payload, oob_id in payloads:
                 label = f"SSRF: {endpoint.method} {endpoint.path} [{param.name}={payload[:30]}...]"
                 extra = {
                     "param_name": param.name,
                     "param_location": param.location.value,
                     "payload": payload,
-                    "strategy": "ssrf_probe",
+                    "strategy": "ssrf_oob" if oob_id else "ssrf_probe",
+                    **({"oob_id": oob_id} if oob_id else {}),
                 }
 
                 if param.location == ParamLocation.QUERY:

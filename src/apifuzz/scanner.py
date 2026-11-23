@@ -88,6 +88,7 @@ class Scanner:
         timeout: float = 15.0,
         time_based: bool = False,
         *,
+        oob_url: str = "",
         allow_destructive: bool = False,
         include: list[str] | None = None,
         exclude: list[str] | None = None,
@@ -116,6 +117,10 @@ class Scanner:
         for check in self._checks:
             if isinstance(check, InjectionCheck):
                 check.time_based = time_based
+            if isinstance(check, SSRFCheck):
+                check.oob_url = oob_url
+        # Blind SSRF probes sent this scan: oob id -> "METHOD /path [param]" (callbacks are confirmed by the user)
+        self.oob_probes: dict[str, str] = {}
 
     def plan(self) -> list[TestCase]:
         """The first-pass test cases a scan would send (follow-up confirmations depend on responses)."""
@@ -140,6 +145,8 @@ class Scanner:
 
     async def run(self) -> list[Finding]:
         test_cases = self.plan()
+        self.oob_probes = {tc.extra["oob_id"]: f"{tc.extra.get('endpoint_key', '')} [{tc.extra.get('param_name')}]"
+                           for tc in test_cases if tc.extra.get("oob_id")}
         # Passes, in order:
         # 1. baselines, before any probe can change the object they read;
         # 2. probes;
