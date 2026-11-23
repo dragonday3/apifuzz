@@ -57,3 +57,9 @@ def test_no_schema_or_open_schema_means_no_undocumented_finding():
 
 def test_error_responses_ignored():
     assert run({"password": "x1y2z3"}, status=403) == []
+
+
+def test_resource_secret_field_is_not_exposure_but_client_secret_is():
+    assert run({"book_title": "b", "owner": "alice", "secret": "my note"}) == []
+    [f] = run({"app": "x", "client_secret": "s3cr3tvalue"})
+    assert "client_secret" in f.evidence

@@ -102,9 +102,11 @@ def _resource_url(result: TestResult) -> str | None:
     return None
 
 
-# Field names whose values must never reach an API client.
+# Field names whose values must never reach an API client. A bare "secret" is left out: it is often the
+# resource's own content shown to its owner (VAmPI's book "secret"), which is a BOLA question, not exposure.
 _SENSITIVE_FIELD = re.compile(
-    r"^(password|passwd|pwd|password_?hash|hashed_?password|secret|client_?secret|api_?key|private_?key"
+    r"^(password|passwd|pwd|password_?hash|hashed_?password|client_?secret|secret_?key|api_?secret|api_?key"
+    r"|private_?key"
     r"|access_?token|refresh_?token|ssn|social_?security_?number|card_?number|cvv|cvc)$", re.IGNORECASE)
 _MAX_WALK = 2000
 

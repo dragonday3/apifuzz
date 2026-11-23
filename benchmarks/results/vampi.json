@@ -1,29 +1,29 @@
 {
   "meta": {
     "date": "2026-11-23",
-    "commit": "7440fc8",
+    "commit": "dbe1d4c",
     "scan": "{\"allow_destructive\": true, \"exclude\": [\"/createdb\"], \"rate_limit_rps\": 20}",
-    "sent_vulnerable": 921,
-    "sent_secure": 921,
+    "sent_vulnerable": 957,
+    "sent_secure": 957,
     "errors_vulnerable": {},
     "errors_secure": {}
   },
   "documented": 9,
-  "covered": 5,
-  "detected": 4,
-  "detected_firm": 3,
-  "recall_documented": 0.444,
-  "recall_covered": 0.8,
-  "vulnerable_findings": 15,
-  "vulnerable_fp": 0,
+  "covered": 7,
+  "detected": 6,
+  "detected_firm": 5,
+  "recall_documented": 0.667,
+  "recall_covered": 0.857,
+  "vulnerable_findings": 21,
+  "vulnerable_fp": 4,
   "vulnerable_rate_findings": 11,
-  "precision": 1.0,
-  "precision_firm": 1.0,
-  "precision_excl_rate_limit": 1.0,
+  "precision": 0.81,
+  "precision_firm": 0.8,
+  "precision_excl_rate_limit": 0.6,
   "secure_rate_findings": 11,
-  "secure_findings": 11,
-  "secure_fp": 0,
-  "secure_fp_firm": 0,
+  "secure_findings": 16,
+  "secure_fp": 4,
+  "secure_fp_firm": 4,
   "per_vulnerability": [
     {
       "id": "sqli",
@@ -69,20 +69,20 @@
       "id": "debug-exposure",
       "name": "Excessive Data Exposure through debug endpoint",
       "endpoint": "GET /users/v1/_debug",
-      "check": null,
+      "check": "data_exposure",
       "toggled": false,
-      "detected": false,
-      "detected_firm": false,
-      "secure_mode_hits": 0
+      "detected": true,
+      "detected_firm": true,
+      "secure_mode_hits": 1
     },
     {
       "id": "user-enumeration",
       "name": "User and Password Enumeration",
       "endpoint": "POST /users/v1/login",
-      "check": null,
+      "check": "user_enum",
       "toggled": true,
-      "detected": false,
-      "detected_firm": false,
+      "detected": true,
+      "detected_firm": true,
       "secure_mode_hits": 0
     },
     {
@@ -118,6 +118,16 @@
   ],
   "findings_vulnerable": [
     {
+      "rule_id": "APIFUZZ-EXPOSURE-001",
+      "check": "data_exposure",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": true,
+      "vuln": "debug-exposure",
+      "url": "http://127.0.0.1:5002/users/v1/_debug"
+    },
+    {
       "rule_id": "APIFUZZ-INJECT-SQLI",
       "check": "injection",
       "endpoint": "GET /users/v1/{username}",
@@ -145,7 +155,47 @@
       "severity": "critical",
       "tp": true,
       "vuln": "bola-books",
-      "url": "http://127.0.0.1:5002/books/v1/bookTitle65"
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle36"
+    },
+    {
+      "rule_id": "APIFUZZ-EXPOSURE-001",
+      "check": "data_exposure",
+      "endpoint": "GET /books/v1/{book_title}",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle36"
+    },
+    {
+      "rule_id": "APIFUZZ-INVENTORY-001",
+      "check": "inventory",
+      "endpoint": "GET /openapi.json (not in spec)",
+      "confidence": "firm",
+      "severity": "low",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/openapi.json"
+    },
+    {
+      "rule_id": "APIFUZZ-INVENTORY-001",
+      "check": "inventory",
+      "endpoint": "GET /openapi.yaml (not in spec)",
+      "confidence": "firm",
+      "severity": "low",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/openapi.yaml"
+    },
+    {
+      "rule_id": "APIFUZZ-INVENTORY-001",
+      "check": "inventory",
+      "endpoint": "GET /ui/ (not in spec)",
+      "confidence": "firm",
+      "severity": "low",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5002/ui/"
     },
     {
       "rule_id": "APIFUZZ-INJECT-SQLI-BOOL",
@@ -156,6 +206,16 @@
       "tp": true,
       "vuln": "sqli",
       "url": "http://127.0.0.1:5002/users/v1/name1%27%20AND%20%271%27%3D%271"
+    },
+    {
+      "rule_id": "APIFUZZ-ENUM-001",
+      "check": "user_enum",
+      "endpoint": "POST /users/v1/login",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "user-enumeration",
+      "url": "http://127.0.0.1:5002/users/v1/login"
     },
     {
       "rule_id": "APIFUZZ-RATE-001",
@@ -265,10 +325,60 @@
       "severity": "medium",
       "tp": true,
       "vuln": "rate-limiting",
-      "url": "http://127.0.0.1:5002/books/v1/bookTitle65"
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle36"
     }
   ],
   "findings_secure": [
+    {
+      "rule_id": "APIFUZZ-EXPOSURE-001",
+      "check": "data_exposure",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": true,
+      "vuln": "debug-exposure",
+      "url": "http://127.0.0.1:5001/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-EXPOSURE-001",
+      "check": "data_exposure",
+      "endpoint": "GET /books/v1/{book_title}",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/books/v1/bookTitle73"
+    },
+    {
+      "rule_id": "APIFUZZ-INVENTORY-001",
+      "check": "inventory",
+      "endpoint": "GET /openapi.json (not in spec)",
+      "confidence": "firm",
+      "severity": "low",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/openapi.json"
+    },
+    {
+      "rule_id": "APIFUZZ-INVENTORY-001",
+      "check": "inventory",
+      "endpoint": "GET /openapi.yaml (not in spec)",
+      "confidence": "firm",
+      "severity": "low",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/openapi.yaml"
+    },
+    {
+      "rule_id": "APIFUZZ-INVENTORY-001",
+      "check": "inventory",
+      "endpoint": "GET /ui/ (not in spec)",
+      "confidence": "firm",
+      "severity": "low",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:5001/ui/"
+    },
     {
       "rule_id": "APIFUZZ-RATE-001",
       "check": "rate_limit",
@@ -377,7 +487,7 @@
       "severity": "medium",
       "tp": true,
       "vuln": "rate-limiting",
-      "url": "http://127.0.0.1:5001/books/v1/bookTitle45"
+      "url": "http://127.0.0.1:5001/books/v1/bookTitle73"
     }
   ]
 }
