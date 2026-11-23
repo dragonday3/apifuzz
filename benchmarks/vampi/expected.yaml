@@ -43,8 +43,8 @@ vulnerabilities:
   - id: user-enumeration
     name: User and Password Enumeration
     endpoint: POST /users/v1/login
-    check: null          # plan 3.6
-    rules: []
+    check: user_enum
+    rules: [APIFUZZ-ENUM-001]
     toggled: true
   - id: regex-dos
     name: RegexDOS (Denial of Service)

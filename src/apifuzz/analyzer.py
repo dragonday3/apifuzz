@@ -249,6 +249,7 @@ class Analyzer:
 
         raw.extend(self._analyze_nosqli_pairs(results))
         raw.extend(self._analyze_sqli_blind(results))
+        raw.extend(self._analyze_user_enum(results))
         self._confirm_mass_assignment(results, raw)
         _label_endpoints(raw, results)
         return self._dedup(raw)
@@ -634,6 +635,44 @@ class Analyzer:
                     f"AND '1'='2: HTTP {false.status_code}, {len(false.response_body)} bytes",
                     "Use parameterized queries. Never concatenate user input into SQL.",
                     "APIFUZZ-INJECT-SQLI-BOOL"))
+        return findings
+
+    def _analyze_user_enum(self, results: list[TestResult]) -> list[Finding]:
+        """Known user vs two unknown users, all with a wrong password. The unknowns must answer alike (so
+        the difference isn't per-request noise) and the known user differently."""
+        groups: dict[str, dict[str, TestResult]] = {}
+        for r in results:
+            if r.test_case.extra.get("strategy") == "enum_pair" and not r.is_error:
+                groups.setdefault(r.test_case.extra["pair_id"], {})[r.test_case.extra["polarity"]] = r
+        findings = []
+        for g in groups.values():
+            known, u1, u2 = g.get("known"), g.get("unknown1"), g.get("unknown2")
+            if not (known and u1 and u2):
+                continue
+            if any(r.status_code == 429 or r.status_code >= 500 for r in (known, u1, u2)):
+                continue
+
+            def norm(r: TestResult) -> tuple[int, str]:  # the echoed username isn't a difference
+                return r.status_code, r.response_body.replace(r.test_case.extra["user"], "<user>").strip()
+
+            if norm(u1) != norm(u2) or norm(known) == norm(u1):
+                continue
+            findings.append(Finding(
+                title="User Enumeration: Login answers differently for existing users",
+                description=(f"With a wrong password, {known.test_case.method} {known.test_case.url} answers "
+                             f"differently for an existing username than for unknown ones, so attackers can "
+                             f"list valid accounts before guessing passwords."),
+                severity=Severity.MEDIUM,
+                owasp_category=OWASPCategory.API2_AUTH,
+                endpoint_method=known.test_case.method,
+                endpoint_path=known.test_case.url,
+                request_sample=_request_text(known, self.sensitive_headers),
+                response_sample=_response_text(known),
+                evidence=(f"existing user: HTTP {known.status_code} {known.response_body[:120]!r}; "
+                          f"unknown user: HTTP {u1.status_code} {u1.response_body[:120]!r}"),
+                remediation="Return the same status and message for a wrong username and a wrong password.",
+                rule_id="APIFUZZ-ENUM-001",
+            ))
         return findings
 
     def _analyze_nosqli_pairs(self, results: list[TestResult]) -> list[Finding]:

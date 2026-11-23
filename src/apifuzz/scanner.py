@@ -16,6 +16,7 @@ from apifuzz.checks.injection import InjectionCheck
 from apifuzz.checks.mass_assignment import MassAssignmentCheck
 from apifuzz.checks.rate_limit import RateLimitCheck
 from apifuzz.checks.ssrf import SSRFCheck
+from apifuzz.checks.user_enum import UserEnumCheck
 from apifuzz.executor import Executor, RequestBudget, TestCase
 from apifuzz.models.endpoint import AuthConfig, Endpoint
 from apifuzz.models.finding import Finding
@@ -34,6 +35,7 @@ _ALL_CHECKS: dict[str, type[BaseCheck]] = {
     "rate_limit": RateLimitCheck,
     "cors": CORSCheck,
     "data_exposure": DataExposureCheck,
+    "user_enum": UserEnumCheck,
 }
 
 
