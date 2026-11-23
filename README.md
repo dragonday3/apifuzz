@@ -198,13 +198,18 @@ Options:
   --retries INT              Retries on 429/503 [default: 2]
   --insecure                 Skip TLS certificate verification
   --proxy TEXT               Proxy URL, e.g. http://127.0.0.1:8080
+  --fail-on TEXT             Exit 1 at or above this severity: critical | high |
+                             medium | low | info | never [default: high]
+  --ignore-file TEXT         Accepted findings to suppress [default:
+                             .apifuzz-ignore.yaml if present]
+  --write-ignore TEXT        Write an ignore file accepting this scan's findings
   --quiet, -q                Suppress progress output
   --help                     Show this message and exit.
 ```
 
 **Exit codes:**
 - `0` — scan completed, no critical/high findings
-- `1` — critical or high severity findings detected (use with `continue-on-error: true` in CI)
+- `1` — a finding at or above `--fail-on` (default `high`) that isn't in the ignore file
 - `2` — every request failed (TLS, scope, connection): the scan is inconclusive
 
 ---
@@ -261,6 +266,8 @@ api-security:
       sast: gl-sast-report.sarif
   allow_failure: true
 ```
+
+> **Accepting known findings:** run once with `--write-ignore .apifuzz-ignore.yaml`, review it and fill in each `reason` (optionally an `expires: YYYY-MM-DD`), and commit it. Later runs suppress those findings (matched by rule and spec operation), and GitHub code scanning recognises recurring alerts through SARIF fingerprints.
 
 > **Shared staging?** The default scan still sends a 50-request burst to every endpoint (and creates records through `POST`). Use `--checks` without `rate_limit` and/or `--max-requests` against shared environments. Add `--insecure` if staging uses a self-signed certificate (otherwise every request fails and the job exits `2`).
 
