@@ -102,6 +102,52 @@ def _resource_url(result: TestResult) -> str | None:
     return None
 
 
+# Field names whose values must never reach an API client.
+_SENSITIVE_FIELD = re.compile(
+    r"^(password|passwd|pwd|password_?hash|hashed_?password|secret|client_?secret|api_?key|private_?key"
+    r"|access_?token|refresh_?token|ssn|social_?security_?number|card_?number|cvv|cvc)$", re.IGNORECASE)
+_MAX_WALK = 2000
+
+
+def _sensitive_fields(doc: Any) -> list[str]:
+    """Dotted paths of sensitive fields holding a real (non-empty, unmasked) value."""
+    found: list[str] = []
+    stack: list[tuple[str, Any]] = [("", doc)]
+    seen = 0
+    while stack and seen < _MAX_WALK:
+        path, node = stack.pop()
+        seen += 1
+        if isinstance(node, dict):
+            for k, v in node.items():
+                child = f"{path}.{k}" if path else str(k)
+                if (_SENSITIVE_FIELD.match(str(k)) and isinstance(v, (str, int)) and str(v).strip()
+                        and set(str(v)) - {"*", "x", "X", "•"}):
+                    found.append(child)
+                else:
+                    stack.append((child, v))
+        elif isinstance(node, list):
+            stack += [(f"{path}[]", v) for v in node[:50]]
+    # One entry per field path (a list of 50 users -> "users[].password" once).
+    return sorted(set(found))
+
+
+def _undocumented_fields(doc: Any, schema: Any, path: str = "", depth: int = 0) -> list[str]:
+    """Response fields the documented 2xx schema doesn't declare (objects with declared properties only)."""
+    if depth > 4 or not isinstance(schema, dict):
+        return []
+    if isinstance(doc, list):
+        items = schema.get("items")
+        return sorted({f for d in doc[:3] for f in _undocumented_fields(d, items, f"{path}[]", depth + 1)})
+    props = schema.get("properties")
+    if not isinstance(doc, dict) or not isinstance(props, dict) or schema.get("additionalProperties") is True:
+        return []
+    out = [f"{path}.{k}" if path else str(k) for k in doc if k not in props]
+    for k, v in doc.items():
+        if k in props:
+            out += _undocumented_fields(v, props[k], f"{path}.{k}" if path else str(k), depth + 1)
+    return out
+
+
 def _label_endpoints(findings: list[Finding], results: list[TestResult]) -> None:
     """Every finding's endpoint_path is the URL of the probe that produced it: map it back to its operation."""
     keys: dict[tuple[str, str], str] = {}
@@ -130,6 +176,16 @@ def _mask_body(body: Any) -> Any:
     if isinstance(body, list):
         return [_mask_body(v) for v in body]
     return body
+
+
+def _mask_fields(doc: Any) -> Any:
+    """Mask values of _SENSITIVE_FIELD keys anywhere in a JSON document."""
+    if isinstance(doc, dict):
+        return {k: (mask(str(v)) if _SENSITIVE_FIELD.match(str(k)) and isinstance(v, (str, int)) else _mask_fields(v))
+                for k, v in doc.items()}
+    if isinstance(doc, list):
+        return [_mask_fields(v) for v in doc]
+    return doc
 
 
 def _request_text(result: TestResult, sensitive_headers: tuple[str, ...] = ()) -> str:
@@ -214,6 +270,7 @@ class Analyzer:
             "injection": self._check_injection,
             "rate_limit": self._check_rate_limit,
             "cors": self._check_cors,
+            "data_exposure": self._check_data_exposure,
         }
         handler = dispatch.get(check_id)
         if handler:
@@ -399,6 +456,48 @@ class Analyzer:
                                              and f.endpoint_method == probe.test_case.method)]
             raw.append(self._mass_finding(probe, stored, "firm",
                                           f"{v.test_case.label} returned the injected values: {stored}"))
+
+    def _check_data_exposure(self, result: TestResult) -> list[Finding]:
+        tc = result.test_case
+        doc = _json(result.response_body) if result.is_success else None
+        if doc is None:
+            return []
+        masked_sample = json.dumps(_mask_body(_mask_fields(doc)))[:500]
+        findings = []
+        secrets = _sensitive_fields(doc)
+        if secrets:
+            findings.append(Finding(
+                title="Data Exposure: Sensitive fields returned to the client",
+                description=(f"{tc.method} {tc.url} returns sensitive fields with real values: {secrets}. "
+                             f"Clients should never receive these."),
+                severity=Severity.HIGH,
+                owasp_category=OWASPCategory.API3_BOPLA,
+                endpoint_method=tc.method,
+                endpoint_path=tc.url,
+                request_sample=_request_text(result, self.sensitive_headers),
+                response_sample=masked_sample,  # values masked: the report must not repeat the leak
+                evidence=f"Sensitive fields with values: {secrets}",
+                remediation="Return an explicit allowlist of fields per role; never serialize whole model objects.",
+                rule_id="APIFUZZ-EXPOSURE-001",
+            ))
+        extra = _undocumented_fields(doc, tc.extra.get("response_schema") or {})
+        if extra:
+            findings.append(Finding(
+                title="Data Exposure: Response fields missing from the spec",
+                description=(f"{tc.method} {tc.url} returns fields its documented response schema doesn't declare: "
+                             f"{extra[:20]}. Undocumented fields are often internal data leaking by accident."),
+                severity=Severity.LOW,
+                owasp_category=OWASPCategory.API3_BOPLA,
+                endpoint_method=tc.method,
+                endpoint_path=tc.url,
+                request_sample=_request_text(result, self.sensitive_headers),
+                response_sample=masked_sample,
+                evidence=f"Undocumented fields: {extra[:20]}",
+                remediation="Document every response field, or stop returning fields clients don't need.",
+                rule_id="APIFUZZ-EXPOSURE-002",
+                confidence="tentative",  # may just be an outdated spec
+            ))
+        return findings
 
     def _check_ssrf(self, result: TestResult) -> list[Finding]:
         tc = result.test_case

@@ -42,3 +42,5 @@ class Endpoint(BaseModel):
     # `security: [{}]` style optional auth: the auth check skips it (anonymous access is allowed), but
     # BOLA still applies to authenticated callers.
     auth_optional: bool = False
+    response_schema: dict[str, Any] = {}  # JSON schema of the documented 2xx response (OpenAPI only)
+    summary: str = ""                     # summary + description: hints such as "Only Admins"

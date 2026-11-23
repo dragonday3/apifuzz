@@ -1,4 +1,5 @@
 import json
+from typing import Any
 from pathlib import Path
 import yaml
 import jsonref
@@ -79,8 +80,30 @@ class OpenAPIParser(BaseParser):
                     content_type=content_type,
                     tags=operation.get("tags", []),
                     operation_id=operation.get("operationId", self._gen_op_id(method, path)),
+                    response_schema=self._response_schema(operation, swagger2=False),
+                    summary=self._summary(operation),
                 ))
         return endpoints
+
+    @staticmethod
+    def _summary(operation: dict) -> str:
+        return " ".join(str(operation.get(k, "")) for k in ("summary", "description")).strip()
+
+    @staticmethod
+    def _response_schema(operation: dict, swagger2: bool) -> dict:
+        """Schema of the first documented 2xx response (JSON)."""
+        for code, resp in (operation.get("responses") or {}).items():
+            if not str(code).startswith("2") or not isinstance(resp, dict):
+                continue
+            if swagger2:
+                schema = resp.get("schema")
+            else:
+                content = resp.get("content") or {}
+                media: Any = content.get("application/json") or next(iter(content.values()), {})
+                schema = media.get("schema") if isinstance(media, dict) else None
+            if isinstance(schema, dict):
+                return dict(schema)
+        return {}
 
     @staticmethod
     def _example(body_schema: dict) -> object:
@@ -121,6 +144,8 @@ class OpenAPIParser(BaseParser):
                     content_type="application/json",
                     tags=operation.get("tags", []),
                     operation_id=operation.get("operationId", self._gen_op_id(method, path)),
+                    response_schema=self._response_schema(operation, swagger2=True),
+                    summary=self._summary(operation),
                 ))
         return endpoints
 

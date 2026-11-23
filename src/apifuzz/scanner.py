@@ -11,6 +11,7 @@ from apifuzz.checks.auth import AuthCheck
 from apifuzz.checks.base import BaseCheck, build_url
 from apifuzz.checks.bola import BOLACheck
 from apifuzz.checks.cors import CORSCheck
+from apifuzz.checks.data_exposure import DataExposureCheck
 from apifuzz.checks.injection import InjectionCheck
 from apifuzz.checks.mass_assignment import MassAssignmentCheck
 from apifuzz.checks.rate_limit import RateLimitCheck
@@ -32,6 +33,7 @@ _ALL_CHECKS: dict[str, type[BaseCheck]] = {
     "injection": InjectionCheck,
     "rate_limit": RateLimitCheck,
     "cors": CORSCheck,
+    "data_exposure": DataExposureCheck,
 }
 
 

@@ -37,8 +37,8 @@ vulnerabilities:
   - id: debug-exposure
     name: Excessive Data Exposure through debug endpoint
     endpoint: GET /users/v1/_debug
-    check: null          # plan 3.2
-    rules: []
+    check: data_exposure
+    rules: [APIFUZZ-EXPOSURE-001]
     toggled: false
   - id: user-enumeration
     name: User and Password Enumeration
