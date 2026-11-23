@@ -494,3 +494,29 @@ class TestBlindSQLi:
 
     def test_time_based_one_fast_repeat_not_flagged(self, analyzer):
         assert analyzer.analyze(self._timed(80, [5200, 90, 5300])) == []
+
+
+def burst(statuses, headers=None):
+    out = []
+    for i, status in enumerate(statuses):
+        tc = make_tc("rate_limit", url="http://api/x", extra={"burst_index": i})
+        out.append(make_result(tc, status, headers=(headers or {}) if i == 0 else {}))
+    return out
+
+
+class TestRateLimitSignals:
+    def test_a_few_429s_mean_protected(self, analyzer):
+        # 47/50 = 94% 2xx would pass the old 90% rule; the 429s show a limiter exists.
+        assert analyzer.analyze_rate_limit(burst([200] * 47 + [429] * 3)) == []
+
+    def test_ratelimit_headers_mean_protected(self, analyzer):
+        assert analyzer.analyze_rate_limit(burst([200] * 50, {"X-RateLimit-Remaining": "10"})) == []
+
+    def test_retry_after_means_protected(self, analyzer):
+        assert analyzer.analyze_rate_limit(burst([200] * 50, {"Retry-After": "1"})) == []
+
+    def test_4xx_burst_not_flagged(self, analyzer):
+        assert analyzer.analyze_rate_limit(burst([401] * 50)) == []
+
+    def test_unlimited_flagged(self, analyzer):
+        assert len(analyzer.analyze_rate_limit(burst([200] * 50))) == 1

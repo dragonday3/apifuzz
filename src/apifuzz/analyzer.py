@@ -71,6 +71,12 @@ def _resource_url(result: TestResult) -> str | None:
     return None
 
 
+def _limited(result: TestResult) -> bool:
+    headers = {k.lower() for k in result.response_headers}
+    return (result.status_code == 429 or "retry-after" in headers
+            or any(h.startswith(("x-ratelimit-", "ratelimit-")) for h in headers))
+
+
 def _resembles(a: TestResult, b: TestResult) -> bool:
     """Same status and essentially the same body: identical, or within 10% (min 20 bytes) in length."""
     if a.status_code != b.status_code:
@@ -471,7 +477,9 @@ class Analyzer:
         for burst in bursts.values():
             success_count = sum(1 for r in burst if 200 <= r.status_code < 300)
             total = len(burst)
-            if success_count < total * 0.9:
+            # 4xx answers mean the burst wasn't accepted anyway; any 429, Retry-After or X-RateLimit-*
+            # header means a limiter exists (it may just allow more than 50 requests).
+            if success_count < total * 0.9 or any(_limited(r) for r in burst):
                 continue
             tc = burst[0].test_case
             findings.append(Finding(
