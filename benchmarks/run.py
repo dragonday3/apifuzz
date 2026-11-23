@@ -143,8 +143,11 @@ def score(vulns: list[dict], vuln_findings: list[Finding], secure_findings: list
 
 def git_commit() -> str:
     try:
-        # --dirty: a result measured on uncommitted code must say so.
-        return subprocess.check_output(["git", "describe", "--always", "--dirty"], cwd=HERE, text=True).strip()
+        commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=HERE, text=True).strip()
+        # A result measured on uncommitted code must say so (the results files themselves don't count).
+        changes = subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=no", "--", ":/",
+                                           ":(exclude)benchmarks/results"], cwd=HERE, text=True).strip()
+        return f"{commit}-dirty" if changes else commit
     except (OSError, subprocess.CalledProcessError):
         return "unknown"
 
