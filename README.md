@@ -36,27 +36,17 @@ The spec (or HAR) provides the paths. Pass just the origin:
 |----|-----------------------|---------------|
 | `bola` | API1 — Broken Object Level Authorization | ID enumeration, cross-user access with a second user's token |
 | `auth` | API2 — Broken Authentication | No auth, invalid tokens, JWT `alg:none` |
-| `mass_assignment` | API3 — Broken Object Property Level Authorization | Privileged field injection (`role`, `is_admin`, …) into request bodies |
+| `mass_assignment` | API3 — Broken Object Property Level Authorization | Privileged field injection (`role`, `isAdmin`, `is_verified`, …) into request bodies |
 | `rate_limit` | API4 — Unrestricted Resource Consumption | 50-request burst detection |
 | `ssrf` | API7 — Server Side Request Forgery | Cloud-metadata and internal URL probes in URL-type parameters |
 | `cors` | API8 — Security Misconfiguration | Origin reflection + credentials misconfiguration |
-| `injection` | *(no 2023 API category; OWASP Top 10 A03:2021 Injection)* | SQLi, SSTI and command injection (NoSQLi and XSS payloads are sent, but not yet detected) |
+| `injection` | *(no 2023 API category; OWASP Top 10 A03:2021 Injection)* | SQLi (DB error strings), SSTI and command injection (computed canaries), NoSQLi (Mongo errors and `$ne`/`$eq` response differences), XSS reflected unescaped in HTML |
 
 Coverage: API1, API2, API3, API4, API7 and API8. API5, API6, API9 and API10 are not tested yet.
 
-> **Known issues (v0.1.0), fixes in progress:**
-> - With `--auth-type` set, the configured token currently overrides the headers used by the `auth` tests and the cross-user `bola` test, so those can report false positives on correctly secured APIs. Verify auth/BOLA findings manually until this is fixed.
-> - Request bodies are built from the raw JSON schema rather than example values, so body-based tests may be rejected by strict APIs.
-> - `mass_assignment` findings are labelled `API6:2023` and `injection` findings `API8:2023` in JSON/SARIF output; the table above is the correct mapping.
-
-----|---------------|---------------|
-| `bola` | API1 - BOLA/IDOR | ID enumeration, cross-user access |
-| `auth` | API2 - Broken Auth | No auth, invalid tokens, JWT alg:none |
-| `mass_assignment` | API6 - Mass Assignment | Privileged field injection into request body |
-| `ssrf` | API7 - SSRF | Internal URL probes in URL-type parameters |
-| `injection` | API8 - Injection | SQLi, SSTI, NoSQLi, command injection, XSS |
-| `rate_limit` | API4 - Rate Limiting | 50-request burst detection |
-| `cors` | API8 - CORS | Origin reflection + credentials misconfiguration |
+> **Known limitations (fixes planned):**
+> - The `auth` check doesn't read the spec's `security` requirements yet, so endpoints that are public by design are reported as "No Auth accepted". Ignore auth findings on endpoints you intend to be public.
+> - `bola` ID enumeration reports any `200` for a probed ID (most APIs have an object `1`). Cross-user findings (`--second-token`) are the stronger signal.
 
 ---
 
@@ -270,7 +260,8 @@ Upload to GitHub Code Scanning (workflow above) and findings appear in the Secur
 Machine-readable array of findings. Each finding includes:
 - `rule_id`, `title`, `severity`, `owasp_category`
 - `endpoint_method`, `endpoint_path`
-- `evidence` — actual request/response excerpt that triggered the finding
+- `evidence` — what matched (e.g. the error string or canary found)
+- `request_sample`, `response_sample` — the probe and an excerpt of the response
 - `remediation` — actionable fix guidance
 
 ### HTML
@@ -311,12 +302,14 @@ Check Engine           → TestCase list
 Async Executor         → TestResult list
   httpx AsyncClient
   Semaphore concurrency control
-  Minimum-interval rate limiting
-  Auth injection (bearer / apikey / basic)
+  Minimum-interval rate limiting (bursts exempt)
+  Auth injection (bearer / apikey / basic),
+    never replacing the headers an auth/BOLA probe sets
 
 Response Analyzer      → Finding list
-  Per-check detection heuristics
-  Rate limit burst aggregation
+  Per-check detection, diffed against a baseline
+    request to each endpoint; canary payloads
+  Rate limit verdict per endpoint
   Severity-based deduplication
 
 Reporters
@@ -334,8 +327,12 @@ git clone https://github.com/dragonday3/apifuzz
 cd apifuzz
 pip install -e ".[dev]"
 
-# Run tests
+# Run tests (unit + end-to-end against a mocked API in tests/e2e)
 pytest tests/
+
+# Lint and type-check
+ruff check .
+mypy src
 
 # Run with coverage
 pytest --cov=apifuzz --cov-report=term-missing tests/

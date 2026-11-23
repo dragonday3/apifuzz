@@ -46,3 +46,16 @@ async def test_probe_headers_reach_the_wire(mock_api):
     # The configured token only goes out on the one baseline request per endpoint (4 in petstore),
     # never in place of a probe header.
     assert api.auth_seen.count("Bearer token-alice") == 4
+
+
+async def test_full_scan_secure_api_only_known_limitation(mock_api):
+    """All checks against a secure, rate-limited API. The one remaining false positive is BOLA ID
+    enumeration of the caller's own object (README known limitation, plan 1.3)."""
+    mock_api(rate_limit=20)
+    findings = await Scanner(PETSTORE, BASE, auth=ALICE, rate_limit_rps=0).run()
+    assert {f.rule_id for f in findings} <= {"APIFUZZ-BOLA-002"}
+
+
+async def test_full_scan_secure_api_zero_findings(mock_api):
+    import pytest
+    pytest.xfail("BOLA ID enumeration flags any 200 until plan 1.3")

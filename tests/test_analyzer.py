@@ -332,3 +332,8 @@ class TestNoSQLiPairs:
 
     def test_rejected_pair_is_not_flagged(self, analyzer):
         assert analyzer.analyze(nosqli_pair(422, "bad", 400, "bad request")) == []
+
+
+def test_auth_bypass_with_201_is_flagged(analyzer):
+    tc = make_tc("auth", method="POST", extra={"strategy": "invalid_token"})
+    assert len(analyzer.analyze([make_result(tc, 201)])) == 1

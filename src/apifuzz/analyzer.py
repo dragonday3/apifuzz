@@ -100,14 +100,14 @@ class Analyzer:
 
     def _check_auth(self, result: TestResult) -> list[Finding]:
         tc = result.test_case
-        if result.status_code == 200:
+        if result.is_success:  # any 2xx: 201/204 bypasses count too
             strategy = tc.extra.get("strategy", "unknown")
             descriptions = {
-                "no_auth": "Endpoint returned 200 with no Authorization header.",
-                "invalid_token": "Endpoint returned 200 with a known-invalid token.",
-                "empty_bearer": "Endpoint returned 200 with an empty Bearer token.",
+                "no_auth": "Endpoint returned 2xx with no Authorization header.",
+                "invalid_token": "Endpoint returned 2xx with a known-invalid token.",
+                "empty_bearer": "Endpoint returned 2xx with an empty Bearer token.",
                 "jwt_alg_none": "Endpoint accepted JWT with alg:none (signature bypass).",
-                "malformed_scheme": "Endpoint returned 200 with a malformed auth scheme.",
+                "malformed_scheme": "Endpoint returned 2xx with a malformed auth scheme.",
             }
             return [Finding(
                 title=f"Broken Auth: {strategy.replace('_', ' ').title()} accepted",

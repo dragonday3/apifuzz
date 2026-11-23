@@ -7,12 +7,7 @@ from apifuzz.models.finding import Finding
 
 
 def _get_template_dir() -> str:
-    # Resolve templates/ relative to the package root (two levels up from reporters/)
-    pkg_root = Path(__file__).parent.parent.parent.parent  # src/apifuzz/reporters/ → project root
-    templates_dir = pkg_root / "templates"
-    if templates_dir.exists():
-        return str(templates_dir)
-    # Fallback: templates shipped inside package
+    # Shipped inside the package (src/apifuzz/templates) so wheel installs can render HTML.
     return str(Path(__file__).parent.parent / "templates")
 
 

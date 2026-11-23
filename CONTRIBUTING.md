@@ -18,6 +18,10 @@ pip install -e ".[dev]"
 # All tests
 pytest tests/ -q
 
+# Lint and type-check (both must pass)
+ruff check .
+mypy src
+
 # With coverage
 pytest --cov=apifuzz --cov-report=term-missing tests/
 
@@ -29,11 +33,19 @@ All PRs must keep the test suite green across Python 3.10, 3.11, and 3.12.
 
 ## Adding a New Check
 
-1. Create `src/apifuzz/checks/your_check.py` implementing the `BaseCheck` interface
-2. Add corresponding tests in `tests/checks/test_your_check.py` (aim for ≥10 tests)
-3. Register the check in `src/apifuzz/engine/runner.py`
-4. Document the check in `README.md` under the checks table
-5. Map it to an OWASP API Top 10 category
+Checks only generate requests; detection lives in the analyzer. A new check touches four places:
+
+1. `src/apifuzz/checks/your_check.py`: subclass `BaseCheck`, set `check_id` and `name`, and implement
+   `generate(endpoint, auth) -> list[TestCase]`. Build URLs with `self._build_url()` and bodies from
+   `endpoint.body_example`. Pass context for the analyzer in `TestCase.extra`. If your probe sets its own
+   auth headers, set `auth_mode="override"` (or `"none"`) so the configured token doesn't replace them.
+2. Register it in `_ALL_CHECKS` in `src/apifuzz/scanner.py`.
+3. Add a `_check_<id>` handler to `Analyzer._dispatch` in `src/apifuzz/analyzer.py`, with an OWASP API
+   Top 10 (2023) category and a stable `rule_id`. Compare against `self._baseline_body(result)` so
+   content the endpoint always returns isn't reported.
+4. Tests: generation in `tests/checks/test_your_check.py`, detection in `tests/test_analyzer.py`, and an
+   end-to-end case in `tests/e2e/` against the mock API (one secure response with no finding, one
+   vulnerable response with the finding). Document the check in the README checks table.
 
 ## Submitting Changes
 

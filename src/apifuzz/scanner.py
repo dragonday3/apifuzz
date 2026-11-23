@@ -85,7 +85,11 @@ class Scanner:
                 ep.base_url = self.base_url
 
         test_cases = self._generate(endpoints)
-        results = await self.executor.run(test_cases)
+        # Bursts go last: run alongside the other checks they'd exhaust a real rate limit and turn
+        # auth/injection probes into 429s.
+        bursts = [tc for tc in test_cases if not tc.throttle]
+        results = await self.executor.run([tc for tc in test_cases if tc.throttle])
+        results += await self.executor.run(bursts)
 
         findings = self.analyzer.analyze(results)
 

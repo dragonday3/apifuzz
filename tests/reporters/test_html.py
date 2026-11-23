@@ -3,7 +3,7 @@ from pathlib import Path
 from apifuzz.reporters.html import HTMLReporter
 from apifuzz.models.finding import Finding, Severity, OWASPCategory
 
-TEMPLATES_DIR = str(Path(__file__).parent.parent.parent / "templates")
+TEMPLATES_DIR = str(Path(__file__).parent.parent.parent / "src" / "apifuzz" / "templates")
 
 
 def make_finding(severity=Severity.CRITICAL, rule_id="APIFUZZ-TEST", title="Test Finding"):
@@ -90,3 +90,12 @@ class TestHTMLReporter:
     def test_rule_id_in_output(self, reporter):
         html = reporter.generate([make_finding(rule_id="APIFUZZ-BOLA-001")])
         assert "APIFUZZ-BOLA-001" in html
+
+
+def test_default_template_ships_inside_package():
+    import apifuzz
+    from apifuzz.reporters.html import _get_template_dir
+    template_dir = Path(_get_template_dir())
+    assert template_dir.parent == Path(apifuzz.__file__).parent
+    assert (template_dir / "report.html.j2").is_file()
+    assert "<html" in HTMLReporter().generate([]).lower()

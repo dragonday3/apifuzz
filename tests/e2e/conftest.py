@@ -23,11 +23,13 @@ class MockAPI:
     enforce_ownership: /pets/{id} returns 403 unless the caller owns the pet (no BOLA).
     rate_limit: per-(method, path) request budget before 429s; None disables it.
     rate_limited_paths: restrict rate_limit to these paths; None means every path.
+    rate_limit_global: one budget for all requests (per-client limiter) instead of per (method, path).
     """
     accept_any_token: bool = False
     enforce_ownership: bool = True
     rate_limit: int | None = None
     rate_limited_paths: set[str] | None = None
+    rate_limit_global: bool = False
     pets: dict[str, dict] = field(default_factory=lambda: {
         "1": {"id": 1, "name": "rex", "owner": "alice"},
         "2": {"id": 2, "name": "tom", "owner": "bob"},
@@ -56,7 +58,8 @@ class MockAPI:
         self.hits[key] = self.hits.get(key, 0) + 1
         self.auth_seen.append(request.headers.get("authorization"))
         limited = self.rate_limited_paths is None or path in self.rate_limited_paths
-        if self.rate_limit is not None and limited and self.hits[key] > self.rate_limit:
+        used = sum(self.hits.values()) if self.rate_limit_global else self.hits[key]
+        if self.rate_limit is not None and limited and used > self.rate_limit:
             return httpx.Response(429, headers={"Retry-After": "1"})
 
         if request.method == "OPTIONS":

@@ -16,9 +16,8 @@ async def test_only_unlimited_endpoint_is_flagged(mock_api):
     findings = await Scanner(PETSTORE, BASE, auth=ALICE, checks=["rate_limit"], rate_limit_rps=5).run()
     assert time.monotonic() - start < 5
     flagged = {(f.endpoint_method, f.endpoint_path) for f in findings}
-    # /pets (GET, POST) answers 429 after 10 hits -> protected. /pets/{petId} GET returns 200 for
-    # alice's pet... the probe URL uses the literal template, which 404s, so it isn't flagged either.
-    assert not any(path == f"{BASE}/pets" for _, path in flagged)
+    # /pets (GET, POST) answers 429 after 10 hits -> protected. /pets/1 (alice's pet) is not limited.
+    assert flagged == {("GET", f"{BASE}/pets/1"), ("DELETE", f"{BASE}/pets/1")}
 
 
 async def test_each_unlimited_endpoint_gets_its_own_finding(mock_api):
@@ -28,3 +27,14 @@ async def test_each_unlimited_endpoint_gets_its_own_finding(mock_api):
     assert ("GET", f"{BASE}/pets") in endpoints
     assert ("POST", f"{BASE}/pets") in endpoints
     assert len(endpoints) == len(findings)
+
+
+async def test_bursts_do_not_starve_other_checks(mock_api):
+    # Rate-limited API that accepts any token: the invalid-token finding must survive on every
+    # endpoint, i.e. the 50-request bursts must not use up the budget before the auth probes run.
+    # Per-client budget of 30: enough for the 4 baselines + 20 auth probes, not for any burst.
+    mock_api(rate_limit=30, rate_limit_global=True, accept_any_token=True)
+    findings = await Scanner(PETSTORE, BASE, auth=ALICE, checks=["auth", "rate_limit"], rate_limit_rps=0).run()
+    invalid = {(f.endpoint_method, f.endpoint_path) for f in findings if "Invalid Token" in f.title}
+    # /pets/1 belongs to alice, so the any-token user gets 403 there: only /pets is open.
+    assert invalid == {("GET", f"{BASE}/pets"), ("POST", f"{BASE}/pets")}
