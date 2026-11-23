@@ -29,7 +29,7 @@ def example_from_schema(schema: Any, depth: int = 0) -> Any:
     (one item), merges allOf, takes the first oneOf/anyOf branch. Depth is capped so recursive
     schemas (jsonref resolves cycles lazily) terminate.
     """
-    if not isinstance(schema, Mapping):
+    if not isinstance(schema, Mapping) or depth > MAX_DEPTH:
         return None
     for key in ("example", "default"):
         if key in schema:
@@ -43,10 +43,10 @@ def example_from_schema(schema: Any, depth: int = 0) -> Any:
         return schema["const"]
 
     if "allOf" in schema:
-        return example_from_schema(_merge_all_of(schema), depth)
+        return example_from_schema(_merge_all_of(schema), depth + 1)
     for key in ("oneOf", "anyOf"):
         if schema.get(key):
-            return example_from_schema(schema[key][0], depth)
+            return example_from_schema(schema[key][0], depth + 1)
 
     stype = schema.get("type")
     if isinstance(stype, list):  # OAS 3.1: ["string", "null"]
@@ -58,7 +58,9 @@ def example_from_schema(schema: Any, depth: int = 0) -> Any:
         if depth >= MAX_DEPTH:
             return {}
         props = schema.get("properties") or {}
-        return {name: example_from_schema(sub, depth + 1) for name, sub in props.items()}
+        # readOnly props (ids, timestamps) are server-set; strict APIs reject them in request bodies.
+        return {name: example_from_schema(sub, depth + 1) for name, sub in props.items()
+                if not (isinstance(sub, Mapping) and sub.get("readOnly"))}
     if stype == "array":
         if depth >= MAX_DEPTH or "items" not in schema:
             return []
@@ -79,7 +81,10 @@ def example_from_schema(schema: Any, depth: int = 0) -> Any:
     return None
 
 
-def _merge_all_of(schema: Mapping) -> dict:
+_NOT_INHERITED = {"properties", "required", "example", "default", "examples"}
+
+
+def _merge_all_of(schema: Mapping, depth: int = 0) -> dict:
     merged: dict[str, Any] = {k: v for k, v in schema.items() if k != "allOf"}
     props: dict[str, Any] = dict(merged.get("properties") or {})
     required: list[str] = list(merged.get("required") or [])
@@ -87,11 +92,13 @@ def _merge_all_of(schema: Mapping) -> dict:
         if not isinstance(sub, Mapping):
             continue
         if "allOf" in sub:
-            sub = _merge_all_of(sub)
+            if depth >= MAX_DEPTH:  # cyclic allOf
+                continue
+            sub = _merge_all_of(sub, depth + 1)
         props.update(sub.get("properties") or {})
         required += list(sub.get("required") or [])
         for k, v in sub.items():
-            if k not in ("properties", "required"):
+            if k not in _NOT_INHERITED:  # a branch's example would hide the other branches' props
                 merged.setdefault(k, v)
     if props:
         merged["properties"] = props

@@ -337,3 +337,28 @@ class TestNoSQLiPairs:
 def test_auth_bypass_with_201_is_flagged(analyzer):
     tc = make_tc("auth", method="POST", extra={"strategy": "invalid_token"})
     assert len(analyzer.analyze([make_result(tc, 201)])) == 1
+
+
+
+class TestReviewRegressions:
+    def test_duplicate_key_and_cast_errors_are_not_nosqli(self, analyzer):
+        for body in ("E11000 duplicate key error collection: app.users",
+                     'CastError: Cast to string failed for value "{ \'$ne\': null }"'):
+            assert analyzer.analyze([probe("nosqli", body, status=400)]) == []
+
+    def test_pair_split_by_rate_limit_is_not_flagged(self, analyzer):
+        assert analyzer.analyze(nosqli_pair(200, '[{"a": 1}]', 429, "slow down")) == []
+
+    def test_pair_split_by_server_error_is_not_flagged(self, analyzer):
+        assert analyzer.analyze(nosqli_pair(200, '[{"a": 1}]', 503, "unavailable")) == []
+
+    def test_pair_404_vs_200_is_flagged(self, analyzer):
+        assert len(analyzer.analyze(nosqli_pair(200, '[{"name": "alice"}]', 404, "not found"))) == 1
+
+    def test_cross_user_204_is_flagged(self, analyzer):
+        tc = make_tc("bola", method="DELETE", extra={"strategy": "cross_user"})
+        assert len(analyzer.analyze([make_result(tc, 204)])) == 1
+
+    def test_empty_apikey_wording(self, analyzer):
+        [f] = analyzer.analyze([make_result(make_tc("auth", extra={"strategy": "empty_apikey"}), 200)])
+        assert "API key" in f.description

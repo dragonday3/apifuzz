@@ -113,3 +113,23 @@ class TestBOLACrossUserScheme:
         from apifuzz.models.endpoint import AuthConfig
         tc = self._cross(AuthConfig(type="bearer", token="a", second_token="b"))
         assert tc.headers == {"Authorization": "Bearer b"}
+
+
+
+def test_cross_user_keeps_example_zero():
+    from apifuzz.checks.bola import BOLACheck
+    from apifuzz.models.endpoint import AuthConfig, Endpoint, Parameter, ParamLocation
+    ep = Endpoint(method="GET", path="/items/{itemId}", base_url="http://x",
+                  parameters=[Parameter(name="itemId", location=ParamLocation.PATH, example=0)])
+    tc = next(c for c in BOLACheck().generate(ep, AuthConfig(type="bearer", token="a", second_token="b"))
+              if c.extra["strategy"] == "cross_user")
+    assert tc.url == "http://x/items/0"
+
+
+def test_build_url_does_not_clobber_longer_param_names():
+    from apifuzz.checks.base import build_url
+    from apifuzz.models.endpoint import Endpoint, Parameter, ParamLocation
+    ep = Endpoint(method="GET", path="/u/:user/items/:userId", base_url="http://x", parameters=[
+        Parameter(name="user", location=ParamLocation.PATH, example="bob"),
+        Parameter(name="userId", location=ParamLocation.PATH, example="7")])
+    assert build_url(ep) == "http://x/u/bob/items/7"

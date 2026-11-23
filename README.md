@@ -144,7 +144,9 @@ Options:
   --output, -o TEXT          Output format: json | sarif | html [default: json]
   --out-file, -f TEXT        Output file path (stdout if omitted for json/sarif)
   --concurrency, -c INT      Max concurrent HTTP requests [default: 10]
-  --rate-limit FLOAT         Max requests per second [default: 10.0]
+  --rate-limit FLOAT         Max requests per second; the rate_limit check's 50-request
+                             bursts are exempt (leave it out of --checks to avoid them)
+                             [default: 10.0]
   --timeout FLOAT            HTTP request timeout in seconds [default: 15.0]
   --checks TEXT              Comma-separated check IDs or 'all' [default: all]
   --quiet, -q                Suppress progress output
@@ -307,8 +309,8 @@ Async Executor         → TestResult list
     never replacing the headers an auth/BOLA probe sets
 
 Response Analyzer      → Finding list
-  Per-check detection, diffed against a baseline
-    request to each endpoint; canary payloads
+  Per-check detection; injection/SSRF diffed against
+    a baseline request per endpoint; canary payloads
   Rate limit verdict per endpoint
   Severity-based deduplication
 

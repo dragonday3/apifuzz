@@ -1,3 +1,4 @@
+import re
 from abc import ABC, abstractmethod
 from urllib.parse import quote
 from apifuzz.models.endpoint import AuthConfig, Endpoint, ParamLocation
@@ -13,7 +14,8 @@ def build_url(endpoint: Endpoint, path_overrides: dict[str, str] | None = None) 
     path = endpoint.path
     for k, v in values.items():
         encoded = quote(v, safe="")
-        path = path.replace(f"{{{k}}}", encoded).replace(f":{k}", encoded)
+        # whole-name match: filling ":user" must not touch ":userId"
+        path = re.sub(rf"\{{{re.escape(k)}\}}|:{re.escape(k)}(?!\w)", lambda _: encoded, path)
     return f"{endpoint.base_url}{path}"
 
 

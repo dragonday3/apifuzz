@@ -101,3 +101,28 @@ def test_media_type_example_wins(tmp_path):
               responses: {"201": {description: ok}}
     """))
     assert OpenAPIParser().parse(str(spec))[0].body_example == {"name": "rex"}
+
+
+
+def test_self_referential_one_of_terminates():
+    alt: dict = {"oneOf": []}
+    alt["oneOf"].append(alt)
+    alt["oneOf"].append({"type": "string"})
+    example_from_schema(alt)  # must not raise RecursionError
+
+
+def test_cyclic_all_of_terminates():
+    node: dict = {"allOf": [{"properties": {"a": {"type": "integer"}}}]}
+    node["allOf"].append(node)
+    assert example_from_schema(node)["a"] == 1
+
+
+def test_all_of_branch_example_does_not_hide_other_branches():
+    schema = {"allOf": [{"example": {"name": "x"}}, {"properties": {"b": {"type": "integer"}}}]}
+    assert example_from_schema(schema) == {"b": 1}
+
+
+def test_read_only_properties_skipped():
+    schema = {"type": "object", "properties": {"id": {"type": "integer", "readOnly": True},
+                                               "name": {"type": "string"}}}
+    assert example_from_schema(schema) == {"name": "apifuzz"}

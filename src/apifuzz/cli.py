@@ -38,7 +38,7 @@ def scan(
     output: str = typer.Option("json", "--output", "-o", help="Output format: json | sarif | html"),
     out_file: Optional[str] = typer.Option(None, "--out-file", "-f", help="Output file path (default: stdout for json/sarif)"),
     concurrency: int = typer.Option(10, "--concurrency", "-c", help="Max concurrent HTTP requests"),
-    rate_limit: float = typer.Option(10.0, "--rate-limit", help="Max requests per second"),
+    rate_limit: float = typer.Option(10.0, "--rate-limit", help="Max requests per second (rate_limit check bursts are exempt)"),
     timeout: float = typer.Option(15.0, "--timeout", help="HTTP request timeout in seconds"),
     checks: str = typer.Option("all", "--checks", help="Comma-separated check IDs or 'all'"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress progress output"),

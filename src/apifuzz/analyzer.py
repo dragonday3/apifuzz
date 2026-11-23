@@ -15,7 +15,9 @@ _SQLI_ERRORS = re.compile(
 # Markers only a real metadata/file read returns; none of them occurs in the SSRF payloads themselves.
 _SSRF_METADATA = re.compile(r"(ami-id|instance-id|root:x:0:0|computeMetadata|\"AccessKeyId\")", re.IGNORECASE)
 _CMD_UID = re.compile(r"uid=\d+\([\w-]+\) gid=\d+")
-_NOSQL_ERRORS = re.compile(r"(MongoError|MongoServerError|CastError|BSONTypeError|\$where|E11000)")
+# Operator reached the query engine. Not E11000 (duplicate key) or CastError (type validation
+# rejecting the object): both are normal on a secure Mongo API.
+_NOSQL_ERRORS = re.compile(r"(MongoError|MongoServerError|unknown operator|\$where)")
 
 _SEVERITY_RANK = {s: i for i, s in enumerate(_SEVERITY_ORDER)}
 
@@ -61,7 +63,7 @@ class Analyzer:
         tc = result.test_case
         strategy = tc.extra.get("strategy", "")
 
-        if strategy == "cross_user" and result.status_code == 200:
+        if strategy == "cross_user" and result.is_success:
             return [Finding(
                 title="BOLA: Cross-user object access succeeded",
                 description=(
@@ -106,6 +108,7 @@ class Analyzer:
                 "no_auth": "Endpoint returned 2xx with no Authorization header.",
                 "invalid_token": "Endpoint returned 2xx with a known-invalid token.",
                 "empty_bearer": "Endpoint returned 2xx with an empty Bearer token.",
+                "empty_apikey": "Endpoint returned 2xx with an empty API key.",
                 "jwt_alg_none": "Endpoint accepted JWT with alg:none (signature bypass).",
                 "malformed_scheme": "Endpoint returned 2xx with a malformed auth scheme.",
             }
@@ -126,7 +129,7 @@ class Analyzer:
 
     def _check_mass_assignment(self, result: TestResult) -> list[Finding]:
         tc = result.test_case
-        if result.status_code not in (200, 201):
+        if not result.is_success:
             return []
         body = result.response_body.lower()
         injected = tc.extra.get("injected_fields", [])
@@ -246,6 +249,9 @@ class Analyzer:
         for pair in pairs.values():
             true, false = pair.get("true"), pair.get("false")
             if not true or not false or not true.is_success:
+                continue
+            # A limiter or server error on one side splits the pair for reasons unrelated to the query.
+            if any(r.status_code == 429 or r.status_code >= 500 for r in (true, false)):
                 continue
             len_t, len_f = len(true.response_body), len(false.response_body)
             if true.status_code == false.status_code and abs(len_t - len_f) <= max(20, 0.1 * max(len_t, len_f)):

@@ -36,7 +36,7 @@ class BOLACheck(BaseCheck):
             # Strategy 2: Cross-user test — if second_token provided, access as user-A using user-B's token
             if auth.second_token:
                 # Use a known ID from example or default "1"
-                example_id = str(param.example) if param.example else "1"
+                example_id = str(param.example) if param.example is not None else "1"
                 url = self._build_url(endpoint, {param.name: example_id})
                 test_cases.append(TestCase(
                     method=endpoint.method,

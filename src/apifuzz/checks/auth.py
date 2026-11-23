@@ -46,7 +46,7 @@ class AuthCheck(BaseCheck):
 
         if auth.type == "apikey":
             test_cases.append(case("invalid token", "invalid_token", {hdr: "INVALID_TOKEN_apifuzz"}))
-            test_cases.append(case("empty api key", "empty_bearer", {hdr: ""}))
+            test_cases.append(case("empty api key", "empty_apikey", {hdr: ""}))
             return test_cases  # no auth scheme to tamper with
 
         if auth.type == "basic":

@@ -1,4 +1,6 @@
 """Phase 0.1: configured auth must not overwrite the headers the auth/BOLA probes send."""
+import pytest
+
 from apifuzz.models.endpoint import AuthConfig
 from apifuzz.scanner import Scanner
 
@@ -43,19 +45,28 @@ async def test_probe_headers_reach_the_wire(mock_api):
     await scan(["auth"])
     assert None in api.auth_seen                              # no_auth
     assert "Bearer INVALID_TOKEN_apifuzz" in api.auth_seen    # invalid_token
-    # The configured token only goes out on the one baseline request per endpoint (4 in petstore),
-    # never in place of a probe header.
-    assert api.auth_seen.count("Bearer token-alice") == 4
+    assert "Bearer token-alice" not in api.auth_seen          # configured token never replaced a probe
+
+
+# Per-(method, path) budget: above what one endpoint gets in the first pass, far below first pass + burst.
+SECURE_BUDGET = 45
+
+
+async def full_scan_secure(mock_api):
+    api = mock_api(rate_limit=SECURE_BUDGET)
+    findings = await Scanner(PETSTORE, BASE, auth=ALICE, rate_limit_rps=0).run()
+    # The secure-API claim only holds if the first-pass probes really reached the API (no 429 before bursts).
+    for key, statuses in api.statuses.items():
+        assert 429 not in statuses[:-50], f"{key} was rate limited before the burst pass"
+    return findings
 
 
 async def test_full_scan_secure_api_only_known_limitation(mock_api):
     """All checks against a secure, rate-limited API. The one remaining false positive is BOLA ID
     enumeration of the caller's own object (README known limitation, plan 1.3)."""
-    mock_api(rate_limit=20)
-    findings = await Scanner(PETSTORE, BASE, auth=ALICE, rate_limit_rps=0).run()
-    assert {f.rule_id for f in findings} <= {"APIFUZZ-BOLA-002"}
+    assert {f.rule_id for f in await full_scan_secure(mock_api)} <= {"APIFUZZ-BOLA-002"}
 
 
+@pytest.mark.xfail(strict=True, reason="BOLA ID enumeration flags any 200 until plan 1.3")
 async def test_full_scan_secure_api_zero_findings(mock_api):
-    import pytest
-    pytest.xfail("BOLA ID enumeration flags any 200 until plan 1.3")
+    assert await full_scan_secure(mock_api) == []
