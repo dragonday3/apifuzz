@@ -37,7 +37,10 @@ def _json(body: str) -> Any:
 
 
 def _same_object(a: str, b: str) -> bool:
-    """Do two response bodies describe the same object? Identical, or the same identifying fields."""
+    """Do two response bodies describe the same object? Identical, or the same identifying fields.
+    Empty bodies (204s) prove nothing about whose object it was."""
+    if not a.strip() or not b.strip():
+        return False
     if a == b:
         return True
     ja, jb = _json(a), _json(b)
@@ -141,18 +144,21 @@ class Analyzer:
         if strategy == "cross_user":
             # User B reading user A's object. Firm only if B got A's object back; a 2xx with B's own
             # data or a soft-fail body is not BOLA. No baseline (DELETE) -> tentative.
-            if base is not None and not (base.is_success and _same_object(base.response_body,
-                                                                           result.response_body)):
-                return []
-            confidence: Confidence = "firm" if base is not None else "tentative"
+            confirmed = base is not None and base.is_success and _same_object(base.response_body,
+                                                                               result.response_body)
+            if base is not None and not confirmed and base.response_body.strip():
+                return []  # A's object has a body and B didn't get it back
+            # Firm only when B's response is A's object. Empty write responses (204) can't show whose
+            # object changed, and without a baseline (DELETE) there is nothing to compare: tentative.
+            confidence: Confidence = "firm" if confirmed else "tentative"
             return [Finding(
                 title="BOLA: Cross-user object access succeeded",
                 description=(
                     f"Using the second user's token, {tc.method} {tc.url} returned the first user's object. "
                     f"Object-level authorization is not enforced."
-                    if base is not None else
+                    if confirmed else
                     f"Using the second user's token, {tc.method} {tc.url} returned HTTP {result.status_code}. "
-                    f"No baseline to confirm whose object it was; verify manually."
+                    f"Nothing in the response shows whose object it was; verify manually."
                 ),
                 severity=Severity.CRITICAL,
                 owasp_category=OWASPCategory.API1_BOLA,
@@ -161,7 +167,7 @@ class Analyzer:
                 request_sample=tc.label,
                 response_sample=result.response_body[:500],
                 evidence=(f"HTTP {result.status_code} with cross-user token; response matches user A's object"
-                          if base is not None else f"HTTP {result.status_code} with cross-user token"),
+                          if confirmed else f"HTTP {result.status_code} with cross-user token"),
                 remediation="Enforce object-level authorization: verify the requesting user owns the resource.",
                 rule_id="APIFUZZ-BOLA-001",
                 confidence=confidence,

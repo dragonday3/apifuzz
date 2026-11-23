@@ -119,3 +119,21 @@ class TestScanner:
                 ep.base_url = "http://testserver"
         cases = scanner._generate(endpoints)
         assert len(cases) > 0
+
+
+def test_baseline_only_for_endpoints_with_probes(tmp_path):
+    import textwrap
+    spec = tmp_path / "s.yaml"
+    spec.write_text(textwrap.dedent("""
+        openapi: "3.0.3"
+        info: {title: t, version: "1"}
+        paths:
+          /createdb: {get: {responses: {"200": {description: resets the database}}}}
+          /items/{itemId}:
+            get:
+              parameters: [{name: itemId, in: path, required: true, schema: {type: integer}}]
+              responses: {"200": {description: ok}}
+    """))
+    scanner = Scanner(str(spec), "http://x", checks=["bola"])
+    baselines = [tc.url for tc in scanner._generate(scanner._parse(str(spec))) if tc.check_id == "baseline"]
+    assert baselines == ["/items/1"]  # no probe on /createdb, so no baseline request there either

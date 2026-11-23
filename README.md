@@ -34,19 +34,17 @@ The spec (or HAR) provides the paths. Pass just the origin:
 
 | ID | OWASP category (2023) | What it tests |
 |----|-----------------------|---------------|
-| `bola` | API1 — Broken Object Level Authorization | ID enumeration, cross-user access with a second user's token |
-| `auth` | API2 — Broken Authentication | No auth, invalid tokens, JWT `alg:none` |
-| `mass_assignment` | API3 — Broken Object Property Level Authorization | Privileged field injection (`role`, `isAdmin`, `is_verified`, …) into request bodies |
-| `rate_limit` | API4 — Unrestricted Resource Consumption | 50-request burst detection |
+| `bola` | API1 — Broken Object Level Authorization | Cross-user access with `--second-token`, confirmed when user B gets user A's object back; ID enumeration (tentative: another object with the same fields) |
+| `auth` | API2 — Broken Authentication | No auth, invalid/empty tokens, malformed scheme, JWT `alg:none`, on endpoints the spec marks as secured; a bypass must return what the authenticated request got |
+| `mass_assignment` | API3 — Broken Object Property Level Authorization | Privileged field injection (`role`, `admin`, `isAdmin`, …) into request bodies; confirmed by a follow-up `GET` showing the values were stored |
+| `rate_limit` | API4 — Unrestricted Resource Consumption | 50-request burst per endpoint; any `429`, `Retry-After` or `X-RateLimit-*` header counts as protected |
 | `ssrf` | API7 — Server Side Request Forgery | Cloud-metadata and internal URL probes in URL-type parameters |
 | `cors` | API8 — Security Misconfiguration | Origin reflection + credentials misconfiguration |
-| `injection` | *(no 2023 API category; OWASP Top 10 A03:2021 Injection)* | SQLi (DB error strings), SSTI and command injection (computed canaries), NoSQLi (Mongo errors and `$ne`/`$eq` response differences), XSS reflected unescaped in HTML |
+| `injection` | *(no 2023 API category; OWASP Top 10 A03:2021 Injection)* | SQLi (DB error strings, boolean true/false conditions, time-based with `--time-based`), SSTI and command injection (computed canaries), NoSQLi (Mongo errors and `$ne`/`$eq` response differences), XSS reflected unescaped in HTML |
 
 Coverage: API1, API2, API3, API4, API7 and API8. API5, API6, API9 and API10 are not tested yet.
 
-> **Known limitations (fixes planned):**
-> - The `auth` check doesn't read the spec's `security` requirements yet, so endpoints that are public by design are reported as "No Auth accepted". Ignore auth findings on endpoints you intend to be public.
-> - `bola` ID enumeration reports any `200` for a probed ID (most APIs have an object `1`). Cross-user findings (`--second-token`) are the stronger signal.
+**Confidence.** Each finding is `firm` (confirmed by a comparison: an authenticated baseline request, the first user's object, a follow-up `GET`, or a true/false pair) or `tentative` (a plausible signal to verify by hand). Tentative findings are SARIF `note`s, so they never fail a PR check. `--min-confidence firm` hides them.
 
 ---
 
@@ -149,6 +147,9 @@ Options:
                              [default: 10.0]
   --timeout FLOAT            HTTP request timeout in seconds [default: 15.0]
   --checks TEXT              Comma-separated check IDs or 'all' [default: all]
+  --min-confidence TEXT      Report only: tentative (all) | firm [default: tentative]
+  --time-based               Add time-based SQLi probes (each waits ~5 s on a
+                             vulnerable target)
   --quiet, -q                Suppress progress output
   --help                     Show this message and exit.
 ```
@@ -255,12 +256,12 @@ HTMLReporter().write(findings, "report.html")
 
 ### SARIF 2.1
 
-Upload to GitHub Code Scanning (workflow above) and findings appear in the Security tab and inline on pull requests, with severity, description and remediation guidance. Any SARIF 2.1-compatible tool can read the file.
+Upload to GitHub Code Scanning (workflow above) and findings appear in the Security tab and inline on pull requests, with severity, description and remediation guidance. Tentative findings are reported at level `note`. Any SARIF 2.1-compatible tool can read the file.
 
 ### JSON
 
 Machine-readable array of findings. Each finding includes:
-- `rule_id`, `title`, `severity`, `owasp_category`
+- `rule_id`, `title`, `severity`, `confidence` (`firm` | `tentative`), `owasp_category`
 - `endpoint_method`, `endpoint_path`
 - `evidence` — what matched (e.g. the error string or canary found)
 - `request_sample`, `response_sample` — the probe and an excerpt of the response
@@ -309,8 +310,9 @@ Async Executor         → TestResult list
     never replacing the headers an auth/BOLA probe sets
 
 Response Analyzer      → Finding list
-  Per-check detection; injection/SSRF diffed against
-    a baseline request per endpoint; canary payloads
+  Per-check detection, compared against a baseline
+    request per endpoint; canary payloads; true/false
+    pairs; follow-up GETs; firm / tentative confidence
   Rate limit verdict per endpoint
   Severity-based deduplication
 

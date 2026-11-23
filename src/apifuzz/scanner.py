@@ -83,7 +83,6 @@ class Scanner:
         for check in self._checks:
             if isinstance(check, InjectionCheck):
                 check.time_based = time_based
-        self._uses_baseline = any(c.check_id in _BASELINE_CHECKS for c in self._checks)
 
     async def run(self) -> list[Finding]:
         endpoints = self._parse(self.spec_path)
@@ -125,14 +124,16 @@ class Scanner:
         test_cases: list[TestCase] = []
         for endpoint in endpoints:
             key = f"{endpoint.method} {endpoint.path}"
-            # Baseline: one normal request with the configured auth, which detectors compare against.
-            # Only sent when such a check runs, and never for DELETE (it would remove the object).
-            cases = []
-            if self._uses_baseline and endpoint.method != "DELETE":
-                cases.append(TestCase(method=endpoint.method, url=build_url(endpoint), headers={}, params={},
-                                      body=endpoint.body_example, label=f"Baseline: {key}", check_id="baseline"))
+            cases: list[TestCase] = []
             for check in self._checks:
                 cases.extend(check.generate(endpoint, self.auth))
+            # Baseline: one normal request with the configured auth, which detectors compare against.
+            # Only for endpoints that got a probe needing it (a baseline GET /createdb-style endpoint can
+            # reset state), and never for DELETE (it would remove the object).
+            if endpoint.method != "DELETE" and any(tc.check_id in _BASELINE_CHECKS for tc in cases):
+                cases.insert(0, TestCase(method=endpoint.method, url=build_url(endpoint), headers={}, params={},
+                                         body=endpoint.body_example, label=f"Baseline: {key}",
+                                         check_id="baseline"))
             for tc in cases:
                 tc.extra["endpoint_key"] = key
             test_cases.extend(cases)

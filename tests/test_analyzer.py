@@ -520,3 +520,11 @@ class TestRateLimitSignals:
 
     def test_unlimited_flagged(self, analyzer):
         assert len(analyzer.analyze_rate_limit(burst([200] * 50))) == 1
+
+
+def test_cross_user_empty_write_response_is_tentative(analyzer):
+    key = {"endpoint_key": "PUT /users/{u}/password"}
+    base = make_result(make_tc("baseline", method="PUT", extra=key), 204, body="")
+    probe = make_result(make_tc("bola", method="PUT", extra={"strategy": "cross_user", **key}), 204, body="")
+    [f] = analyzer.analyze([base, probe])
+    assert f.confidence == "tentative"
