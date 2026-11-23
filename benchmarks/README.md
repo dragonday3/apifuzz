@@ -74,3 +74,74 @@ on endpoints VAmPI documents as public.
 - Mass assignment on `POST /users/v1/register`. The `admin` flag is stored, but the response has no id or
   `Location` to confirm it with. It shows only on `/me` (logged in as the new user) and the debug endpoint.
 - Two flaws apifuzz has no check for: RegexDoS and the weak JWT signing key.
+
+## crAPI (held-out target)
+
+[OWASP crAPI](https://github.com/OWASP/crAPI) was added as a second target **after** the VAmPI work, and
+measured once with the code as it was (commit `b21ea70`, detection identical to `4bf7b6d`) before any rule
+was changed for it. That number is the held-out baseline below; anything tuned later is reported separately
+as "after tuning".
+
+```bash
+git clone --depth 1 --branch v1.1.6 https://github.com/OWASP/crAPI /path/to/crAPI
+docker compose -p crapi -f /path/to/crAPI/deploy/docker/docker-compose.yml \
+  -f benchmarks/crapi/docker-compose.pinned.yml up -d --wait # ~10 containers; :8888
+py -3.10 benchmarks/run.py crapi                              # ~11 min (crAPI caps its services at 0.3 CPU)
+```
+
+How it differs from the VAmPI method:
+
+- **Expected list.** `crapi/expected.yaml` holds crAPI's 18 documented challenges (`docs/challenges.md` at
+  v1.1.6), each mapped to its endpoint from crAPI's solutions doc and service source, written before the
+  first scan. Challenge 9 (refund by quantity) is business logic and the 3 chatbot challenges need an
+  OpenAI key; they stay in the list as "not covered". crAPI's 3 undisclosed "secret challenges" aren't listed.
+- **No fixed build**, so there is no false-positive run. Every finding that matches no documented challenge
+  counts against precision in `results/crapi.md` and is triaged by hand below.
+- **Setup.** `run.py` signs up two fresh users with random credentials, gives user A a vehicle (VIN and
+  pincode from crAPI's own welcome email), an order, a mechanic report, a video and a forum post, and writes
+  those ids into the spec's id parameters. Nothing else in the spec changes. The spec is crAPI's
+  `openapi-spec/crapi-openapi-spec.json` (Apache-2.0, `crapi/LICENSE.crAPI.md`).
+- **Images.** crAPI publishes no complete `1.1.6` image set, so the run used `latest`, pinned by digest in
+  `crapi/docker-compose.pinned.yml`.
+
+### Held-out result (`b21ea70`, before any tuning)
+
+The full benchmark ran once at `b21ea70` (results committed in `6efe89e`); the setup alone was re-run
+afterwards to triage findings by hand. After review fixes to the harness (no detection code changed) it was
+**reproduced at `5a117ab` on a freshly created stack from the pinned images**: the same 5 detections with
+the same firm/tentative split and the same 39 unmatched findings, 61 findings instead of 62 (the first run
+had one more `alg:none` acceptance, on `change-email`), no failed requests (the first run had 6 timeouts).
+[`results/crapi.md`](results/crapi.md) is the reproduction; the table below is the held-out run.
+
+| crAPI (18 documented challenges) | held-out |
+|---|---|
+| Detected | 5 / 18: vehicle-location BOLA, unauthenticated order access, JWT `alg:none` accepted (firm); video internal property exposed, admin video delete by a normal user (tentative; found by the BOLA probe, since the `bfla` check needs `--low-priv-token` and the run passes none) |
+| ...among the 14 apifuzz has a check for | 5 / 14 |
+| Findings | 62 (23 match a documented challenge, 39 don't) |
+| Unmatched findings, triaged by hand | 29 real but undocumented, **10 false positives** (4 firm, 6 tentative) |
+
+Triage of the 39 unmatched findings (each re-checked against the live API):
+
+| Finding | Count | Verdict |
+|---|---|---|
+| No rate limiting (`RATE-001`) on other endpoints | 22 | Real: 50-request bursts got no 429. crAPI documents rate limiting only for two challenges. |
+| `/.env` served (`INVENTORY-002`) | 1 | Real: returns crAPI's database credentials; a random path returns 404. |
+| Login reveals registered emails (`ENUM-001`) | 1 | Real: "Given Email is not registered!" vs "Invalid Credentials". |
+| Other users' orders readable (`BOLA-001` firm, `BOLA-002` ×2) on `GET /workshop/api/shop/orders/{order_id}` | 3 | Real: the same unauthenticated order endpoint as challenge 14, seen as BOLA. |
+| Sensitive field in the order response (`EXPOSURE-001`) | 1 | **False positive** (firm). The field it flagged is `payment.card_number`, and its value is already masked (`XXXXXXXXXXXX9999`), a shape the placeholder filter doesn't recognise. The response does expose the owner's email and phone to anyone, but apifuzz didn't report that. |
+| Undocumented response fields (`EXPOSURE-002`): owner `email` in vehicle location (readable by other users), `payment` object in the unauthenticated order detail | 2 | Real. |
+| Undocumented response field (`EXPOSURE-002`): `previousOwners` on the caller's own vehicles | 1 | **False positive** (tentative): an empty list for a new vehicle, so nothing was exposed. |
+| Undocumented response fields (`EXPOSURE-002`): only pagination fields (`count`, `next_offset`, `previous_offset`; plus `transaction_id` on orders/all) | 5 | **False positive** (tentative): spec drift with no security impact. |
+| BOLA on forum posts (`GET` post, `POST` comment) | 2 | **False positive** (firm): forum posts are public to every user by design. |
+| Boolean SQLi on `POST .../posts/{postId}/comment` | 1 | **False positive** (firm): each probe adds a comment, so the post's response grows; the true/false difference isn't SQL. |
+
+**Missed (held-out)**, each a gap in a check that exists:
+- 2: BOLA on `mechanic_report`: the id is a **query** parameter and BOLA only probes path parameters.
+- 3: rate limiting on `v2/check-otp`: the check counts only 2xx answers as accepted, and crAPI answers a
+  wrong OTP with HTTP 500 ("Invalid OTP!"), so an unlimited brute force looks like a rejected burst.
+- 6: rate limiting on `contact_mechanic`: not reported, in both runs (the reproduction had no timeouts);
+  cause not investigated yet.
+- 4: other users' data in `posts/recent` (author email, vehicle id): not in the sensitive-field list.
+- 8, 10: mass assignment through `PUT` (order `status`, video `conversion_params`): not confirmed.
+- 11: SSRF via `mechanic_api`: the run has no `--oob-url` collector, and crAPI has no cloud metadata to echo.
+- 12, 13: NoSQLi and SQLi on the coupon endpoints: not detected.

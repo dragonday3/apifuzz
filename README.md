@@ -64,6 +64,18 @@ Scored against [VAmPI](https://github.com/erev0s/VAmPI)'s own list of 9 document
 
 Two rules were changed after benchmark runs, both disclosed in [`benchmarks/`](benchmarks/README.md). Missed: mass assignment on registration (stored, but nothing in the response to confirm it with). Not covered: RegexDoS, weak JWT signing key.
 
+### Benchmark: OWASP crAPI (held-out)
+
+[crAPI](https://github.com/OWASP/crAPI) was added after the VAmPI work and measured once **before any rule was tuned for it**, so it shows how apifuzz does on an API it wasn't developed against. Scored against crAPI's 18 documented challenges. crAPI has no fixed build, so every finding outside that list was re-checked by hand. Details: [`benchmarks/`](benchmarks/README.md#crapi-held-out-target), [`benchmarks/results/crapi.md`](benchmarks/results/crapi.md).
+
+| crAPI (18 documented challenges) | held-out (`b21ea70`) |
+|---|---|
+| Documented challenges detected | 5 / 18: vehicle-location BOLA, unauthenticated order access, JWT `alg:none` accepted (firm); video internal property exposed, admin video delete by a normal user (tentative, via the BOLA probe) |
+| ...among the 14 apifuzz has a check for | 5 / 14 |
+| Findings outside the documented list | 39: 29 real (no rate limiting, `/.env` with DB credentials, login user enumeration, other users' orders), **10 false positives** |
+
+Misses include BOLA through a query parameter, SQLi/NoSQLi on the coupon endpoints, mass assignment through `PUT`, and SSRF without an out-of-band collector. They are listed in [`benchmarks/`](benchmarks/README.md#crapi-held-out-target).
+
 **Confidence.** Each finding is `firm` (confirmed by a comparison: an authenticated baseline request, the first user's object, a follow-up `GET`, or a true/false pair) or `tentative` (a plausible signal to verify by hand). In SARIF, tentative findings are `note`s under a separate `<rule>/tentative` rule with medium security-severity, so GitHub's default check threshold (High) doesn't fail on them. `--min-confidence firm` hides them.
 
 ---

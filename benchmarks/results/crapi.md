@@ -1,6 +1,6 @@
 # apifuzz vs crapi
 
-Measured 2026-11-24 with apifuzz `b21ea70`. Scan settings: `{"allow_destructive": true, "rate_limit_rps": 20}`. Requests: 3369; failed: {'ReadTimeout': 6}.
+Measured 2026-11-24 with apifuzz `5a117ab`. Scan settings: `{"allow_destructive": true, "rate_limit_rps": 20}`. Requests: 3369; failed: none.
 
 crapi has no fixed build, so there is no false-positive run. Findings that match no documented vulnerability are listed at the end and counted against precision; each is triaged by hand in benchmarks/README.md.
 
@@ -9,10 +9,10 @@ crapi has no fixed build, so there is no false-positive run. Findings that match
 | Documented vulnerabilities detected | 5 / 18 (28%) |
 | ...of those apifuzz has a check for | 5 / 14 (36%) |
 | ...detected with a firm finding | 3 / 18 |
-| Findings | 62 (39 match no documented vulnerability) |
+| Findings | 61 (39 match no documented vulnerability) |
 | ...of which rate-limit (one per endpoint) | 22 |
-| Precision, unmatched counted as false (all / firm only) | 37% / 42% |
-| Same, excluding rate-limit, one per (rule, operation) | 59% |
+| Precision, unmatched counted as false (all / firm only) | 36% / 41% |
+| Same, excluding rate-limit, one per (rule, operation) | 58% |
 
 ## Per documented vulnerability
 

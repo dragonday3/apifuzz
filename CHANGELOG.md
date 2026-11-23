@@ -14,6 +14,8 @@ false positives, makes scans safe to point at real systems, adds coverage, and m
   and secure builds. Current: **6/9 detected** (5 firm, 1 tentative), 6/7 of those apifuzz has a check for,
   **0 false positives on both builds**. Two rules changed after seeing benchmark output; both are disclosed in
   `benchmarks/README.md`.
+- Second benchmark target: OWASP crAPI, measured before any tuning (held-out): 5/18 documented challenges
+  detected (3 firm), 10 false positives among 39 findings outside the documented list.
 
 ### Fixed (correctness)
 - `--token` without `--auth-type` now authenticates as bearer. Before, the default `none` silently ignored the token and scanned unauthenticated; `--auth-type none` together with a token is now an error.
