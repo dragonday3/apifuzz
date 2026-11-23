@@ -44,6 +44,19 @@ The spec (or HAR) provides the paths. Pass just the origin:
 
 Coverage: API1, API2, API3, API4, API7 and API8. API5, API6, API9 and API10 are not tested yet.
 
+### Benchmark: OWASP-style vulnerable API (VAmPI)
+
+Scored against [VAmPI](https://github.com/erev0s/VAmPI)'s own list of 9 documented vulnerabilities. The scan runs against the vulnerable build and against the same API with its flaws switched off. Method and reproduction: [`benchmarks/`](benchmarks/README.md). Latest run: [`benchmarks/results/vampi.md`](benchmarks/results/vampi.md).
+
+| | v0.1.0 | current |
+|---|---|---|
+| Documented vulnerabilities detected | 0 / 9 | 4 / 9 (SQLi, BOLA, unauthorized password change, rate limiting) |
+| ...among the 5 apifuzz has a check for | 0 / 5 | 4 / 5 |
+| False positives, vulnerable build | 25 | 0 |
+| False positives, secure build | 25 | 0 |
+
+Missed: mass assignment on registration (stored, but nothing in the response to confirm it with). Not covered yet: debug-endpoint data exposure, user enumeration, RegexDoS, weak JWT signing key.
+
 **Confidence.** Each finding is `firm` (confirmed by a comparison: an authenticated baseline request, the first user's object, a follow-up `GET`, or a true/false pair) or `tentative` (a plausible signal to verify by hand). In SARIF, tentative findings are `note`s under a separate `<rule>/tentative` rule with medium security-severity, so GitHub's default check threshold (High) doesn't fail on them. `--min-confidence firm` hides them.
 
 ---
