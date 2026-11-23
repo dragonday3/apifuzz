@@ -1,8 +1,9 @@
 import json
 import re
 from typing import Any
-from urllib.parse import quote, urljoin
+from urllib.parse import quote, urljoin, urlsplit
 
+from apifuzz.checks.bola import MISSING_ID
 from apifuzz.checks.injection import CMD_CANARY, SQLI_SLEEP_SECONDS, SSTI_PRODUCT
 from apifuzz.executor import TestCase, TestResult
 from apifuzz.models.finding import Confidence, Finding, OWASPCategory, Severity
@@ -27,6 +28,9 @@ _SEVERITY_RANK = {s: i for i, s in enumerate(_SEVERITY_ORDER)}
 
 
 _IDENTIFYING_KEY = re.compile(r"^(id|uuid|username|email|.+_id|.+Id)$")
+# Per-request values that change on every call and say nothing about which object it is.
+_VOLATILE_KEY = re.compile(r"(request|trace|correlation|session|span|transaction|nonce)", re.IGNORECASE)
+_WRAPPERS = ("data", "user", "result")
 
 
 def _json(body: str) -> Any:
@@ -36,18 +40,38 @@ def _json(body: str) -> Any:
         return None
 
 
-def _same_object(a: str, b: str) -> bool:
-    """Do two response bodies describe the same object? Identical, or the same identifying fields.
-    Empty bodies (204s) prove nothing about whose object it was."""
+def _unwrap(doc: Any) -> Any:
+    """{"data": {...}, "meta": {...}} -> the inner object."""
+    if isinstance(doc, dict):
+        for key in _WRAPPERS:
+            if isinstance(doc.get(key), dict):
+                return doc[key]
+    return doc
+
+
+def _identity(doc: dict, extra_keys: tuple[str, ...] = ()) -> dict[str, Any]:
+    return {k: v for k, v in doc.items()
+            if (_IDENTIFYING_KEY.match(k) or k in extra_keys) and not _VOLATILE_KEY.search(k)
+            and v not in (None, "")}
+
+
+def _same_object(a: str, b: str, extra_keys: tuple[str, ...] = ()) -> bool:
+    """Do two response bodies describe the same object? Same identifying fields (id, username, the probed
+    path param...) when both have some, else an identical body. Empty bodies (204s) prove nothing."""
     if not a.strip() or not b.strip():
         return False
-    if a == b:
-        return True
-    ja, jb = _json(a), _json(b)
-    if not (isinstance(ja, dict) and isinstance(jb, dict)):
-        return False
-    keys = [k for k in ja if _IDENTIFYING_KEY.match(k) and k in jb and ja[k] not in (None, "")]
-    return bool(keys) and all(ja[k] == jb[k] for k in keys)
+    ja, jb = _unwrap(_json(a)), _unwrap(_json(b))
+    if isinstance(ja, dict) and isinstance(jb, dict):
+        ia, ib = _identity(ja, extra_keys), _identity(jb, extra_keys)
+        common = ia.keys() & ib.keys()
+        if common:
+            return all(ia[k] == ib[k] for k in common)
+    return a == b
+
+
+def _content_type(result: TestResult) -> str:
+    value = next((v for k, v in result.response_headers.items() if k.lower() == "content-type"), "")
+    return value.split(";")[0].strip().lower()
 
 
 def _fields_with_values(body: str, injected: dict[str, Any]) -> list[str]:
@@ -63,9 +87,12 @@ def _fields_with_values(body: str, injected: dict[str, Any]) -> list[str]:
 
 def _resource_url(result: TestResult) -> str | None:
     tc = result.test_case
-    location = result.response_headers.get("location")
+    location = next((v for k, v in result.response_headers.items() if k.lower() == "location"), None)
     if location:
-        return urljoin(tc.url, location)
+        # The follow-up carries the configured credentials: never follow a Location to another origin.
+        url = urljoin(tc.url, location)
+        a, b = urlsplit(url), urlsplit(tc.url)
+        return url if (a.scheme, a.netloc) == (b.scheme, b.netloc) else None
     if tc.method in ("PUT", "PATCH"):
         return tc.url
     doc = _json(result.response_body)
@@ -81,11 +108,15 @@ def _limited(result: TestResult) -> bool:
 
 
 def _resembles(a: TestResult, b: TestResult) -> bool:
-    """Same status and essentially the same body: identical, or within 10% (min 20 bytes) in length."""
-    if a.status_code != b.status_code:
+    """Same status, same content type, same JSON shape (top-level keys), and a body within 10% (min 20
+    bytes) in length. An {"error": ...} body never resembles a user object of similar length."""
+    if a.status_code != b.status_code or _content_type(a) != _content_type(b):
         return False
     if a.response_body == b.response_body:
         return True
+    ja, jb = _unwrap(_json(a.response_body)), _unwrap(_json(b.response_body))
+    if type(ja) is not type(jb) or (isinstance(ja, dict) and isinstance(jb, dict) and ja.keys() != jb.keys()):
+        return False
     la, lb = len(a.response_body), len(b.response_body)
     return abs(la - lb) <= max(20, 0.1 * max(la, lb))
 
@@ -97,6 +128,13 @@ class Analyzer:
         self._baselines: dict[str | None, TestResult] = {
             r.test_case.extra.get("endpoint_key"): r
             for r in results if r.test_case.check_id == "baseline" and not r.is_error
+        }
+        # What the endpoint answers for an object that can't exist: a 200 {"message": "not found"} must
+        # not count as "user B got user A's object".
+        self._missing: dict[str | None, TestResult] = {
+            r.test_case.extra.get("endpoint_key"): r
+            for r in results if r.test_case.check_id == "bola" and not r.is_error
+            and r.test_case.extra.get("probe_id") == MISSING_ID
         }
         raw: list[Finding] = []
 
@@ -140,12 +178,16 @@ class Analyzer:
         if not result.is_success:
             return []
         base = self._baseline(result)  # user A (configured token) reading the example object
+        missing = getattr(self, "_missing", {}).get(tc.extra.get("endpoint_key"))
+        if missing is not None and missing.is_success and _resembles(missing, result):
+            return []  # same answer as for an object that doesn't exist
+        keys = (tc.extra["param_name"],) if tc.extra.get("param_name") else ()
 
         if strategy == "cross_user":
             # User B reading user A's object. Firm only if B got A's object back; a 2xx with B's own
             # data or a soft-fail body is not BOLA. No baseline (DELETE) -> tentative.
             confirmed = base is not None and base.is_success and _same_object(base.response_body,
-                                                                               result.response_body)
+                                                                               result.response_body, keys)
             if base is not None and not confirmed and base.response_body.strip():
                 return []  # A's object has a body and B didn't get it back
             # Firm only when B's response is A's object. Empty write responses (204) can't show whose
@@ -176,9 +218,9 @@ class Analyzer:
         if strategy == "id_enumeration":
             # A 200 alone isn't a finding: most APIs have an object 1. Tentative only when the probed ID
             # returns an object shaped like the caller's own (same keys) but a different one.
-            if base is None or not base.is_success or _same_object(base.response_body, result.response_body):
+            if base is None or not base.is_success or _same_object(base.response_body, result.response_body, keys):
                 return []
-            mine, theirs = _json(base.response_body), _json(result.response_body)
+            mine, theirs = _unwrap(_json(base.response_body)), _unwrap(_json(result.response_body))
             if not (isinstance(mine, dict) and isinstance(theirs, dict) and mine.keys() == theirs.keys()):
                 return []
             return [Finding(
@@ -241,7 +283,9 @@ class Analyzer:
         tc = result.test_case
         if not result.is_success:
             return []
-        reflected = _fields_with_values(result.response_body, tc.extra.get("injected_values", {}))
+        injected = tc.extra.get("injected_values", {})
+        already = _fields_with_values(self._baseline_body(result), injected)  # e.g. scanning as an admin
+        reflected = [f for f in _fields_with_values(result.response_body, injected) if f not in already]
         if not reflected:
             return []
         # Reflection alone may be an echo of the request; persistence (follow-up GET) makes it firm.
@@ -298,7 +342,9 @@ class Analyzer:
             probe = probes.get(v.test_case.extra.get("verifies", ""))
             if probe is None:
                 continue
-            stored = _fields_with_values(v.response_body, probe.test_case.extra.get("injected_values", {}))
+            injected = probe.test_case.extra.get("injected_values", {})
+            already = _fields_with_values(self._baseline_body(probe), injected)
+            stored = [f for f in _fields_with_values(v.response_body, injected) if f not in already]
             if not stored:
                 continue
             raw[:] = [f for f in raw if not (f.rule_id == "APIFUZZ-MASS-001" and f.endpoint_path == probe.test_case.url
@@ -416,7 +462,7 @@ class Analyzer:
                 if control is None:
                     continue
                 threshold = control.elapsed_ms + (SQLI_SLEEP_SECONDS - 0.5) * 1000
-                if times and all(not t.is_error and t.elapsed_ms >= threshold for t in times):
+                if times and all(t.elapsed_ms >= threshold or "Timeout" in (t.error or "") for t in times):
                     findings.append(self._injection_finding(
                         times[0], "SQL Injection: Time-based (response delayed by injected sleep)",
                         f"All {len(times)} repeats of a {SQLI_SLEEP_SECONDS}s sleep payload were delayed "

@@ -39,3 +39,6 @@ class Endpoint(BaseModel):
     # From the spec's `security` requirements: True = needs auth, False = public by design,
     # None = the spec says nothing about auth (HAR/Postman, or no security anywhere) -> test anyway.
     secured: bool | None = None
+    # `security: [{}]` style optional auth: the auth check skips it (anonymous access is allowed), but
+    # BOLA still applies to authenticated callers.
+    auth_optional: bool = False

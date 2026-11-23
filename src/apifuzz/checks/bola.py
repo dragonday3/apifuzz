@@ -4,6 +4,7 @@ from apifuzz.executor import TestCase, auth_headers
 from apifuzz.models.endpoint import Endpoint, AuthConfig, ParamLocation
 
 ID_PATTERNS = re.compile(r'(id|Id|ID|uuid|UUID|key|Key)$')
+MISSING_ID = "99999999"  # an id that shouldn't exist: shows what the endpoint answers for "not found"
 
 
 class BOLACheck(BaseCheck):
@@ -12,7 +13,7 @@ class BOLACheck(BaseCheck):
 
     def generate(self, endpoint: Endpoint, auth: AuthConfig) -> list[TestCase]:
         test_cases = []
-        if endpoint.secured is False:  # public by design: any caller may read it
+        if endpoint.secured is False and not endpoint.auth_optional:  # public by design: anyone may read it
             return []
         path_params = [p for p in endpoint.parameters if p.location == ParamLocation.PATH]
         # On a secured endpoint every path param can be an object reference (book_title, username);
@@ -24,7 +25,8 @@ class BOLACheck(BaseCheck):
 
         for param in id_params:
             # Strategy 1: ID manipulation — try adjacent IDs (current±1, 0, 999999)
-            probe_ids = ["0", "1", "2", "999999", "99999999"]
+            # DELETE probes would destroy objects and can't be confirmed (no baseline for DELETE).
+            probe_ids = [] if endpoint.method == "DELETE" else ["0", "1", "2", "999999", MISSING_ID]
             for probe_id in probe_ids:
                 url = self._build_url(endpoint, {param.name: probe_id})
                 test_cases.append(TestCase(

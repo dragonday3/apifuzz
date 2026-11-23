@@ -25,7 +25,8 @@ NOSQLI_NONEXISTENT = "apifuzz-nonexistent"
 SQLI_BOOL = (("true", "' AND '1'='1"), ("false", "' AND '1'='2"))
 # Time-based SQLi (opt-in, --time-based): each payload sent TIME_REPEATS times, compared with the control.
 SQLI_SLEEP_SECONDS = 5
-SQLI_TIME_PAYLOADS = ("' AND SLEEP(5)-- -", "'||pg_sleep(5)--", "'; WAITFOR DELAY '0:0:5'--")
+SQLI_TIME_PAYLOADS = (f"' AND SLEEP({SQLI_SLEEP_SECONDS})-- -", f"'||pg_sleep({SQLI_SLEEP_SECONDS})--",
+                      f"'; WAITFOR DELAY '0:0:{SQLI_SLEEP_SECONDS}'--")
 TIME_REPEATS = 3
 
 

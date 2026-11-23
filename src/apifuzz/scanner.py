@@ -76,6 +76,7 @@ class Scanner:
         self.base_url = base_url.rstrip("/")
         self.auth = auth or AuthConfig()
         self.executor = Executor(self.auth, concurrency, rate_limit_rps, timeout)
+        self._rate_limit_rps, self._timeout = rate_limit_rps, timeout
         self.analyzer = Analyzer()
 
         enabled = checks if checks else list(_ALL_CHECKS.keys())
@@ -93,11 +94,21 @@ class Scanner:
                 ep.base_url = self.base_url
 
         test_cases = self._generate(endpoints)
-        # Bursts go last: run alongside the other checks they'd exhaust a real rate limit and turn
-        # auth/injection probes into 429s.
+        # Passes, in order:
+        # 1. baselines, before any probe can change the object they read;
+        # 2. probes;
+        # 3. time-based SQLi one at a time (concurrent sleeps would delay innocent probes queued behind them);
+        # 4. confirmations (GET the object a mass-assignment probe created);
+        # 5. rate-limit bursts last, so they can't exhaust a real limit and turn other probes into 429s.
+        baselines = [tc for tc in test_cases if tc.check_id == "baseline"]
+        timed = [tc for tc in test_cases if tc.extra.get("strategy") == "sqli_time"]
         bursts = [tc for tc in test_cases if not tc.throttle]
-        results = await self.executor.run([tc for tc in test_cases if tc.throttle])
-        # Confirmation pass (e.g. GET the object a mass-assignment probe created), then the bursts.
+        probes = [tc for tc in test_cases if tc.throttle and tc.check_id != "baseline"
+                  and tc.extra.get("strategy") != "sqli_time"]
+        results = await self.executor.run(baselines)
+        results += await self.executor.run(probes)
+        if timed:
+            results += await Executor(self.auth, 1, self._rate_limit_rps, self._timeout).run(timed)
         followups = self.analyzer.followups(results)
         if followups:
             results += await self.executor.run(followups)

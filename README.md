@@ -35,7 +35,7 @@ The spec (or HAR) provides the paths. Pass just the origin:
 | ID | OWASP category (2023) | What it tests |
 |----|-----------------------|---------------|
 | `bola` | API1 — Broken Object Level Authorization | Cross-user access with `--second-token`, confirmed when user B gets user A's object back; ID enumeration (tentative: another object with the same fields) |
-| `auth` | API2 — Broken Authentication | No auth, invalid/empty tokens, malformed scheme, JWT `alg:none`, on endpoints the spec marks as secured; a bypass must return what the authenticated request got |
+| `auth` | API2 — Broken Authentication | No auth, invalid/empty tokens, malformed scheme, JWT `alg:none`, on endpoints the spec marks as secured or doesn't document (HAR/Postman); reported only when the response looks like the authenticated one (same status, content type, JSON fields and similar size) |
 | `mass_assignment` | API3 — Broken Object Property Level Authorization | Privileged field injection (`role`, `admin`, `isAdmin`, …) into request bodies; confirmed by a follow-up `GET` showing the values were stored |
 | `rate_limit` | API4 — Unrestricted Resource Consumption | 50-request burst per endpoint; any `429`, `Retry-After` or `X-RateLimit-*` header counts as protected |
 | `ssrf` | API7 — Server Side Request Forgery | Cloud-metadata and internal URL probes in URL-type parameters |
@@ -44,7 +44,7 @@ The spec (or HAR) provides the paths. Pass just the origin:
 
 Coverage: API1, API2, API3, API4, API7 and API8. API5, API6, API9 and API10 are not tested yet.
 
-**Confidence.** Each finding is `firm` (confirmed by a comparison: an authenticated baseline request, the first user's object, a follow-up `GET`, or a true/false pair) or `tentative` (a plausible signal to verify by hand). Tentative findings are SARIF `note`s, so they never fail a PR check. `--min-confidence firm` hides them.
+**Confidence.** Each finding is `firm` (confirmed by a comparison: an authenticated baseline request, the first user's object, a follow-up `GET`, or a true/false pair) or `tentative` (a plausible signal to verify by hand). In SARIF, tentative findings are `note`s under a separate `<rule>/tentative` rule with medium security-severity, so GitHub's default check threshold (High) doesn't fail on them. `--min-confidence firm` hides them.
 
 ---
 
@@ -256,7 +256,7 @@ HTMLReporter().write(findings, "report.html")
 
 ### SARIF 2.1
 
-Upload to GitHub Code Scanning (workflow above) and findings appear in the Security tab and inline on pull requests, with severity, description and remediation guidance. Tentative findings are reported at level `note`. Any SARIF 2.1-compatible tool can read the file.
+Upload to GitHub Code Scanning (workflow above) and findings appear in the Security tab and inline on pull requests, with severity, description and remediation guidance. Tentative findings are reported at level `note` under `<rule>/tentative` rules. Any SARIF 2.1-compatible tool can read the file.
 
 ### JSON
 

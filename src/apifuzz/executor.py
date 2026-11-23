@@ -71,8 +71,8 @@ class Executor:
             if tc.throttle:
                 await self._rate_limit()
             headers = self._apply_auth(dict(tc.headers), tc.auth_mode)
+            start = time.monotonic()
             try:
-                start = time.monotonic()
                 resp = await client.request(
                     method=tc.method,
                     url=tc.url,
@@ -94,8 +94,8 @@ class Executor:
                     status_code=0,
                     response_body="",
                     response_headers={},
-                    elapsed_ms=0.0,
-                    error=str(e),
+                    elapsed_ms=(time.monotonic() - start) * 1000,  # time-based SQLi counts timeouts
+                    error=f"{type(e).__name__}: {e}",
                 )
 
     async def _rate_limit(self) -> None:

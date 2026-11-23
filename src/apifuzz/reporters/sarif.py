@@ -34,14 +34,24 @@ _OWASP_HELP = {
 }
 
 
+# GitHub fails a code-scanning check on the rule's security-severity (High+ by default), not the result
+# level, so tentative findings get their own rule capped at medium.
+TENTATIVE_SECURITY_SEVERITY = "5.0"
+
+
+def _rule_id(finding: Finding) -> str:
+    return f"{finding.rule_id}/tentative" if finding.confidence == "tentative" else finding.rule_id
+
+
 def _build_rules(findings: list[Finding]) -> list[dict[str, Any]]:
     seen: dict[str, dict[str, Any]] = {}
     for f in findings:
-        if f.rule_id in seen:
+        rule_id = _rule_id(f)
+        if rule_id in seen:
             continue
         help_text = _OWASP_HELP.get(f.owasp_category, f.owasp_category.value)
-        seen[f.rule_id] = {
-            "id": f.rule_id,
+        seen[rule_id] = {
+            "id": rule_id,
             "name": f.title.replace(" ", "").replace(":", "").replace("-", ""),
             "shortDescription": {"text": f.title},
             "fullDescription": {"text": f.description},
@@ -49,7 +59,8 @@ def _build_rules(findings: list[Finding]) -> list[dict[str, Any]]:
             "help": {"text": help_text, "markdown": help_text},
             "properties": {
                 "tags": [f.owasp_category.value],
-                "security-severity": _owasp_security_severity(f),
+                "security-severity": (TENTATIVE_SECURITY_SEVERITY if f.confidence == "tentative"
+                                      else _owasp_security_severity(f)),
             },
         }
     return list(seen.values())
@@ -69,7 +80,7 @@ def _owasp_security_severity(finding: Finding) -> str:
 
 def _build_result(finding: Finding) -> dict[str, Any]:
     result: dict[str, Any] = {
-        "ruleId": finding.rule_id,
+        "ruleId": _rule_id(finding),
         # Tentative findings need manual verification: never "error", so they don't fail a PR check.
         "level": "note" if finding.confidence == "tentative" else _SEVERITY_LEVEL.get(finding.severity.value,
                                                                                        "warning"),

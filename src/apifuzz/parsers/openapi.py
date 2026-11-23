@@ -40,6 +40,7 @@ class OpenAPIParser(BaseParser):
             op = ops.get((ep.method, ep.path), {})
             reqs = op["security"] if "security" in op else spec.get("security", [])
             ep.secured = bool(reqs) and all(bool(r) for r in reqs)
+            ep.auth_optional = bool(reqs) and not ep.secured
 
     def _load(self, source: str) -> dict:
         path = Path(source)
