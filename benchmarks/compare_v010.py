@@ -8,7 +8,7 @@ finding URL back to a spec template and drops /createdb findings (run.py exclude
     py -3.10 benchmarks/compare_v010.py ../apifuzz-v010/src --no-auth  # v0.1.0's documented default
 
 Writes benchmarks/results/vampi-v0.1.0[-noauth].json. Note: with tokens configured, v0.1.0's auth probes are
-overwritten by the real token (its bug fixed in plan item 0.1), which is where its false positives come from.
+overwritten by the real token (a v0.1.0 bug, fixed in later releases), which is where its false positives come from.
 """
 import argparse
 import asyncio
