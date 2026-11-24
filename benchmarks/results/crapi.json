@@ -1,7 +1,7 @@
 {
   "meta": {
     "date": "2026-11-24",
-    "commit": "d8653f0",
+    "commit": "6e5d0af",
     "scan": "{\"allow_destructive\": true, \"rate_limit_rps\": 20}",
     "sent_vulnerable": 3526,
     "sent_secure": 0,
@@ -15,12 +15,12 @@
   "detected_firm": 4,
   "recall_documented": 0.389,
   "recall_covered": 0.5,
-  "vulnerable_findings": 69,
+  "vulnerable_findings": 68,
   "vulnerable_fp": 38,
   "vulnerable_rate_findings": 28,
-  "precision": 0.449,
-  "precision_firm": 0.509,
-  "precision_excl_rate_limit": 0.769,
+  "precision": 0.441,
+  "precision_firm": 0.5,
+  "precision_excl_rate_limit": 0.763,
   "secure_rate_findings": null,
   "secure_findings": null,
   "secure_fp": null,
@@ -226,7 +226,7 @@
       "severity": "low",
       "tp": false,
       "vuln": null,
-      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/e615199d-f6a7-4ab1-8a8a-b1cdd863e053/location"
+      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/abb0fbb5-4daf-41c2-b381-9ad793c4c46b/location"
     },
     {
       "rule_id": "FUZZOWL-EXPOSURE-002",
@@ -257,16 +257,6 @@
       "tp": true,
       "vuln": "jwt-forgery",
       "url": "http://127.0.0.1:8888/identity/api/v2/user/reset-password"
-    },
-    {
-      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
-      "check": "auth",
-      "endpoint": "POST /identity/api/v2/user/change-email",
-      "confidence": "firm",
-      "severity": "critical",
-      "tp": true,
-      "vuln": "jwt-forgery",
-      "url": "http://127.0.0.1:8888/identity/api/v2/user/change-email"
     },
     {
       "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
@@ -346,7 +336,7 @@
       "severity": "critical",
       "tp": true,
       "vuln": "bola-vehicle-location",
-      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/e615199d-f6a7-4ab1-8a8a-b1cdd863e053/location"
+      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/abb0fbb5-4daf-41c2-b381-9ad793c4c46b/location"
     },
     {
       "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
@@ -356,7 +346,7 @@
       "severity": "critical",
       "tp": true,
       "vuln": "jwt-forgery",
-      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/e615199d-f6a7-4ab1-8a8a-b1cdd863e053/location"
+      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/abb0fbb5-4daf-41c2-b381-9ad793c4c46b/location"
     },
     {
       "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
@@ -376,7 +366,7 @@
       "severity": "critical",
       "tp": false,
       "vuln": null,
-      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/L694wM4WhvkmVnxW2r3k27"
+      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/JgcfLtyNcArmPEEQ8UzDXL"
     },
     {
       "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
@@ -396,7 +386,7 @@
       "severity": "critical",
       "tp": false,
       "vuln": null,
-      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/L694wM4WhvkmVnxW2r3k27/comment"
+      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/JgcfLtyNcArmPEEQ8UzDXL/comment"
     },
     {
       "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
@@ -596,7 +586,7 @@
       "severity": "critical",
       "tp": false,
       "vuln": null,
-      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/5JNcCH9o6cqUyDLgamQX6C"
+      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/r6qr5e662wmjE7fn69HoBi"
     },
     {
       "rule_id": "FUZZOWL-BOLA-001",
@@ -736,7 +726,7 @@
       "severity": "medium",
       "tp": false,
       "vuln": null,
-      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/e615199d-f6a7-4ab1-8a8a-b1cdd863e053/location"
+      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/abb0fbb5-4daf-41c2-b381-9ad793c4c46b/location"
     },
     {
       "rule_id": "FUZZOWL-RATE-001",
@@ -756,7 +746,7 @@
       "severity": "medium",
       "tp": false,
       "vuln": null,
-      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/L694wM4WhvkmVnxW2r3k27"
+      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/JgcfLtyNcArmPEEQ8UzDXL"
     },
     {
       "rule_id": "FUZZOWL-RATE-001",
@@ -776,7 +766,7 @@
       "severity": "medium",
       "tp": false,
       "vuln": null,
-      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/L694wM4WhvkmVnxW2r3k27/comment"
+      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/JgcfLtyNcArmPEEQ8UzDXL/comment"
     },
     {
       "rule_id": "FUZZOWL-RATE-001",

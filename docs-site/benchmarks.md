@@ -38,7 +38,8 @@ from the committed result files:
 
 ### Results
 
-Latest runs at commit `d8653f0`:
+Latest runs: VAmPI at `45fd130` (re-measured after the rename; identical to `d8653f0`), crAPI after tuning at
+`d8653f0`, reproduced at `6e5d0af` (the released 0.2.1 code):
 
 | VAmPI (9 documented vulnerabilities) | v0.1.0 | 0.2.0 before the JWT and ReDoS checks (`6036d56`) | current, default scan | current, `--time-based` |
 |---|---|---|---|---|
@@ -111,11 +112,11 @@ reported separately as "after tuning".
 
 ### Results
 
-| crAPI (18 documented challenges) | held-out (`b21ea70`; reproduced at `5a117ab`) | after tuning (`d8653f0`) |
+| crAPI (18 documented challenges) | held-out (`b21ea70`; reproduced at `5a117ab`) | after tuning (`d8653f0`; reproduced at `6e5d0af`) |
 |---|---|---|
 | Documented challenges detected | 5 / 18 (3 firm): vehicle-location BOLA, unauthenticated order access, JWT `alg:none` accepted (firm); video internal property exposed, admin video delete by a normal user (tentative, via the BOLA probe) | **7 / 18 (4 firm)**: also mechanic-report BOLA (firm, an id in a query parameter) and OTP brute force (tentative, weak evidence) |
 | ...among the 14 fuzzowl has a check for | 5 / 14 | 7 / 14 |
-| Findings | 62 (61 in the `5a117ab` reproduction) | 69 |
+| Findings | 62 (61 in the `5a117ab` reproduction) | 69 (68 in the `6e5d0af` reproduction) |
 | Outside the documented list, triaged by hand | 39: 29 real, **10 false positives** (4 firm) | 38: 32 real, **6 false positives** (0 firm, all tentative) |
 
 The held-out run was **reproduced at `5a117ab`** on a freshly created stack from the pinned images after review

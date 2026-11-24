@@ -1,6 +1,6 @@
 # fuzzowl vs crapi
 
-Measured 2026-11-24 with fuzzowl `d8653f0`. Scan settings: `{"allow_destructive": true, "rate_limit_rps": 20}`. Requests: 3526; failed: none.
+Measured 2026-11-24 with fuzzowl `6e5d0af`. Scan settings: `{"allow_destructive": true, "rate_limit_rps": 20}`. Requests: 3526; failed: none.
 
 crapi has no fixed build, so there is no false-positive run. Findings that match no documented vulnerability are listed at the end and counted against precision; each is triaged by hand in benchmarks/README.md.
 
@@ -9,10 +9,10 @@ crapi has no fixed build, so there is no false-positive run. Findings that match
 | Documented vulnerabilities detected | 7 / 18 (39%) |
 | ...of those fuzzowl has a check for | 7 / 14 (50%) |
 | ...detected with a firm finding | 4 / 18 |
-| Findings | 69 (38 match no documented vulnerability) |
+| Findings | 68 (38 match no documented vulnerability) |
 | ...of which rate-limit (one per endpoint) | 28 |
-| Precision, unmatched counted as false (all / firm only) | 45% / 51% |
-| Same, excluding rate-limit, one per (rule, operation) | 77% |
+| Precision, unmatched counted as false (all / firm only) | 44% / 50% |
+| Same, excluding rate-limit, one per (rule, operation) | 76% |
 
 ## Per documented vulnerability
 

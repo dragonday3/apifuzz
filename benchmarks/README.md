@@ -4,9 +4,9 @@ fuzzowl is scored against deliberately vulnerable APIs, using each target's **ow
 vulnerabilities**, not a list we wrote to fit the scanner.
 
 fuzzowl was called **apifuzz** until 0.2.0. Results measured before the rename keep that name and its `APIFUZZ-`
-rule ids: `results/vampi-v0.1.0*.json`, `results/crapi-held-out.*` and the after-tuning `results/crapi.*` (measured
-at `d8653f0`; the rename changed no detection code, and VAmPI re-measured after it gave identical results).
-`compare_v010.py` maps v0.1.0's ids to the current `FUZZOWL-` ids when it scores.
+rule ids: `results/vampi-v0.1.0*.json` and `results/crapi-held-out.*`. Everything else was re-measured after the
+rename (VAmPI at `45fd130`, crAPI after tuning at `6e5d0af`, the released 0.2.1 code) with the same numbers as the
+`d8653f0` runs. `compare_v010.py` maps v0.1.0's ids to the current `FUZZOWL-` ids when it scores.
 
 ```bash
 py -3.10 -m pip install -e ".[dev]"
@@ -41,7 +41,7 @@ py -3.10 benchmarks/run.py vampi          # writes benchmarks/results/vampi.{md,
 
 ## Results
 
-Latest runs (`d8653f0`): [`results/vampi.md`](results/vampi.md) (default scan) and
+Latest runs (`45fd130`, re-measured after the rename; identical to `d8653f0`): [`results/vampi.md`](results/vampi.md) (default scan) and
 [`results/vampi-time-based.md`](results/vampi-time-based.md) (`py -3.10 benchmarks/run.py vampi --time-based`,
 which adds the opt-in timing probes: time-based SQLi and ReDoS).
 
@@ -173,18 +173,21 @@ Triage of the 39 unmatched findings (each re-checked against the live API):
 - 11: SSRF via `mechanic_api`: the run has no `--oob-url` collector, and crAPI has no cloud metadata to echo.
 - 12, 13: NoSQLi and SQLi on the coupon endpoints: not detected.
 
-### After tuning (`d8653f0`)
+### After tuning (`d8653f0`; reproduced at `6e5d0af`)
 
 Everything in fuzzowl 0.2.0 that was changed **because of the held-out crAPI run** (each rule generic, none
-names a crAPI path or field), measured on a freshly created stack from the same pinned images:
-[`results/crapi.md`](results/crapi.md). The held-out number above stays the honest measure of how fuzzowl does
+names a crAPI path or field), measured on a freshly created stack from the same pinned images. Reproduced
+after the rename on the released 0.2.1 code (`6e5d0af`, fresh stack, no failed requests): the same 7 detections
+with the same firm/tentative split and the same 38 unmatched findings; 68 findings instead of 69 (one fewer
+`alg:none` acceptance, on `change-email`, the same variation as the held-out reproduction).
+[`results/crapi.md`](results/crapi.md) is that reproduction. The held-out number above stays the honest measure of how fuzzowl does
 on an API it wasn't developed against.
 
-| crAPI (18 documented challenges) | held-out (`b21ea70`) | after tuning (`d8653f0`) |
+| crAPI (18 documented challenges) | held-out (`b21ea70`) | after tuning (`d8653f0`; reproduced at `6e5d0af`) |
 |---|---|---|
 | Detected | 5 / 18 (3 firm) | **7 / 18 (4 firm)** |
 | ...among the 14 fuzzowl has a check for | 5 / 14 | 7 / 14 |
-| Findings | 62 (61 in the `5a117ab` reproduction) | 69 |
+| Findings | 62 (61 in the `5a117ab` reproduction) | 69 (68 in the `6e5d0af` reproduction) |
 | Outside the documented list, triaged by hand | 39: 29 real, 10 false positives (4 firm) | 38: 32 real, **6 false positives (0 firm)** |
 
 New detections:

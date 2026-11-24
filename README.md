@@ -12,8 +12,8 @@
 
 > **Formerly `apifuzz`.** Renamed in 0.2.0, before its first package release, because an unrelated OWASP API
 > scanner already publishes `apifuzz` on PyPI with the same command and module name. The old
-> `github.com/dragonday3/apifuzz` links redirect here. Results measured before the rename (v0.1.0 and both
-> crAPI runs) keep the old name and `APIFUZZ-` rule ids; the rename changed no detection code.
+> `github.com/dragonday3/apifuzz` links redirect here. Results measured before the rename (v0.1.0 and the
+> held-out crAPI run) keep the old name and `APIFUZZ-` rule ids; everything else was re-measured after it.
 
 ---
 
@@ -61,7 +61,7 @@ The weak-key and RegexDoS checks were written after VAmPI listed both as uncover
 
 [crAPI](https://github.com/OWASP/crAPI) was added after the VAmPI work and measured once **before any rule was tuned for it** (held-out), so it shows how fuzzowl does on an API it wasn't developed against. The fixes that run prompted are generic but benchmark-motivated, so the after-tuning number is shown separately. Scored against crAPI's 18 documented challenges. crAPI has no fixed build, so every finding outside that list was re-checked by hand. Details: [`benchmarks/`](benchmarks/README.md#crapi-held-out-target), [`benchmarks/results/crapi.md`](benchmarks/results/crapi.md).
 
-| crAPI (18 documented challenges) | held-out (`b21ea70`; reproduced at `5a117ab`) | after tuning (`d8653f0`) |
+| crAPI (18 documented challenges) | held-out (`b21ea70`; reproduced at `5a117ab`) | after tuning (`d8653f0`; reproduced at `6e5d0af`) |
 |---|---|---|
 | Documented challenges detected | 5 / 18: vehicle-location BOLA, unauthenticated order access, JWT `alg:none` accepted (firm); video internal property exposed, admin video delete by a normal user (tentative, via the BOLA probe) | 7 / 18 (4 firm): also mechanic-report BOLA (firm, an id in a query param) and OTP brute force (tentative, weak evidence: the same signal fires on crAPI's protected v3 endpoint) |
 | ...among the 14 fuzzowl has a check for | 5 / 14 | 7 / 14 |
