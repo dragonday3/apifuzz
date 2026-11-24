@@ -108,7 +108,10 @@ def crapi_setup(base_url: str) -> tuple[str, AuthConfig]:
 
         # The welcome email (crAPI's MailHog, proxied by crapi-web) carries the VIN + pincode of A's vehicle.
         mails = client.get("/mailhog/api/v2/search", params={"kind": "to", "query": email_a}).json()["items"]
-        body = quopri.decodestring(mails[0]["Content"]["Body"]).decode("utf-8", "replace")
+        # MailHog sometimes stores an empty Content.Body (seen on a freshly created stack); Raw.Data always
+        # holds the whole message.
+        raw = mails[0]["Content"]["Body"] or mails[0]["Raw"]["Data"]
+        body = quopri.decodestring(raw).decode("utf-8", "replace")
         vin, pincode = re.search(r"VIN:\D*?(\w{17}).*?Pincode:\D*?(\d+)", re.sub(r"<[^>]+>", " ", body), re.S).groups()
         client.post("/identity/api/v2/vehicle/add_vehicle", json={"vin": vin, "pincode": pincode},
                     headers=auth).raise_for_status()
