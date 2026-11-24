@@ -12,8 +12,8 @@
 
 > **Formerly `apifuzz`.** Renamed in 0.2.0, before its first package release, because an unrelated OWASP API
 > scanner already publishes `apifuzz` on PyPI with the same command and module name. The old
-> `github.com/dragonday3/apifuzz` links redirect here. Results measured before the rename (v0.1.0 and the
-> held-out crAPI run) keep the old name and `APIFUZZ-` rule ids.
+> `github.com/dragonday3/apifuzz` links redirect here. Results measured before the rename (v0.1.0 and both
+> crAPI runs) keep the old name and `APIFUZZ-` rule ids; the rename changed no detection code.
 
 ---
 

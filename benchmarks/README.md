@@ -4,8 +4,9 @@ fuzzowl is scored against deliberately vulnerable APIs, using each target's **ow
 vulnerabilities**, not a list we wrote to fit the scanner.
 
 fuzzowl was called **apifuzz** until 0.2.0. Results measured before the rename keep that name and its `APIFUZZ-`
-rule ids: `results/vampi-v0.1.0*.json` and `results/crapi-held-out.*`. `compare_v010.py` maps v0.1.0's ids to
-the current `FUZZOWL-` ids when it scores.
+rule ids: `results/vampi-v0.1.0*.json`, `results/crapi-held-out.*` and the after-tuning `results/crapi.*` (measured
+at `d8653f0`; the rename changed no detection code, and VAmPI re-measured after it gave identical results).
+`compare_v010.py` maps v0.1.0's ids to the current `FUZZOWL-` ids when it scores.
 
 ```bash
 py -3.10 -m pip install -e ".[dev]"
@@ -109,6 +110,8 @@ as "after tuning".
 git clone --depth 1 --branch v1.1.6 https://github.com/OWASP/crAPI /path/to/crAPI
 docker compose -p crapi -f /path/to/crAPI/deploy/docker/docker-compose.yml \
   -f benchmarks/crapi/docker-compose.pinned.yml up -d --wait # ~10 containers; :8888
+# crAPI keeps its data between runs: before each measurement, reset it with `down -v` and `up` again.
+# On a reused stack the leftover records change some verdicts (seen: a firm BOLA became tentative).
 py -3.10 benchmarks/run.py crapi                              # ~11 min (crAPI caps its services at 0.3 CPU)
 ```
 
