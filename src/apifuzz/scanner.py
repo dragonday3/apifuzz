@@ -130,6 +130,13 @@ class Scanner:
         return ((not self.include or any(fnmatchcase(path, g) for g in self.include))
                 and not any(fnmatchcase(path, g) for g in self.exclude))
 
+    def unmatched_globs(self) -> list[str]:
+        """--include/--exclude globs that match no path in the spec: almost always a typo (globs match the path
+        only, so "GET /x" or "* /x" never match), and a silent no-op exclude can send what the user meant to skip."""
+        paths = [ep.path for ep in self._parse(self.spec_path)]
+        return [f"--{flag} {g}" for flag, globs in (("include", self.include), ("exclude", self.exclude))
+                for g in globs if not any(fnmatchcase(p, g) for p in paths)]
+
     def _endpoints(self) -> list[Endpoint]:
         self.skipped = []
         kept = []

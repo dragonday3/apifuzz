@@ -204,8 +204,9 @@ Options:
                              vulnerable target)
   --allow-destructive        Also test PUT/PATCH/DELETE endpoints (modifies data)
   --dry-run                  Print the test plan, send nothing
-  --include TEXT             Only test paths matching this glob (repeatable)
-  --exclude TEXT             Skip paths matching this glob (repeatable)
+  --include TEXT             Only test paths matching this glob (repeatable); path only, no method
+  --exclude TEXT             Skip paths matching this glob (repeatable); path only. A glob matching
+                             nothing is warned about
   --max-requests INT         Stop sending after this many requests
   --retries INT              Retries on 429/503 [default: 2]
   --insecure                 Skip TLS certificate verification

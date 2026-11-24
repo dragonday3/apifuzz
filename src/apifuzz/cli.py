@@ -58,8 +58,10 @@ def scan(
         False, "--allow-destructive", help="Also test PUT/PATCH/DELETE endpoints (they modify or delete data)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Print the test plan (requests per check/endpoint), send nothing"),
     include: Optional[List[str]] = typer.Option(
-        None, "--include", help="Only test paths matching this glob (repeatable), e.g. '/api/v1/*'"),
-    exclude: Optional[List[str]] = typer.Option(None, "--exclude", help="Skip paths matching this glob (repeatable)"),
+        None, "--include", help="Only test paths matching this glob (repeatable), e.g. '/api/v1/*'. Matches the "
+                                "path only, no method"),
+    exclude: Optional[List[str]] = typer.Option(
+        None, "--exclude", help="Skip paths matching this glob (repeatable), e.g. '/admin/*'. Matches the path only"),
     max_requests: Optional[int] = typer.Option(None, "--max-requests", min=1,
                                                help="Stop sending after this many requests"),
     retries: int = typer.Option(2, "--retries", min=0, help="Retries on 429/503 (honours Retry-After, else backoff)"),
@@ -128,6 +130,10 @@ def scan(
         retries=retries,
         oob_url=oob_url,
     )
+
+    for g in scanner.unmatched_globs():  # shown even with --quiet: a no-op --exclude can send what was meant to be skipped
+        console.print(f"[yellow]Warning: {escape(g)} matches no path in the spec (globs match the path only, "
+                      f"e.g. '/users/*').[/]")
 
     if dry_run:
         _print_plan(scanner)
