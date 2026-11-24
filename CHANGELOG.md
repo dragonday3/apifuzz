@@ -64,6 +64,14 @@ false positives, makes scans safe to point at real systems, adds coverage, and m
 - The blind-SSRF probe map (`apifuzz-<id>` → `METHOD /path [param]`) is in every report, not only the console:
   SARIF `runs[0].properties.oobProbes`, an HTML section, and in JSON an object
   `{"findings": [...], "oob_probes": {...}}` (only with `--oob-url`; otherwise JSON stays a plain array).
+- Resource linking: when a `POST` response has no `Location` header or `id`, the object it created is found
+  through a sibling `GET` whose path ends in a param named like a response or request-body field
+  (`POST /users/register` with `username` -> `GET /users/{username}`; a `<x>_id`/`<x>Id` param also takes the
+  response's `id`). Used to confirm mass assignment (firm only if the injected values come back and the
+  sibling's normal read doesn't already have them), and, with `--second-token`, to read as user B each object
+  user A's `POST` baseline created (firm only if B gets what A's own read of it returned), so BOLA no longer
+  needs hand-seeded ids. Reads only; public endpoints are skipped. Motivated by a VAmPI miss (mass assignment
+  on register, whose response has no id).
 
 ### Added (CI/CD)
 - SARIF `partialFingerprints` (stable across runs), `--fail-on <severity>`, `.apifuzz-ignore.yaml` accepted

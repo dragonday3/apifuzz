@@ -3,9 +3,11 @@ import re
 from typing import Any
 from urllib.parse import quote, urlencode, urljoin, urlsplit
 
+from apifuzz.checks.base import build_url
 from apifuzz.checks.bola import MISSING_ID
 from apifuzz.checks.injection import CMD_CANARY, SQLI_SLEEP_SECONDS, SSTI_PRODUCT
-from apifuzz.executor import TestCase, TestResult
+from apifuzz.executor import TestCase, TestResult, auth_headers
+from apifuzz.models.endpoint import AuthConfig, Endpoint
 from apifuzz.redact import mask, redact_headers
 from apifuzz.models.finding import Confidence, Finding, OWASPCategory, Severity
 
@@ -100,6 +102,51 @@ def _resource_url(result: TestResult) -> str | None:
     if tc.method == "POST" and isinstance(doc, dict) and doc.get("id") not in (None, ""):
         return f"{tc.url.rstrip('/')}/{quote(str(doc['id']), safe='')}"
     return None
+
+
+_PARAM_SEGMENT = re.compile(r"^(?:\{([^{}/]+)\}|:(\w+))$")
+_REF_PARAM = re.compile(r"^.+(_id|Id|ID)$")
+
+
+def _segments(path: str) -> list[str]:
+    return [s for s in path.strip("/").split("/") if s]
+
+
+def _usable(value: Any) -> bool:
+    return isinstance(value, (str, int)) and not isinstance(value, bool) and str(value) != ""
+
+
+def _link(candidates: list[Endpoint], created_path: str, request_body: Any,
+          response_body: str) -> tuple[Endpoint, str] | None:
+    """Resource linking: the documented URL of the object a POST to `created_path` just created.
+
+    A candidate is an item path `<parent>/{param}` whose parent is a non-empty prefix of the creating path
+    (POST /orders -> /orders/{id}, POST /users/v1/register -> /users/v1/{username}). `{param}` is filled
+    from the response object, then the request body, by exact field name; a `<x>_id`/`<x>Id` param also
+    takes the response's `id`. Params inside the parent are the creating path's own and keep their example
+    values. Best match: longest parent, then the shorter path, then alphabetical, so ties are deterministic.
+    A wrong link costs one request, never a finding: confirmation still needs the injected values (or A's
+    object) in what comes back."""
+    created = _segments(created_path)
+    response = _unwrap(_json(response_body))
+    sources = [d for d in (response, request_body) if isinstance(d, dict)]
+    best: tuple[tuple[int, int, str], Endpoint, str] | None = None
+    for ep in candidates:
+        segs = _segments(ep.path)
+        m = _PARAM_SEGMENT.match(segs[-1]) if segs else None
+        parent = segs[:-1]
+        if not m or not parent or created[:len(parent)] != parent:
+            continue
+        name = m.group(1) or m.group(2)
+        value = next((d[name] for d in sources if _usable(d.get(name))), None)
+        if value is None and _REF_PARAM.match(name) and isinstance(response, dict) and _usable(response.get("id")):
+            value = response["id"]
+        if value is None:
+            continue
+        rank = (-len(parent), len(segs), ep.path)
+        if best is None or rank < best[0]:
+            best = (rank, ep, build_url(ep, {name: str(value)}))
+    return (best[1], best[2]) if best else None
 
 
 # Field names whose values must never reach an API client. A bare "secret" is left out: it is often the
@@ -270,6 +317,10 @@ class Analyzer:
         self.sensitive_headers = sensitive_headers
         # Path templates of the scanned spec: a served spec describing these is the API's own.
         self.documented_paths = documented_paths or set()
+        # The scan's in-scope operations (Scanner sets them): sibling endpoints for resource linking.
+        self.endpoints: list[Endpoint] = []
+        # Set when bola runs with a second token: cross-user reads of objects user A creates during the scan.
+        self.bola_auth: AuthConfig | None = None
 
     def analyze(self, results: list[TestResult]) -> list[Finding]:
         # Baseline = one normal request per endpoint with the configured auth (Scanner adds it).
@@ -286,6 +337,11 @@ class Analyzer:
             r.test_case.extra.get("endpoint_key"): r
             for r in results if r.test_case.check_id == "bola" and not r.is_error
             and r.test_case.extra.get("probe_id") == MISSING_ID
+        }
+        # User A's own read of an object A created this scan: what a cross-user read is compared to.
+        self._owner_reads: dict[str | None, TestResult] = {
+            r.test_case.extra.get("pair_id"): r
+            for r in results if r.test_case.check_id == "bola_owner" and not r.is_error
         }
         raw: list[Finding] = []
 
@@ -339,13 +395,22 @@ class Analyzer:
             return []  # same answer as for an object that doesn't exist
         keys = (tc.extra["param_name"],) if tc.extra.get("param_name") else ()
 
-        if strategy == "cross_user":
+        if strategy in ("cross_user", "created_cross_user"):
+            created = strategy == "created_cross_user"
+            if created:
+                # The object A created this scan: A's own read of it is the comparison, and without one
+                # (A can't read it: the link was wrong) there is nothing to show.
+                base = getattr(self, "_owner_reads", {}).get(tc.extra.get("pair_id"))
+                if base is None or not base.is_success:
+                    return []
             # User B reading user A's object. Firm only if B got A's object back; a 2xx with B's own
             # data or a soft-fail body is not BOLA. No baseline (DELETE) -> tentative.
             confirmed = base is not None and base.is_success and _same_object(base.response_body,
                                                                                result.response_body, keys)
             if base is not None and not confirmed and base.response_body.strip():
                 return []  # A's object has a body and B didn't get it back
+            if created and not confirmed:
+                return []
             # Firm only when B's response is A's object. Empty write responses (204) can't show whose
             # object changed, and without a baseline (DELETE) there is nothing to compare: tentative.
             confidence: Confidence = "firm" if confirmed else "tentative"
@@ -365,6 +430,7 @@ class Analyzer:
                 request_sample=_request_text(result, self.sensitive_headers),
                 response_sample=_response_text(result),
                 evidence=(f"HTTP {result.status_code} with cross-user token; response matches user A's object"
+                          + (" (created by user A during the scan)" if created else "")
                           if confirmed else f"HTTP {result.status_code} with cross-user token"),
                 remediation="Enforce object-level authorization: verify the requesting user owns the resource.",
                 rule_id="APIFUZZ-BOLA-001",
@@ -485,19 +551,53 @@ class Analyzer:
         )
 
     def followups(self, results: list[TestResult]) -> list[TestCase]:
-        """Second-pass requests that confirm first-pass signals. Mass assignment: GET the resource the
-        probe created or updated (Location header, the same URL for PUT/PATCH, or <url>/<id> for POST)."""
+        """Second-pass requests that confirm first-pass signals.
+        Mass assignment: GET the resource the probe created or updated (Location header, the same URL for
+        PUT/PATCH, <url>/<id> for POST, else a sibling GET linked by `_link`).
+        BOLA (with a second token): for each object a POST baseline created as user A, A's own read of it
+        and user B's read of it through a sibling GET (`_link`). GET only: a read decides the verdict."""
         out = []
+        gets = [e for e in self.endpoints if e.method == "GET"]
+        # BOLA skips public-by-design reads, as the bola check does.
+        private_gets = [e for e in gets if e.secured is not False or e.auth_optional]
+        ops = {f"{e.method} {e.path}": e for e in self.endpoints}
         for r in results:
             tc = r.test_case
-            if tc.check_id != "mass_assignment" or not r.is_success:
+            if not r.is_success:
                 continue
-            url = _resource_url(r)
-            if url:
+            key = tc.extra.get("endpoint_key", "")
+            if tc.check_id == "mass_assignment":
+                url, extra = _resource_url(r), {}
+                if url is None and tc.method == "POST":
+                    link = _link(gets, key.partition(" ")[2], tc.body, r.response_body)
+                    if link:
+                        url, extra = link[1], {"baseline_key": f"GET {link[0].path}"}
+                if url:
+                    out.append(TestCase(
+                        method="GET", url=url, headers={}, params={}, body=None,
+                        label=f"MassAssignment verify: GET {url}", check_id="mass_assignment_verify",
+                        extra={"verifies": f"{tc.method} {tc.url}", "endpoint_key": key, **extra},
+                    ))
+            elif tc.check_id == "baseline" and tc.method == "POST" and self.bola_auth is not None:
+                creator = ops.get(key)
+                if creator is None or creator.secured is False:
+                    continue  # created through a public endpoint: the object isn't tied to user A
+                link = _link(private_gets, creator.path, tc.body, r.response_body)
+                if not link:
+                    continue
+                ep, url = link
+                a = self.bola_auth
+                pair = {"pair_id": f"created {url}", "endpoint_key": f"GET {ep.path}"}
+                out.append(TestCase(method="GET", url=url, headers={}, params={}, body=None,
+                                    label=f"BOLA owner read (created object): GET {url}",
+                                    check_id="bola_owner", extra=dict(pair)))
                 out.append(TestCase(
-                    method="GET", url=url, headers={}, params={}, body=None,
-                    label=f"MassAssignment verify: GET {url}", check_id="mass_assignment_verify",
-                    extra={"verifies": f"{tc.method} {tc.url}", "endpoint_key": tc.extra.get("endpoint_key")},
+                    method="GET", url=url, params={}, body=None,
+                    # Same scheme as user A; with auth type "none", assume bearer (as the bola check does).
+                    headers=auth_headers(a.type if a.type != "none" else "bearer", a.second_token, a.header_name),
+                    label=f"BOLA cross-user (created object): GET {url} via second token", check_id="bola",
+                    extra={**pair, "strategy": "created_cross_user", "uses_second_token": True},
+                    auth_mode="override",
                 ))
         return out
 
@@ -512,6 +612,10 @@ class Analyzer:
                 continue
             injected = probe.test_case.extra.get("injected_values", {})
             already = _fields_with_values(self._baseline_body(probe), injected)
+            # A sibling GET: values its normal read already has (every user is_verified) prove nothing.
+            sibling = self._baselines.get(v.test_case.extra.get("baseline_key", ""))
+            if sibling is not None:
+                already += _fields_with_values(sibling.response_body, injected)
             stored = [f for f in _fields_with_values(v.response_body, injected) if f not in already]
             if not stored:
                 continue

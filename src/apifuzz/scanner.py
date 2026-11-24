@@ -121,6 +121,9 @@ class Scanner:
                 check.time_based = time_based
             if isinstance(check, SSRFCheck):
                 check.oob_url = oob_url
+        # BOLA with a second token also reads, as user B, the objects user A's POST baselines create.
+        if self.auth.second_token and any(isinstance(c, BOLACheck) for c in self._checks):
+            self.analyzer.bola_auth = self.auth
         # Blind SSRF probes sent this scan: "apifuzz-<id>" (the collector path) -> "METHOD /path [param]"
         self.oob_probes: dict[str, str] = {}
 
@@ -156,6 +159,7 @@ class Scanner:
                 self.skipped.append(f"{name} (--exclude)")
             else:
                 kept.append(ep)
+        self.analyzer.endpoints = kept  # resource linking only follows in-scope, non-destructive operations
         return kept
 
     async def run(self) -> list[Finding]:
@@ -167,7 +171,8 @@ class Scanner:
         # 1. baselines, before any probe can change the object they read;
         # 2. probes;
         # 3. time-based SQLi one at a time (concurrent sleeps would delay innocent probes queued behind them);
-        # 4. confirmations (GET the object a mass-assignment probe created);
+        # 4. confirmations (GET the object a mass-assignment probe created, found through a sibling GET when
+        #    the response has no Location/id; user A's and user B's reads of objects A's baselines created);
         # 5. rate-limit bursts last, so they can't exhaust a real limit and turn other probes into 429s,
         #    one endpoint at a time.
         # data_exposure reads are plain authenticated GETs: they run with the baselines.
@@ -228,7 +233,10 @@ class Scanner:
             # Baseline: one normal request with the configured auth, which detectors compare against.
             # Only for endpoints that got a probe needing it (a baseline GET /createdb-style endpoint can
             # reset state), and never for DELETE (it would remove the object).
-            if endpoint.method != "DELETE" and any(tc.check_id in _BASELINE_CHECKS for tc in cases):
+            # A secured POST also gets one when BOLA will read the object it creates as user B.
+            creates = (endpoint.method == "POST" and endpoint.secured is not False
+                       and self.analyzer.bola_auth is not None)
+            if endpoint.method != "DELETE" and (creates or any(tc.check_id in _BASELINE_CHECKS for tc in cases)):
                 cases.insert(0, TestCase(method=endpoint.method, url=build_url(endpoint), headers={}, params={},
                                          body=endpoint.body_example, label=f"Baseline: {key}",
                                          check_id="baseline"))

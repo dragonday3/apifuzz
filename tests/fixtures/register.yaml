@@ -1,0 +1,37 @@
+openapi: "3.0.3"
+info:
+  title: Register-style API
+  version: "1.0.0"
+paths:
+  /users/register:
+    post:
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: newuser
+                password:
+                  type: string
+                email:
+                  type: string
+      responses:
+        "200":
+          description: registered (no id, no Location)
+  /users/{username}:
+    get:
+      operationId: getUser
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ok

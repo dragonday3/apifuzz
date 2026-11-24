@@ -14,6 +14,7 @@ import respx
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
 PETSTORE = str(FIXTURES / "petstore.yaml")
+REGISTER = str(FIXTURES / "register.yaml")  # POST /users/register (no id/Location) + GET /users/{username}
 BASE = "http://testserver"
 
 TOKENS = {"token-alice": "alice", "token-bob": "bob"}
@@ -51,6 +52,8 @@ class MockAPI:
     rate_limit_global: one budget for all requests (per-client limiter) instead of per (method, path).
     mass_assignment: "none" (allowlisted fields), "reflect" (echoes the body, stores nothing) or
         "persist" (binds the whole body to the new pet, returns 201 + Location without echoing).
+        Also applies to POST /users/register, which answers {"message": ...} with no id or Location
+        ("persist" stores the whole body, otherwise only username/email); GET /users/{username} reads it back.
     """
     accept_any_token: bool = False
     # JWT bearer handling: None = plain token map (default); "verify" = check HS256 sig + exp against
@@ -63,10 +66,12 @@ class MockAPI:
     rate_limit_global: bool = False
     scheme: str | None = None  # "bearer" | "apikey" | "basic": honour only that one (catches wrong-scheme sends)
     mass_assignment: str = "none"
+    store_created: bool = False  # "none" mode: keep the pet POST /pets creates (readable at /pets/3)
     pets: dict[str, dict] = field(default_factory=lambda: {
         "1": {"id": 1, "name": "rex", "owner": "alice"},
         "2": {"id": 2, "name": "tom", "owner": "bob"},
     })
+    users: dict[str, dict] = field(default_factory=dict)
     hits: dict[tuple[str, str], int] = field(default_factory=dict)
     auth_seen: list[str | None] = field(default_factory=list)  # Authorization header of every request
     statuses: dict[tuple[str, str], list[int]] = field(default_factory=dict)  # responses per (method, path)
@@ -156,7 +161,20 @@ class MockAPI:
             if self.mass_assignment == "persist":
                 self.pets["3"] = {**body, "id": 3, "owner": user}
                 return httpx.Response(201, json={"status": "created"}, headers={"Location": "/pets/3"})
-            return httpx.Response(201, json={"id": 3, "name": body["name"], "owner": user})
+            created = {"id": 3, "name": body["name"], "owner": user}
+            if self.store_created:
+                self.pets["3"] = created
+            return httpx.Response(201, json=created)
+        if path == "/users/register" and request.method == "POST":
+            body = json.loads(request.content or b"{}")
+            stored = body if self.mass_assignment == "persist" else {k: body.get(k) for k in ("username", "email")}
+            self.users[str(body.get("username"))] = {"role": "user", **stored}
+            return httpx.Response(200, json={"message": "registered", "status": "success"})
+        if path.startswith("/users/") and request.method == "GET":
+            found = self.users.get(path.removeprefix("/users/"))
+            if found is None:
+                return httpx.Response(404, json={"error": "not found"})
+            return httpx.Response(200, json={k: v for k, v in found.items() if k != "password"})
         if path.startswith("/pets/"):
             pet = self.pets.get(path.removeprefix("/pets/"))
             if pet is None:
