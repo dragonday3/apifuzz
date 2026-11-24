@@ -7,50 +7,38 @@
 [![OWASP API Top 10](https://img.shields.io/badge/OWASP-API%20Top%2010-red.svg)](https://owasp.org/API-Security/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+
+**Documentation: [dragonday3.github.io/apifuzz](https://dragonday3.github.io/apifuzz/)**
+
 ---
 
 ## What It Does
 
 apifuzz takes any API spec (OpenAPI, HAR, Postman) → generates semantic security test cases → executes them asynchronously → maps results to OWASP API Top 10 → outputs SARIF (shows findings inline on GitHub PRs), JSON, or HTML.
 
-No wordlists. No spray-and-pray. Test cases are generated from your actual schema — field names, types, and endpoint semantics drive the payloads.
+No wordlists. No spray-and-pray. Test cases are generated from your actual schema — field names, types, and endpoint semantics drive the payloads. Checks only generate requests; every finding is decided by comparing the probe's response with a normal authenticated request, a control, or a follow-up read ([how it works](https://dragonday3.github.io/apifuzz/how-it-works/)).
 
 ![apifuzz HTML report from a scan of the VAmPI vulnerable API](assets/apifuzz-report.png)
 <sub>HTML report from an authenticated scan of [VAmPI](https://github.com/erev0s/VAmPI) (rate-limit findings trimmed to one for space). Credentials in the request are masked.</sub>
 
-### Why it needs a spec (not just a URL)
-
-apifuzz is a **test-case generator**, not a traffic interceptor. Before it can inject payloads, it needs to know what endpoints exist, what parameters they accept, and what types those parameters are. A bare URL tells it nothing — `GET /weather?q=STRING` is what lets it try `q='; DROP TABLE--`.
-
-**No spec? Use a HAR file.** Record your browser traffic against the API, export it, and pass that instead — apifuzz reverse-engineers the schema from real requests. See [Quick Start](#quick-start) below.
-
-### `--target` is the base URL only
-
-The spec (or HAR) provides the paths. Pass just the origin:
-
-```
---target https://api.example.com        ✓
---target https://api.example.com/v1/weather  ✗  (path goes in the spec)
-```
-
-**Checks implemented** (mapped to the [OWASP API Security Top 10 — 2023](https://owasp.org/API-Security/editions/2023/en/0x11-t10/)):
+**Checks implemented** (mapped to the [OWASP API Security Top 10 — 2023](https://owasp.org/API-Security/editions/2023/en/0x11-t10/); each links to what it sends, how it decides and its limits):
 
 | ID | OWASP category (2023) | What it tests |
 |----|-----------------------|---------------|
-| `bola` | API1 — Broken Object Level Authorization | Cross-user access with `--second-token`, confirmed when user B gets user A's object back, including objects user A creates during the scan (found through a sibling `GET`, no seeded ids needed); ID enumeration (tentative: another object with the same fields). Ids in path params, and in id-like query params (`report_id`, `userId`, `uuid`). An object user B also gets from a listing (a `GET` without path params, read as B) is public by design, like a forum post: reading it or `POST`ing to it (a comment) is tentative, changing it (`PUT`/`PATCH`) stays firm |
-| `auth` | API2 — Broken Authentication | No auth, invalid/empty tokens, malformed scheme, and JWT attacks when the token is a JWT: `alg:none`, unverified signature, `kid` path traversal (null key), and — for HS256 — a weak signing key cracked offline (no requests) against a bundled public wordlist, proved by a re-signed and an expired token. On endpoints the spec marks as secured or doesn't document (HAR/Postman); reported only when the response looks like the authenticated one (same status, content type, JSON fields and similar size) |
-| `mass_assignment` | API3 — Broken Object Property Level Authorization | Privileged field injection (`role`, `admin`, `isAdmin`, …) into request bodies (on `POST`, unique-looking fields such as `username`, `email`, `login` get a random suffix, since the baseline already created the example record and a duplicate would be rejected); confirmed by a follow-up `GET` showing the values were stored (the `Location`/`id` URL, or a sibling `GET` whose path param matches a body field, e.g. `GET /users/{username}` after a register) |
-| `rate_limit` | API4 — Unrestricted Resource Consumption | 50-request burst per endpoint; any `429`, `Retry-After` or `X-RateLimit-*` header counts as protected. Reported when the burst succeeds; on login, one-time-code and reset operations also when every attempt gets the same error with no throttling or lockout (tentative: unlimited guessing) |
-| `redos` | API4 — Unrestricted Resource Consumption | Only with `--time-based` (a vulnerable server really burns CPU). Query params and top-level body fields with a `pattern`, an email/uri/hostname format, or a name like email/url/domain/host get `"a"×27 + "!"` (exponential backtracking in regexes like `^(a+)+$`) interleaved with a same-length control `"!" + "a"×27`, 3 of each, one at a time. Firm only if every evil request is ≥ 2 s and ≥ 5× slower than the slowest control (a timeout counts as slow); otherwise nothing. Tuned for backtracking engines (Python, PCRE); faster ones (V8, JVM) may need longer input, RE2/Go/Rust are immune |
-| `ssrf` | API7 — Server Side Request Forgery | Cloud-metadata and internal URL probes in URL-type parameters |
-| `cors` | API8 — Security Misconfiguration | Origin reflection + credentials misconfiguration |
-| `data_exposure` | API3 — Broken Object Property Level Authorization | Sensitive fields (passwords, secrets, keys, tokens, card numbers) with real values in GET responses (masked values like `XXXXXXXXXXXX9999` or `•••• 1234` don't count); response fields the spec doesn't document (tentative; empty values and top-level pagination fields like `count`, `next`, `offset` are ignored) |
-| `user_enum` | API2 — Broken Authentication | Login answers differently for an existing username than for unknown lookalike usernames (wrong password in all). Sends one wrong password for the spec's example user per scan |
-| `bfla` | API5 — Broken Function Level Authorization | With `--low-priv-token`: operations the spec marks as privileged (an `/admin/`-style path segment, role tag or operationId word, "only admins" in the summary, or `x-admin`/`x-internal`) called as the low-privilege user |
-| `inventory` | API9 — Improper Inventory Management | Specs describing operations missing from the scanned spec, Spring actuator, `.env`, expvar/metrics/server-status, and neighbouring API versions (once per scan). The API's own published spec and docs UI aren't reported |
-| `injection` | *(no 2023 API category; OWASP Top 10 A03:2021 Injection)* | SQLi (DB error strings, boolean true/false conditions sent one at a time between two controls, which must agree so a response that grows per request isn't mistaken for SQL; time-based with `--time-based`), SSTI and command injection (computed canaries), NoSQLi (Mongo errors and `$ne`/`$eq` response differences), XSS reflected unescaped in HTML |
+| [`bola`](https://dragonday3.github.io/apifuzz/checks/bola/) | API1 — Broken Object Level Authorization | User B reading or changing user A's objects (`--second-token`), including objects A creates during the scan; ID enumeration (tentative) |
+| [`auth`](https://dragonday3.github.io/apifuzz/checks/auth/) | API2 — Broken Authentication | No/invalid/empty credentials, malformed scheme; JWT `alg:none`, unverified signature, `kid` traversal, weak HS256 key cracked offline |
+| [`user_enum`](https://dragonday3.github.io/apifuzz/checks/user-enum/) | API2 — Broken Authentication | Login answers differently for an existing username than for unknown lookalikes |
+| [`mass_assignment`](https://dragonday3.github.io/apifuzz/checks/mass-assignment/) | API3 — Broken Object Property Level Authorization | Privileged fields (`role`, `isAdmin`, …) injected into bodies, confirmed stored by a follow-up `GET` |
+| [`data_exposure`](https://dragonday3.github.io/apifuzz/checks/data-exposure/) | API3 — Broken Object Property Level Authorization | Secrets (passwords, keys, tokens, card numbers) in responses; fields the spec doesn't document (tentative) |
+| [`rate_limit`](https://dragonday3.github.io/apifuzz/checks/rate-limit/) | API4 — Unrestricted Resource Consumption | 50-request bursts; unthrottled guessing on login/OTP/reset operations (tentative) |
+| [`redos`](https://dragonday3.github.io/apifuzz/checks/redos/) | API4 — Unrestricted Resource Consumption | Regex backtracking on email/URL/pattern fields (`--time-based` only) |
+| [`bfla`](https://dragonday3.github.io/apifuzz/checks/bfla/) | API5 — Broken Function Level Authorization | Operations the spec marks as privileged, called with `--low-priv-token` |
+| [`ssrf`](https://dragonday3.github.io/apifuzz/checks/ssrf/) | API7 — Server Side Request Forgery | Cloud-metadata and internal URLs in URL-type parameters; blind probes with `--oob-url` |
+| [`cors`](https://dragonday3.github.io/apifuzz/checks/cors/) | API8 — Security Misconfiguration | Origin reflection with credentials allowed |
+| [`inventory`](https://dragonday3.github.io/apifuzz/checks/inventory/) | API9 — Improper Inventory Management | `.env`, Spring actuator, expvar/metrics/server-status, shadow specs, neighbouring API versions (once per scan) |
+| [`injection`](https://dragonday3.github.io/apifuzz/checks/injection/) | *(no 2023 API category; OWASP Top 10 A03:2021 Injection)* | SQLi (error, boolean, time-based), NoSQLi, SSTI and command injection (computed canaries), reflected XSS |
 
-Coverage: API1, API2, API3, API4, API5, API7, API8 and API9. API6 (business flows) and API10 (unsafe consumption) are not tested.
+Coverage: API1, API2, API3, API4, API5, API7, API8 and API9. API6 (business flows) and API10 (unsafe consumption) are not tested. Known gaps: [comparison and limitations](https://dragonday3.github.io/apifuzz/comparison/).
 
 ### Benchmark: the VAmPI vulnerable API (erev0s/VAmPI)
 
@@ -84,24 +72,15 @@ Misses include BOLA through a query parameter, SQLi/NoSQLi on the coupon endpoin
 
 > **Not on PyPI.** The `apifuzz` package on PyPI is a different, unrelated project — do not `pip install apifuzz`. Install from this repository instead.
 
-### From source
-
 ```bash
+pip install "git+https://github.com/dragonday3/apifuzz.git"
+
+# or from a clone
 git clone https://github.com/dragonday3/apifuzz
 cd apifuzz
 pip install -e .            # add ".[dev]" for tests
-```
 
-### Straight from GitHub
-
-```bash
-pip install "git+https://github.com/dragonday3/apifuzz.git"
-```
-
-### Docker (build locally)
-
-```bash
-git clone https://github.com/dragonday3/apifuzz && cd apifuzz
+# or Docker, built locally
 docker build -t apifuzz .
 docker run --rm apifuzz --help
 ```
@@ -110,329 +89,39 @@ docker run --rm apifuzz --help
 
 ## Quick Start
 
+The spec (or HAR/Postman file) provides the paths; `--target` is the base URL only (`https://api.example.com`, not `https://api.example.com/v1/weather`).
+
 ```bash
-# Scan with an OpenAPI spec
-apifuzz openapi.yaml --target https://api.example.com
-
-# With bearer token auth
-apifuzz openapi.yaml --target https://api.example.com \
-  --auth-type bearer --token eyJhbGc...
-
-# BOLA cross-user test (two accounts)
-apifuzz openapi.yaml --target https://api.example.com \
-  --auth-type bearer --token USER_A_TOKEN \
-  --second-token USER_B_TOKEN
-
-# Output as SARIF (GitHub Code Scanning)
-apifuzz openapi.yaml --target https://api.example.com \
-  --output sarif --out-file results.sarif
-
-# Output as interactive HTML report
-apifuzz openapi.yaml --target https://api.example.com \
-  --output html --out-file report.html
-
-# Run specific checks only
-apifuzz openapi.yaml --target https://api.example.com \
-  --checks bola,auth,cors
-
-# Scan a HAR file (from browser DevTools export)
-apifuzz recording.har --target https://api.example.com
-
-# Scan a Postman collection
-apifuzz collection.json --target https://api.example.com
-
 # See what would be sent, without sending anything
 apifuzz openapi.yaml --target https://api.example.com --dry-run
 
-# Route traffic through Burp/ZAP to verify findings by hand
-# (TLS is verified: trust the proxy's CA, or add --insecure)
-apifuzz openapi.yaml --target https://api.example.com --proxy http://127.0.0.1:8080 --insecure
-```
+# Scan with a bearer token; JSON to stdout
+apifuzz openapi.yaml --target https://api.example.com --token eyJhbGc...
 
-### Safety defaults
+# Cross-user BOLA tests (two accounts), HTML report
+apifuzz openapi.yaml --target https://api.example.com \
+  --token USER_A_TOKEN --second-token USER_B_TOKEN \
+  --output html --out-file report.html
 
-- **Read-mostly by default.** `PUT`, `PATCH` and `DELETE` endpoints are skipped unless you pass `--allow-destructive`, because probes such as cross-user BOLA really modify or delete the target's data. `POST` endpoints are still tested: each gets a 50-request rate-limit burst plus injection and mass-assignment probes, so expect dozens of new records per `POST` endpoint (leave `rate_limit` out of `--checks` to avoid the burst). With `bola` and `--second-token`, every secured `POST` endpoint also gets a baseline `POST` (one more record) and two `GET`s that read the created object back, as user A and as user B; every `GET` without path params is read once as user B.
-- **Scope lock.** Every request goes to the `--target` origin: hosts recorded in HAR/Postman files or spec `servers` are ignored, and redirects to another host are refused. Narrow the scan further with `--include` / `--exclude` path globs.
-- **Politeness.** `--rate-limit` paces requests, `--max-requests` caps the total, and `429`/`503` responses are retried (`--retries`, honouring `Retry-After`).
-- **TLS** certificates are verified unless you pass `--insecure`.
-- **Failures are reported.** The scan prints how many requests failed and why (TLS, scope, connection, budget). If every request failed, it exits with code `2` (inconclusive) instead of reporting a clean result.
-- **Redaction.** Reports show each finding's request as it was sent, with `Authorization`, cookies, API-key headers and your configured tokens masked (`Bear****`).
+# SARIF for GitHub code scanning; fail on high or worse (the default)
+apifuzz openapi.yaml --target https://api.example.com \
+  --output sarif --out-file results.sarif --fail-on high
 
-### No spec? Zero-spec workflow via HAR
-
-If you don't have an OpenAPI spec, record your browser traffic instead:
-
-1. Open **Chrome/Firefox DevTools** → **Network** tab
-2. Make some requests to the API (browse, search, login, etc.)
-3. Right-click any request → **Save all as HAR with content**
-4. Pass the exported file:
-
-```bash
+# No spec? A HAR recording or a Postman collection works too
 apifuzz recording.har --target https://api.example.com
 ```
 
-apifuzz parses the recorded requests to discover endpoints and parameters automatically — no spec writing required.
+**Safety defaults:** `PUT`/`PATCH`/`DELETE` are skipped unless `--allow-destructive`; `POST` endpoints are tested and create records (including a 50-request rate-limit burst per endpoint; leave `rate_limit` out of `--checks` to avoid it). Every request stays on the `--target` origin, redirects included; TLS is verified; credentials are masked in reports. Exit codes: `0` clean, `1` a finding at or above `--fail-on`, `2` every request failed (inconclusive). Details: [safety and scope](https://dragonday3.github.io/apifuzz/safety/).
 
----
+## Documentation
 
-## All CLI Options
-
-```
-Arguments:
-  SPEC    Path to OpenAPI spec (.yaml/.json), HAR file, or Postman collection
-
-Options:
-  --target, -t TEXT          Base URL of the API to test [required]
-  --auth-type TEXT           Auth type: none | bearer | apikey | basic [default: bearer with --token, else none]
-  --token TEXT               Auth token / credentials
-  --second-token TEXT        Second token for BOLA cross-user tests
-  --low-priv-token TEXT      Low-privilege user's token for BFLA tests (--token
-                             should then be a privileged user)
-  --oob-url TEXT             Collector you control (interactsh, webhook) for blind
-                             SSRF; the console and every report map each probe id
-                             to its parameter
-  --header-name TEXT         Header name for apikey auth [default: Authorization]
-  --output, -o TEXT          Output format: json | sarif | html [default: json]
-  --out-file, -f TEXT        Output file path (stdout if omitted for json/sarif)
-  --concurrency, -c INT      Max concurrent HTTP requests [default: 10]
-  --rate-limit FLOAT         Max requests per second; the rate_limit check's 50-request
-                             bursts are exempt (leave it out of --checks to avoid them)
-                             [default: 10.0]
-  --timeout FLOAT            HTTP request timeout in seconds [default: 15.0]
-  --checks TEXT              Comma-separated check IDs or 'all' [default: all]
-  --min-confidence TEXT      Report only: tentative (all) | firm [default: tentative]
-  --time-based               Add time-based SQLi and ReDoS probes, sent one at a time
-                             (each waits ~5 s on a vulnerable target)
-  --allow-destructive        Also test PUT/PATCH/DELETE endpoints (modifies data)
-  --dry-run                  Print the test plan, send nothing
-  --include TEXT             Only test paths matching this glob (repeatable); path only, no method
-  --exclude TEXT             Skip paths matching this glob (repeatable); path only. A glob matching
-                             nothing is warned about
-  --max-requests INT         Stop sending after this many requests
-  --retries INT              Retries on 429/503 [default: 2]
-  --max-body INT             Keep this many characters of each response body; detection
-                             sees only these [default: 8192]
-  --insecure                 Skip TLS certificate verification
-  --proxy TEXT               Proxy URL, e.g. http://127.0.0.1:8080
-  --fail-on TEXT             Exit 1 at or above this severity: critical | high |
-                             medium | low | info | never [default: high]
-  --ignore-file TEXT         Accepted findings to suppress [default:
-                             .apifuzz-ignore.yaml if present]
-  --write-ignore TEXT        Write an ignore file accepting this scan's findings
-  --quiet, -q                Suppress progress output
-  --help                     Show this message and exit.
-```
-
-**Exit codes:**
-- `0` — scan completed, no finding at or above `--fail-on` (default `high`) outside the ignore file
-- `1` — a finding at or above `--fail-on` (default `high`) that isn't in the ignore file
-- `2` — every request failed (TLS, scope, connection): the scan is inconclusive
-
----
-
-## CI/CD Integration
-
-### GitHub Actions — SARIF upload
-
-Findings appear inline in the **Security → Code Scanning** tab and as PR annotations.
-
-```yaml
-name: API Security Scan
-
-on: [pull_request]
-
-jobs:
-  apifuzz:
-    runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install apifuzz
-        run: pip install "git+https://github.com/dragonday3/apifuzz.git"
-
-      - name: Run API security scan
-        run: |
-          apifuzz openapi.yaml \
-            --target ${{ secrets.API_BASE_URL }} \
-            --auth-type bearer \
-            --token ${{ secrets.API_TEST_TOKEN }} \
-            --output sarif \
-            --out-file apifuzz.sarif
-        continue-on-error: true
-
-      - name: Upload SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: apifuzz.sarif
-```
-
-### GitLab CI
-
-```yaml
-api-security:
-  image: python:3.12-slim
-  script:
-    - pip install "git+https://github.com/dragonday3/apifuzz.git"
-    - apifuzz openapi.yaml --target $API_BASE_URL --output sarif --out-file gl-sast-report.sarif
-  artifacts:
-    reports:
-      sast: gl-sast-report.sarif
-  allow_failure: true
-```
-
-> **Accepting known findings:** run once with `--write-ignore .apifuzz-ignore.yaml`, review it and fill in each `reason` (optionally an `expires: YYYY-MM-DD`), and commit it. Later runs suppress those findings (matched by rule and spec operation), and GitHub code scanning recognises recurring alerts through SARIF fingerprints.
-
-> **Shared staging?** The default scan still sends a 50-request burst to every endpoint (and creates records through `POST`). Use `--checks` without `rate_limit` and/or `--max-requests` against shared environments. Add `--insecure` if staging uses a self-signed certificate (otherwise every request fails and the job exits `2`).
-
----
-
-## Python SDK
-
-```python
-import asyncio
-from apifuzz.scanner import Scanner
-from apifuzz.models.endpoint import AuthConfig
-from apifuzz.reporters.sarif import SARIFReporter
-from apifuzz.reporters.html import HTMLReporter
-
-auth = AuthConfig(type="bearer", token="your-token")
-
-scanner = Scanner(
-    spec_path="openapi.yaml",
-    base_url="https://api.example.com",
-    auth=auth,
-    checks=["bola", "auth", "injection"],  # None = all checks
-    concurrency=10,
-    rate_limit_rps=5.0,
-    timeout=15.0,
-)
-
-findings = asyncio.run(scanner.run())
-
-for f in findings:
-    print(f"{f.severity.value.upper():10} {f.title}")
-    print(f"  {f.endpoint_method} {f.endpoint_path}")
-    print(f"  {f.owasp_category.value}")
-
-# Export SARIF
-SARIFReporter().write(findings, "results.sarif")
-
-# Export HTML
-HTMLReporter().write(findings, "report.html")
-```
-
----
-
-## Output Formats
-
-### SARIF 2.1
-
-Upload to GitHub Code Scanning (workflow above) and findings appear in the Security tab and inline on pull requests, with severity, description and remediation guidance. Tentative findings are reported at level `note` under `<rule>/tentative` rules. Any SARIF 2.1-compatible tool can read the file. With `--oob-url`, `runs[0].properties.oobProbes` maps each blind-SSRF probe id (`apifuzz-<id>`, the path your collector sees) to `METHOD /path [param]`.
-
-### JSON
-
-Machine-readable array of findings. With `--oob-url` (and at least one blind-SSRF probe sent), the output is an
-object instead, so a callback that reaches your collector later can be mapped back from the report alone:
-`{"findings": [...], "oob_probes": {"apifuzz-<id>": "METHOD /path [param]"}}`. Without `--oob-url` it stays a
-plain array. Each finding includes:
-- `rule_id`, `title`, `severity`, `confidence` (`firm` | `tentative`), `owasp_category`
-- `endpoint_method`, `endpoint_path`
-- `evidence` — what matched (e.g. the error string or canary found)
-- `request_sample` — the request as sent (method, URL, headers, body), credentials masked
-- `response_sample` — an excerpt of the response (bodies longer than `--max-body`, 8192 characters by default, are truncated before detection, and the excerpt says so)
-- `remediation` — actionable fix guidance
-
-### HTML
-
-Dark-theme interactive report with collapsible findings, severity badges, evidence blocks, and remediation guidance; with `--oob-url`, a "Blind SSRF probes" section lists which probe id is which parameter. Self-contained single file, no external dependencies.
-
----
-
-## Trying It Against a Deliberately Vulnerable API
-
-Run a practice target such as [OWASP crAPI](https://github.com/OWASP/crAPI) or [VAmPI](https://github.com/erev0s/VAmPI) locally using their own setup instructions, then point apifuzz at it with that project's OpenAPI spec:
-
-```bash
-apifuzz ./target-openapi.yaml --target http://localhost:<port> \
-  --allow-destructive --output html --out-file report.html
-```
-
-`--allow-destructive` is fine here because these targets are disposable. VAmPI, for example, resets its data with `GET /createdb`.
-
----
-
-## Architecture
-
-```
-Input Parsers          → Endpoint models
-  OpenAPI 3.x / Swagger 2.x
-  HAR file
-  Postman Collection v2
-
-Check Engine           → TestCase list
-  12 checks:
-    bola           (API1 - BOLA/IDOR)
-    auth           (API2 - Broken Auth)
-    mass_assignment(API3 - BOPLA / mass assignment)
-    ssrf           (API7 - SSRF)
-    injection      (A03:2021 - Injection)
-    rate_limit     (API4 - Rate Limiting)
-    redos          (API4 - regex DoS, --time-based only)
-    cors           (API8 - CORS)
-    data_exposure  (API3 - excessive data exposure)
-    user_enum      (API2 - login user enumeration)
-    bfla           (API5 - function level authorization)
-    inventory      (API9 - inventory, once per scan)
-
-Async Executor         → TestResult list
-  httpx AsyncClient
-  Semaphore concurrency control
-  Scope lock to the --target origin (redirects too)
-  Minimum-interval rate limiting (bursts exempt),
-    request budget, 429/503 retry with backoff
-  Auth injection (bearer / apikey / basic),
-    never replacing the headers an auth/BOLA probe sets
-
-Response Analyzer      → Finding list
-  Per-check detection, compared against a baseline
-    request per endpoint; canary payloads; true/false
-    pairs; follow-up GETs; firm / tentative confidence
-  Rate limit verdict per endpoint
-  Severity-based deduplication
-
-Reporters
-  SARIF 2.1 (GitHub Code Scanning)
-  JSON       (machine-readable)
-  HTML       (interactive dark-theme report)
-```
-
----
-
-## Development
-
-```bash
-git clone https://github.com/dragonday3/apifuzz
-cd apifuzz
-pip install -e ".[dev]"
-
-# Run tests (unit + end-to-end against a mocked API in tests/e2e)
-pytest tests/
-
-# Lint and type-check
-ruff check .
-mypy src
-
-# Run with coverage
-pytest --cov=apifuzz --cov-report=term-missing tests/
-
-# Run a specific check
-pytest tests/checks/test_injection.py -v
-```
-
-**Test matrix:** Python 3.10, 3.11, 3.12 (CI runs all three on every push).
+- [Quickstart](https://dragonday3.github.io/apifuzz/quickstart/): install, first scan, reading the report, HAR workflow
+- [How it works](https://dragonday3.github.io/apifuzz/how-it-works/): pipeline, baselines, firm vs tentative, scan passes, resource linking, redaction, Python API
+- [Checks](https://dragonday3.github.io/apifuzz/checks/): one page per check
+- [CLI reference](https://dragonday3.github.io/apifuzz/reference/cli/) (generated from the CLI) and [output formats and exit codes](https://dragonday3.github.io/apifuzz/reference/output/)
+- [CI integration](https://dragonday3.github.io/apifuzz/ci/): GitHub Actions + SARIF upload, GitLab, `--fail-on`, `.apifuzz-ignore.yaml`
+- [Benchmarks](https://dragonday3.github.io/apifuzz/benchmarks/) and [comparison and limitations](https://dragonday3.github.io/apifuzz/comparison/)
+- [Contributing and architecture](https://dragonday3.github.io/apifuzz/contributing/) ([CONTRIBUTING.md](CONTRIBUTING.md))
 
 ---
 

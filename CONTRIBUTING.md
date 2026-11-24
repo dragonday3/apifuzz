@@ -33,7 +33,7 @@ All PRs must keep the test suite green across Python 3.10, 3.11, and 3.12.
 
 ## Adding a New Check
 
-Checks only generate requests; detection lives in the analyzer. A new check touches four places:
+Checks only generate requests; detection lives in the analyzer. A new check touches these places:
 
 1. `src/apifuzz/checks/your_check.py`: subclass `BaseCheck`, set `check_id` and `name`, and implement
    `generate(endpoint, auth) -> list[TestCase]` (or `generate_global(endpoints, auth)` for probes sent once per
@@ -46,7 +46,19 @@ Checks only generate requests; detection lives in the analyzer. A new check touc
    content the endpoint always returns isn't reported.
 4. Tests: generation in `tests/checks/test_your_check.py`, detection in `tests/test_analyzer.py`, and an
    end-to-end case in `tests/e2e/` against the mock API (one secure response with no finding, one
-   vulnerable response with the finding). Document the check in the README checks table.
+   vulnerable response with the finding). Add the rule prefix to `RULE_CHECK` in `benchmarks/run.py`.
+5. Docs: a page in `docs-site/checks/`, a row in `docs-site/checks/index.md` and the README checks table.
+
+## Documentation
+
+The website (https://dragonday3.github.io/apifuzz/) is built with MkDocs Material from `docs-site/`:
+
+```bash
+pip install -e ".[docs]"
+mkdocs build --strict      # CI fails on any warning
+# after changing a CLI option or its help text, regenerate the CLI reference and commit it:
+python -m typer apifuzz.cli utils docs --name apifuzz --output docs-site/reference/cli.md
+```
 
 ## Submitting Changes
 

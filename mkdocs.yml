@@ -1,0 +1,89 @@
+site_name: apifuzz
+site_description: OWASP API Top 10 security scanner driven by your OpenAPI, HAR or Postman file.
+site_url: https://dragonday3.github.io/apifuzz/
+repo_url: https://github.com/dragonday3/apifuzz
+repo_name: dragonday3/apifuzz
+edit_uri: edit/main/docs-site/
+docs_dir: docs-site
+
+# --strict fails on warnings: make broken in-page anchors and unknown relative links warnings too.
+validation:
+  links:
+    anchors: warn
+    unrecognized_links: warn
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets:
+      base_path: ["."]   # the repo root: the changelog page includes CHANGELOG.md, so it can't drift
+      check_paths: true
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Quickstart: quickstart.md
+      - How it works: how-it-works.md
+      - Safety and scope: safety.md
+  - Checks:
+      - checks/index.md
+      - bola (API1): checks/bola.md
+      - auth (API2): checks/auth.md
+      - user_enum (API2): checks/user-enum.md
+      - mass_assignment (API3): checks/mass-assignment.md
+      - data_exposure (API3): checks/data-exposure.md
+      - rate_limit (API4): checks/rate-limit.md
+      - redos (API4): checks/redos.md
+      - bfla (API5): checks/bfla.md
+      - ssrf (API7): checks/ssrf.md
+      - cors (API8): checks/cors.md
+      - inventory (API9): checks/inventory.md
+      - injection (A03:2021): checks/injection.md
+  - Reference:
+      - CLI reference: reference/cli.md
+      - Output formats and exit codes: reference/output.md
+      - CI integration: ci.md
+  - Benchmarks: benchmarks.md
+  - Project:
+      - Comparison and limitations: comparison.md
+      - Contributing and architecture: contributing.md
+      - Changelog: changelog.md
