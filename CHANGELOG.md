@@ -15,7 +15,10 @@ false positives, makes scans safe to point at real systems, adds coverage, and m
   **0 false positives on both builds**. Two rules changed after seeing benchmark output; both are disclosed in
   `benchmarks/README.md`.
 - Second benchmark target: OWASP crAPI, measured before any tuning (held-out): 5/18 documented challenges
-  detected (3 firm), 10 false positives among 39 findings outside the documented list.
+  detected (3 firm), 10 false positives among 39 findings outside the documented list. After the fixes that run
+  prompted (disclosed): 7/18 (4 firm), 6 false positives (all tentative) among 38.
+- VAmPI with the new checks: 7/9 detected by default (weak JWT key added), 8/9 with `--time-based` (RegexDoS
+  added), 0 false positives on both builds.
 
 ### Fixed (correctness)
 - `--token` without `--auth-type` now authenticates as bearer. Before, the default `none` silently ignored the token and scanned unauthenticated; `--auth-type none` together with a token is now an error.

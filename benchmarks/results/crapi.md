@@ -1,26 +1,26 @@
 # apifuzz vs crapi
 
-Measured 2026-11-24 with apifuzz `5a117ab`. Scan settings: `{"allow_destructive": true, "rate_limit_rps": 20}`. Requests: 3369; failed: none.
+Measured 2026-11-24 with apifuzz `d8653f0`. Scan settings: `{"allow_destructive": true, "rate_limit_rps": 20}`. Requests: 3526; failed: none.
 
 crapi has no fixed build, so there is no false-positive run. Findings that match no documented vulnerability are listed at the end and counted against precision; each is triaged by hand in benchmarks/README.md.
 
 | Metric | Value |
 |---|---|
-| Documented vulnerabilities detected | 5 / 18 (28%) |
-| ...of those apifuzz has a check for | 5 / 14 (36%) |
-| ...detected with a firm finding | 3 / 18 |
-| Findings | 61 (39 match no documented vulnerability) |
-| ...of which rate-limit (one per endpoint) | 22 |
-| Precision, unmatched counted as false (all / firm only) | 36% / 41% |
-| Same, excluding rate-limit, one per (rule, operation) | 58% |
+| Documented vulnerabilities detected | 7 / 18 (39%) |
+| ...of those apifuzz has a check for | 7 / 14 (50%) |
+| ...detected with a firm finding | 4 / 18 |
+| Findings | 69 (38 match no documented vulnerability) |
+| ...of which rate-limit (one per endpoint) | 28 |
+| Precision, unmatched counted as false (all / firm only) | 45% / 51% |
+| Same, excluding rate-limit, one per (rule, operation) | 77% |
 
 ## Per documented vulnerability
 
 | Vulnerability | Endpoint | Check | Result |
 |---|---|---|---|
 | 1. BOLA: another user's vehicle location | `GET /identity/api/v2/vehicle/{vehicleId}/location` | bola | detected (firm) |
-| 2. BOLA: other users' mechanic reports | `GET /workshop/api/mechanic/mechanic_report` | bola | missed |
-| 3. Broken authentication: reset another user's password (OTP brute force, v2 has no rate limit) | `POST /identity/api/auth/v2/check-otp` | rate_limit | missed |
+| 2. BOLA: other users' mechanic reports | `GET /workshop/api/mechanic/mechanic_report` | bola | detected (firm) |
+| 3. Broken authentication: reset another user's password (OTP brute force, v2 has no rate limit) | `POST /identity/api/auth/v2/check-otp` | rate_limit | detected (tentative) |
 | 4. Excessive data exposure: other users' sensitive data (forum posts carry author email + vehicle id) | `GET /community/api/v2/community/posts/recent` | data_exposure | missed |
 | 5. Excessive data exposure: a video's internal property (conversion_params) | `GET /identity/api/v2/user/videos/{video_id}` | data_exposure | detected (tentative) |
 | 6. Rate limiting: layer 7 DoS through contact mechanic | `POST /workshop/api/merchant/contact_mechanic` | rate_limit | missed |
@@ -39,27 +39,25 @@ crapi has no fixed build, so there is no false-positive run. Findings that match
 
 ## Findings matching no documented vulnerability
 
-- `APIFUZZ-EXPOSURE-002` (tentative) on `GET /identity/api/v2/vehicle/vehicles`
 - `APIFUZZ-EXPOSURE-002` (tentative) on `GET /identity/api/v2/vehicle/{vehicleId}/location`
-- `APIFUZZ-EXPOSURE-002` (tentative) on `GET /workshop/api/shop/products`
-- `APIFUZZ-EXPOSURE-001` (firm) on `GET /workshop/api/shop/orders/{order_id}`
 - `APIFUZZ-EXPOSURE-002` (tentative) on `GET /workshop/api/shop/orders/{order_id}`
 - `APIFUZZ-EXPOSURE-002` (tentative) on `GET /workshop/api/shop/orders/all`
-- `APIFUZZ-EXPOSURE-002` (tentative) on `GET /workshop/api/management/users/all`
-- `APIFUZZ-EXPOSURE-002` (tentative) on `GET /workshop/api/mechanic/`
-- `APIFUZZ-EXPOSURE-002` (tentative) on `GET /workshop/api/mechanic/service_requests`
-- `APIFUZZ-BOLA-001` (firm) on `GET /community/api/v2/community/posts/{postId}`
-- `APIFUZZ-BOLA-001` (firm) on `POST /community/api/v2/community/posts/{postId}/comment`
+- `APIFUZZ-BOLA-001` (tentative) on `GET /community/api/v2/community/posts/{postId}`
+- `APIFUZZ-BOLA-001` (tentative) on `POST /community/api/v2/community/posts/{postId}/comment`
 - `APIFUZZ-BOLA-002` (tentative) on `GET /workshop/api/shop/orders/{order_id}`
 - `APIFUZZ-BOLA-002` (tentative) on `GET /workshop/api/shop/orders/{order_id}`
-- `APIFUZZ-BOLA-001` (firm) on `GET /workshop/api/shop/orders/{order_id}`
 - `APIFUZZ-INVENTORY-002` (firm) on `GET /.env (not in spec)`
-- `APIFUZZ-INJECT-SQLI-BOOL` (firm) on `POST /community/api/v2/community/posts/{postId}/comment`
+- `APIFUZZ-BOLA-001` (tentative) on `GET /community/api/v2/community/posts/{postId}`
+- `APIFUZZ-BOLA-001` (firm) on `GET /workshop/api/shop/orders/{order_id}`
 - `APIFUZZ-ENUM-001` (firm) on `POST /identity/api/auth/login`
 - `APIFUZZ-RATE-001` (firm) on `POST /identity/api/auth/login`
 - `APIFUZZ-RATE-001` (firm) on `POST /identity/api/auth/forget-password`
+- `APIFUZZ-RATE-001` (tentative) on `POST /identity/api/auth/v3/check-otp`
+- `APIFUZZ-RATE-001` (tentative) on `POST /identity/api/auth/v4.0/user/login-with-token`
+- `APIFUZZ-RATE-001` (tentative) on `POST /identity/api/auth/v2.7/user/login-with-token`
 - `APIFUZZ-RATE-001` (firm) on `POST /identity/api/v2/user/reset-password`
 - `APIFUZZ-RATE-001` (firm) on `POST /identity/api/v2/user/change-email`
+- `APIFUZZ-RATE-001` (tentative) on `POST /identity/api/v2/user/verify-email-token`
 - `APIFUZZ-RATE-001` (firm) on `GET /identity/api/v2/user/dashboard`
 - `APIFUZZ-RATE-001` (firm) on `GET /identity/api/v2/vehicle/vehicles`
 - `APIFUZZ-RATE-001` (firm) on `GET /identity/api/v2/vehicle/{vehicleId}/location`
@@ -77,4 +75,5 @@ crapi has no fixed build, so there is no false-positive run. Findings that match
 - `APIFUZZ-RATE-001` (firm) on `GET /workshop/api/shop/return_qr_code`
 - `APIFUZZ-RATE-001` (firm) on `GET /workshop/api/management/users/all`
 - `APIFUZZ-RATE-001` (firm) on `GET /workshop/api/mechanic/`
+- `APIFUZZ-RATE-001` (firm) on `GET /workshop/api/mechanic/mechanic_report`
 - `APIFUZZ-RATE-001` (firm) on `GET /workshop/api/mechanic/service_requests`

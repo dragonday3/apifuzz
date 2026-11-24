@@ -1,9 +1,9 @@
 {
   "meta": {
     "date": "2026-11-24",
-    "commit": "5a117ab",
+    "commit": "d8653f0",
     "scan": "{\"allow_destructive\": true, \"rate_limit_rps\": 20}",
-    "sent_vulnerable": 3369,
+    "sent_vulnerable": 3526,
     "sent_secure": 0,
     "errors_vulnerable": {},
     "errors_secure": {},
@@ -11,16 +11,16 @@
   },
   "documented": 18,
   "covered": 14,
-  "detected": 5,
-  "detected_firm": 3,
-  "recall_documented": 0.278,
-  "recall_covered": 0.357,
-  "vulnerable_findings": 61,
-  "vulnerable_fp": 39,
-  "vulnerable_rate_findings": 22,
-  "precision": 0.361,
-  "precision_firm": 0.408,
-  "precision_excl_rate_limit": 0.579,
+  "detected": 7,
+  "detected_firm": 4,
+  "recall_documented": 0.389,
+  "recall_covered": 0.5,
+  "vulnerable_findings": 69,
+  "vulnerable_fp": 38,
+  "vulnerable_rate_findings": 28,
+  "precision": 0.449,
+  "precision_firm": 0.509,
+  "precision_excl_rate_limit": 0.769,
   "secure_rate_findings": null,
   "secure_findings": null,
   "secure_fp": null,
@@ -42,8 +42,8 @@
       "endpoint": "GET /workshop/api/mechanic/mechanic_report",
       "check": "bola",
       "toggled": false,
-      "detected": false,
-      "detected_firm": false,
+      "detected": true,
+      "detected_firm": true,
       "secure_mode_hits": 0
     },
     {
@@ -52,7 +52,7 @@
       "endpoint": "POST /identity/api/auth/v2/check-otp",
       "check": "rate_limit",
       "toggled": false,
-      "detected": false,
+      "detected": true,
       "detected_firm": false,
       "secure_mode_hits": 0
     },
@@ -221,42 +221,12 @@
     {
       "rule_id": "APIFUZZ-EXPOSURE-002",
       "check": "data_exposure",
-      "endpoint": "GET /identity/api/v2/vehicle/vehicles",
-      "confidence": "tentative",
-      "severity": "low",
-      "tp": false,
-      "vuln": null,
-      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/vehicles"
-    },
-    {
-      "rule_id": "APIFUZZ-EXPOSURE-002",
-      "check": "data_exposure",
       "endpoint": "GET /identity/api/v2/vehicle/{vehicleId}/location",
       "confidence": "tentative",
       "severity": "low",
       "tp": false,
       "vuln": null,
-      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/1d9bdd2e-3648-4744-9852-83d5b7092e18/location"
-    },
-    {
-      "rule_id": "APIFUZZ-EXPOSURE-002",
-      "check": "data_exposure",
-      "endpoint": "GET /workshop/api/shop/products",
-      "confidence": "tentative",
-      "severity": "low",
-      "tp": false,
-      "vuln": null,
-      "url": "http://127.0.0.1:8888/workshop/api/shop/products"
-    },
-    {
-      "rule_id": "APIFUZZ-EXPOSURE-001",
-      "check": "data_exposure",
-      "endpoint": "GET /workshop/api/shop/orders/{order_id}",
-      "confidence": "firm",
-      "severity": "high",
-      "tp": false,
-      "vuln": null,
-      "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
+      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/e615199d-f6a7-4ab1-8a8a-b1cdd863e053/location"
     },
     {
       "rule_id": "APIFUZZ-EXPOSURE-002",
@@ -279,36 +249,6 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/all"
     },
     {
-      "rule_id": "APIFUZZ-EXPOSURE-002",
-      "check": "data_exposure",
-      "endpoint": "GET /workshop/api/management/users/all",
-      "confidence": "tentative",
-      "severity": "low",
-      "tp": false,
-      "vuln": null,
-      "url": "http://127.0.0.1:8888/workshop/api/management/users/all"
-    },
-    {
-      "rule_id": "APIFUZZ-EXPOSURE-002",
-      "check": "data_exposure",
-      "endpoint": "GET /workshop/api/mechanic/",
-      "confidence": "tentative",
-      "severity": "low",
-      "tp": false,
-      "vuln": null,
-      "url": "http://127.0.0.1:8888/workshop/api/mechanic/"
-    },
-    {
-      "rule_id": "APIFUZZ-EXPOSURE-002",
-      "check": "data_exposure",
-      "endpoint": "GET /workshop/api/mechanic/service_requests",
-      "confidence": "tentative",
-      "severity": "low",
-      "tp": false,
-      "vuln": null,
-      "url": "http://127.0.0.1:8888/workshop/api/mechanic/service_requests"
-    },
-    {
       "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "POST /identity/api/v2/user/reset-password",
@@ -320,6 +260,36 @@
     },
     {
       "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "check": "auth",
+      "endpoint": "POST /identity/api/v2/user/change-email",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-forgery",
+      "url": "http://127.0.0.1:8888/identity/api/v2/user/change-email"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "check": "auth",
+      "endpoint": "GET /identity/api/v2/user/dashboard",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-forgery",
+      "url": "http://127.0.0.1:8888/identity/api/v2/user/dashboard"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_UNSIGN",
+      "check": "auth",
+      "endpoint": "GET /identity/api/v2/user/dashboard",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-forgery",
+      "url": "http://127.0.0.1:8888/identity/api/v2/user/dashboard"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_KID_TR",
       "check": "auth",
       "endpoint": "GET /identity/api/v2/user/dashboard",
       "confidence": "firm",
@@ -376,7 +346,7 @@
       "severity": "critical",
       "tp": true,
       "vuln": "bola-vehicle-location",
-      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/1d9bdd2e-3648-4744-9852-83d5b7092e18/location"
+      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/e615199d-f6a7-4ab1-8a8a-b1cdd863e053/location"
     },
     {
       "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
@@ -386,7 +356,7 @@
       "severity": "critical",
       "tp": true,
       "vuln": "jwt-forgery",
-      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/1d9bdd2e-3648-4744-9852-83d5b7092e18/location"
+      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/e615199d-f6a7-4ab1-8a8a-b1cdd863e053/location"
     },
     {
       "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
@@ -402,11 +372,11 @@
       "rule_id": "APIFUZZ-BOLA-001",
       "check": "bola",
       "endpoint": "GET /community/api/v2/community/posts/{postId}",
-      "confidence": "firm",
+      "confidence": "tentative",
       "severity": "critical",
       "tp": false,
       "vuln": null,
-      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/EAZqhzVGAXBVD9WE92Bnf7"
+      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/L694wM4WhvkmVnxW2r3k27"
     },
     {
       "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
@@ -422,11 +392,11 @@
       "rule_id": "APIFUZZ-BOLA-001",
       "check": "bola",
       "endpoint": "POST /community/api/v2/community/posts/{postId}/comment",
-      "confidence": "firm",
+      "confidence": "tentative",
       "severity": "critical",
       "tp": false,
       "vuln": null,
-      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/EAZqhzVGAXBVD9WE92Bnf7/comment"
+      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/L694wM4WhvkmVnxW2r3k27/comment"
     },
     {
       "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
@@ -489,16 +459,6 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/2"
     },
     {
-      "rule_id": "APIFUZZ-BOLA-001",
-      "check": "bola",
-      "endpoint": "GET /workshop/api/shop/orders/{order_id}",
-      "confidence": "firm",
-      "severity": "critical",
-      "tp": false,
-      "vuln": null,
-      "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
-    },
-    {
       "rule_id": "APIFUZZ-AUTH-NO_AUTH",
       "check": "auth",
       "endpoint": "GET /workshop/api/shop/orders/{order_id}",
@@ -539,6 +499,26 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
     },
     {
+      "rule_id": "APIFUZZ-AUTH-JWT_UNSIGN",
+      "check": "auth",
+      "endpoint": "GET /workshop/api/shop/orders/{order_id}",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "unauthenticated-order",
+      "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_KID_TR",
+      "check": "auth",
+      "endpoint": "GET /workshop/api/shop/orders/{order_id}",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "unauthenticated-order",
+      "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
+    },
+    {
       "rule_id": "APIFUZZ-AUTH-MALFORMED_",
       "check": "auth",
       "endpoint": "GET /workshop/api/shop/orders/{order_id}",
@@ -557,6 +537,36 @@
       "tp": true,
       "vuln": "jwt-forgery",
       "url": "http://127.0.0.1:8888/workshop/api/management/users/all"
+    },
+    {
+      "rule_id": "APIFUZZ-BOLA-002",
+      "check": "bola",
+      "endpoint": "GET /workshop/api/mechanic/mechanic_report",
+      "confidence": "tentative",
+      "severity": "high",
+      "tp": true,
+      "vuln": "bola-mechanic-report",
+      "url": "http://127.0.0.1:8888/workshop/api/mechanic/mechanic_report"
+    },
+    {
+      "rule_id": "APIFUZZ-BOLA-001",
+      "check": "bola",
+      "endpoint": "GET /workshop/api/mechanic/mechanic_report",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "bola-mechanic-report",
+      "url": "http://127.0.0.1:8888/workshop/api/mechanic/mechanic_report"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "check": "auth",
+      "endpoint": "GET /workshop/api/mechanic/mechanic_report",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-forgery",
+      "url": "http://127.0.0.1:8888/workshop/api/mechanic/mechanic_report"
     },
     {
       "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
@@ -579,14 +589,24 @@
       "url": "http://127.0.0.1:8888/.env"
     },
     {
-      "rule_id": "APIFUZZ-INJECT-SQLI-BOOL",
-      "check": "injection",
-      "endpoint": "POST /community/api/v2/community/posts/{postId}/comment",
+      "rule_id": "APIFUZZ-BOLA-001",
+      "check": "bola",
+      "endpoint": "GET /community/api/v2/community/posts/{postId}",
+      "confidence": "tentative",
+      "severity": "critical",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/5JNcCH9o6cqUyDLgamQX6C"
+    },
+    {
+      "rule_id": "APIFUZZ-BOLA-001",
+      "check": "bola",
+      "endpoint": "GET /workshop/api/shop/orders/{order_id}",
       "confidence": "firm",
       "severity": "critical",
       "tp": false,
       "vuln": null,
-      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/EAZqhzVGAXBVD9WE92Bnf7/comment"
+      "url": "http://127.0.0.1:8888/workshop/api/shop/orders/7"
     },
     {
       "rule_id": "APIFUZZ-ENUM-001",
@@ -621,6 +641,46 @@
     {
       "rule_id": "APIFUZZ-RATE-001",
       "check": "rate_limit",
+      "endpoint": "POST /identity/api/auth/v3/check-otp",
+      "confidence": "tentative",
+      "severity": "medium",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:8888/identity/api/auth/v3/check-otp"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "POST /identity/api/auth/v2/check-otp",
+      "confidence": "tentative",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "otp-brute-force",
+      "url": "http://127.0.0.1:8888/identity/api/auth/v2/check-otp"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "POST /identity/api/auth/v4.0/user/login-with-token",
+      "confidence": "tentative",
+      "severity": "medium",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:8888/identity/api/auth/v4.0/user/login-with-token"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "POST /identity/api/auth/v2.7/user/login-with-token",
+      "confidence": "tentative",
+      "severity": "medium",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:8888/identity/api/auth/v2.7/user/login-with-token"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
       "endpoint": "POST /identity/api/v2/user/reset-password",
       "confidence": "firm",
       "severity": "medium",
@@ -637,6 +697,16 @@
       "tp": false,
       "vuln": null,
       "url": "http://127.0.0.1:8888/identity/api/v2/user/change-email"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "POST /identity/api/v2/user/verify-email-token",
+      "confidence": "tentative",
+      "severity": "medium",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:8888/identity/api/v2/user/verify-email-token"
     },
     {
       "rule_id": "APIFUZZ-RATE-001",
@@ -666,7 +736,7 @@
       "severity": "medium",
       "tp": false,
       "vuln": null,
-      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/1d9bdd2e-3648-4744-9852-83d5b7092e18/location"
+      "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/e615199d-f6a7-4ab1-8a8a-b1cdd863e053/location"
     },
     {
       "rule_id": "APIFUZZ-RATE-001",
@@ -686,7 +756,7 @@
       "severity": "medium",
       "tp": false,
       "vuln": null,
-      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/EAZqhzVGAXBVD9WE92Bnf7"
+      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/L694wM4WhvkmVnxW2r3k27"
     },
     {
       "rule_id": "APIFUZZ-RATE-001",
@@ -706,7 +776,7 @@
       "severity": "medium",
       "tp": false,
       "vuln": null,
-      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/EAZqhzVGAXBVD9WE92Bnf7/comment"
+      "url": "http://127.0.0.1:8888/community/api/v2/community/posts/L694wM4WhvkmVnxW2r3k27/comment"
     },
     {
       "rule_id": "APIFUZZ-RATE-001",
@@ -807,6 +877,16 @@
       "tp": false,
       "vuln": null,
       "url": "http://127.0.0.1:8888/workshop/api/mechanic/"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "GET /workshop/api/mechanic/mechanic_report",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": false,
+      "vuln": null,
+      "url": "http://127.0.0.1:8888/workshop/api/mechanic/mechanic_report"
     },
     {
       "rule_id": "APIFUZZ-RATE-001",

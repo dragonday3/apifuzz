@@ -56,24 +56,23 @@ Coverage: API1, API2, API3, API4, API5, API7, API8 and API9. API6 (business flow
 
 Scored against [VAmPI](https://github.com/erev0s/VAmPI)'s own list of 9 documented vulnerabilities. The scan runs against the vulnerable build and against the same API with its flaws switched off. Method and reproduction: [`benchmarks/`](benchmarks/README.md). Latest run: [`benchmarks/results/vampi.md`](benchmarks/results/vampi.md).
 
-| | v0.1.0 | current |
-|---|---|---|
-| Documented vulnerabilities detected | 0 / 9 | 6 / 9: SQLi, BOLA, debug-endpoint data exposure, user enumeration, rate limiting (firm); unauthorized password change (tentative) |
-| ...among the 7 apifuzz has a check for | 0 | 6 / 7 |
-| False positives, vulnerable build | 25 with tokens, 12 without | 0 |
-| False positives, secure build | 25 with tokens, 12 without | 0 |
+| | v0.1.0 | current, default scan | current, `--time-based` |
+|---|---|---|---|
+| Documented vulnerabilities detected | 0 / 9 | 7 / 9: SQLi, BOLA, debug-endpoint data exposure, user enumeration, rate limiting, weak JWT signing key (firm); unauthorized password change (tentative) | 8 / 9: the same plus RegexDoS (firm) |
+| False positives, vulnerable build | 25 with tokens, 12 without | 0 | 0 |
+| False positives, secure build | 25 with tokens, 12 without | 0 | 0 |
 
-Two rules were changed after benchmark runs, both disclosed in [`benchmarks/`](benchmarks/README.md). Missed: mass assignment on registration (stored, but nothing in the response to confirm it with). Not covered: RegexDoS, weak JWT signing key.
+The weak-key and RegexDoS checks were written after VAmPI listed both as uncovered, and two earlier rules were changed after benchmark runs; all disclosed in [`benchmarks/`](benchmarks/README.md) (the weak key is found because VAmPI's key is in the bundled public wordlist, at rank 2,836 of 10,000). Missed: mass assignment on registration (stored, but nothing the API returns shows it).
 
 ### Benchmark: OWASP crAPI (held-out)
 
-[crAPI](https://github.com/OWASP/crAPI) was added after the VAmPI work and measured once **before any rule was tuned for it**, so it shows how apifuzz does on an API it wasn't developed against. Scored against crAPI's 18 documented challenges. crAPI has no fixed build, so every finding outside that list was re-checked by hand. Details: [`benchmarks/`](benchmarks/README.md#crapi-held-out-target), [`benchmarks/results/crapi.md`](benchmarks/results/crapi.md).
+[crAPI](https://github.com/OWASP/crAPI) was added after the VAmPI work and measured once **before any rule was tuned for it** (held-out), so it shows how apifuzz does on an API it wasn't developed against. The fixes that run prompted are generic but benchmark-motivated, so the after-tuning number is shown separately. Scored against crAPI's 18 documented challenges. crAPI has no fixed build, so every finding outside that list was re-checked by hand. Details: [`benchmarks/`](benchmarks/README.md#crapi-held-out-target), [`benchmarks/results/crapi.md`](benchmarks/results/crapi.md).
 
-| crAPI (18 documented challenges) | held-out (`b21ea70`) |
-|---|---|
-| Documented challenges detected | 5 / 18: vehicle-location BOLA, unauthenticated order access, JWT `alg:none` accepted (firm); video internal property exposed, admin video delete by a normal user (tentative, via the BOLA probe) |
-| ...among the 14 apifuzz has a check for | 5 / 14 |
-| Findings outside the documented list | 39: 29 real (no rate limiting, `/.env` with DB credentials, login user enumeration, other users' orders), **10 false positives** |
+| crAPI (18 documented challenges) | held-out (`b21ea70`) | after tuning (`d8653f0`) |
+|---|---|---|
+| Documented challenges detected | 5 / 18: vehicle-location BOLA, unauthenticated order access, JWT `alg:none` accepted (firm); video internal property exposed, admin video delete by a normal user (tentative, via the BOLA probe) | 7 / 18 (4 firm): also mechanic-report BOLA (firm, an id in a query param) and OTP brute force (tentative, weak evidence: the same signal fires on crAPI's protected v3 endpoint) |
+| ...among the 14 apifuzz has a check for | 5 / 14 | 7 / 14 |
+| Findings outside the documented list | 39: 29 real (no rate limiting, `/.env` with DB credentials, login user enumeration, other users' orders), **10 false positives** | 38: 32 real, **6 false positives** (all tentative) |
 
 Misses include BOLA through a query parameter, SQLi/NoSQLi on the coupon endpoints, mass assignment through `PUT`, and SSRF without an out-of-band collector. They are listed in [`benchmarks/`](benchmarks/README.md#crapi-held-out-target).
 

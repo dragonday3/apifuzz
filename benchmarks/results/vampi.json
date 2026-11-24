@@ -1,27 +1,28 @@
 {
   "meta": {
-    "date": "2026-11-23",
-    "commit": "6036d56",
+    "date": "2026-11-24",
+    "commit": "d8653f0",
     "scan": "{\"allow_destructive\": true, \"exclude\": [\"/createdb\"], \"rate_limit_rps\": 20}",
-    "sent_vulnerable": 952,
-    "sent_secure": 952,
+    "sent_vulnerable": 998,
+    "sent_secure": 998,
     "errors_vulnerable": {},
-    "errors_secure": {}
+    "errors_secure": {},
+    "has_secure": true
   },
   "documented": 9,
-  "covered": 7,
-  "detected": 6,
-  "detected_firm": 5,
-  "recall_documented": 0.667,
-  "recall_covered": 0.857,
-  "vulnerable_findings": 17,
+  "covered": 9,
+  "detected": 7,
+  "detected_firm": 6,
+  "recall_documented": 0.778,
+  "recall_covered": 0.778,
+  "vulnerable_findings": 22,
   "vulnerable_fp": 0,
   "vulnerable_rate_findings": 11,
   "precision": 1.0,
   "precision_firm": 1.0,
   "precision_excl_rate_limit": 1.0,
   "secure_rate_findings": 11,
-  "secure_findings": 12,
+  "secure_findings": 16,
   "secure_fp": 0,
   "secure_fp_firm": 0,
   "per_vulnerability": [
@@ -89,7 +90,7 @@
       "id": "regex-dos",
       "name": "RegexDOS (Denial of Service)",
       "endpoint": "PUT /users/v1/{username}/email",
-      "check": null,
+      "check": "redos",
       "toggled": true,
       "detected": false,
       "detected_firm": false,
@@ -109,11 +110,11 @@
       "id": "jwt-weak-key",
       "name": "JWT authentication bypass via weak signing key",
       "endpoint": "*",
-      "check": null,
+      "check": "auth",
       "toggled": false,
-      "detected": false,
-      "detected_firm": false,
-      "secure_mode_hits": 0
+      "detected": true,
+      "detected_firm": true,
+      "secure_mode_hits": 4
     }
   ],
   "findings_vulnerable": [
@@ -128,6 +129,16 @@
       "url": "http://127.0.0.1:5002/users/v1/_debug"
     },
     {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5002/me"
+    },
+    {
       "rule_id": "APIFUZZ-INJECT-SQLI",
       "check": "injection",
       "endpoint": "GET /users/v1/{username}",
@@ -136,6 +147,16 @@
       "tp": true,
       "vuln": "sqli",
       "url": "http://127.0.0.1:5002/users/v1/%27"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "PUT /users/v1/{username}/email",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5002/users/v1/name1/email"
     },
     {
       "rule_id": "APIFUZZ-BOLA-001",
@@ -148,6 +169,36 @@
       "url": "http://127.0.0.1:5002/users/v1/name1/password"
     },
     {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "PUT /users/v1/{username}/password",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5002/users/v1/name1/password"
+    },
+    {
+      "rule_id": "APIFUZZ-BOLA-001",
+      "check": "bola",
+      "endpoint": "GET /books/v1/{book_title}",
+      "confidence": "tentative",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "bola-books",
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle14"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "GET /books/v1/{book_title}",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle14"
+    },
+    {
       "rule_id": "APIFUZZ-BOLA-001",
       "check": "bola",
       "endpoint": "GET /books/v1/{book_title}",
@@ -155,7 +206,7 @@
       "severity": "critical",
       "tp": true,
       "vuln": "bola-books",
-      "url": "http://127.0.0.1:5002/books/v1/bookTitle34"
+      "url": "http://127.0.0.1:5002/books/v1/book99"
     },
     {
       "rule_id": "APIFUZZ-INJECT-SQLI-BOOL",
@@ -285,7 +336,7 @@
       "severity": "medium",
       "tp": true,
       "vuln": "rate-limiting",
-      "url": "http://127.0.0.1:5002/books/v1/bookTitle34"
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle14"
     }
   ],
   "findings_secure": [
@@ -298,6 +349,46 @@
       "tp": true,
       "vuln": "debug-exposure",
       "url": "http://127.0.0.1:5001/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5001/me"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "PUT /users/v1/{username}/email",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5001/users/v1/name1/email"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "PUT /users/v1/{username}/password",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5001/users/v1/name1/password"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "GET /books/v1/{book_title}",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5001/books/v1/bookTitle39"
     },
     {
       "rule_id": "APIFUZZ-RATE-001",
@@ -407,7 +498,7 @@
       "severity": "medium",
       "tp": true,
       "vuln": "rate-limiting",
-      "url": "http://127.0.0.1:5001/books/v1/bookTitle43"
+      "url": "http://127.0.0.1:5001/books/v1/bookTitle39"
     }
   ]
 }

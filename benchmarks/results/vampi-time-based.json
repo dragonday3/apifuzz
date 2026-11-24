@@ -1,0 +1,534 @@
+{
+  "meta": {
+    "date": "2026-11-24",
+    "commit": "d8653f0",
+    "scan": "{\"allow_destructive\": true, \"exclude\": [\"/createdb\"], \"rate_limit_rps\": 20, \"time_based\": true}",
+    "sent_vulnerable": 1127,
+    "sent_secure": 1127,
+    "errors_vulnerable": {},
+    "errors_secure": {},
+    "has_secure": true
+  },
+  "documented": 9,
+  "covered": 9,
+  "detected": 8,
+  "detected_firm": 7,
+  "recall_documented": 0.889,
+  "recall_covered": 0.889,
+  "vulnerable_findings": 25,
+  "vulnerable_fp": 0,
+  "vulnerable_rate_findings": 11,
+  "precision": 1.0,
+  "precision_firm": 1.0,
+  "precision_excl_rate_limit": 1.0,
+  "secure_rate_findings": 11,
+  "secure_findings": 16,
+  "secure_fp": 0,
+  "secure_fp_firm": 0,
+  "per_vulnerability": [
+    {
+      "id": "sqli",
+      "name": "SQLi Injection",
+      "endpoint": "GET /users/v1/{username}",
+      "check": "injection",
+      "toggled": true,
+      "detected": true,
+      "detected_firm": true,
+      "secure_mode_hits": 0
+    },
+    {
+      "id": "password-change",
+      "name": "Unauthorized Password Change",
+      "endpoint": "PUT /users/v1/{username}/password",
+      "check": "bola",
+      "toggled": true,
+      "detected": true,
+      "detected_firm": false,
+      "secure_mode_hits": 0
+    },
+    {
+      "id": "bola-books",
+      "name": "Broken Object Level Authorization",
+      "endpoint": "GET /books/v1/{book_title}",
+      "check": "bola",
+      "toggled": true,
+      "detected": true,
+      "detected_firm": true,
+      "secure_mode_hits": 0
+    },
+    {
+      "id": "mass-assignment",
+      "name": "Mass Assignment",
+      "endpoint": "POST /users/v1/register",
+      "check": "mass_assignment",
+      "toggled": true,
+      "detected": false,
+      "detected_firm": false,
+      "secure_mode_hits": 0
+    },
+    {
+      "id": "debug-exposure",
+      "name": "Excessive Data Exposure through debug endpoint",
+      "endpoint": "GET /users/v1/_debug",
+      "check": "data_exposure",
+      "toggled": false,
+      "detected": true,
+      "detected_firm": true,
+      "secure_mode_hits": 1
+    },
+    {
+      "id": "user-enumeration",
+      "name": "User and Password Enumeration",
+      "endpoint": "POST /users/v1/login",
+      "check": "user_enum",
+      "toggled": true,
+      "detected": true,
+      "detected_firm": true,
+      "secure_mode_hits": 0
+    },
+    {
+      "id": "regex-dos",
+      "name": "RegexDOS (Denial of Service)",
+      "endpoint": "PUT /users/v1/{username}/email",
+      "check": "redos",
+      "toggled": true,
+      "detected": true,
+      "detected_firm": true,
+      "secure_mode_hits": 0
+    },
+    {
+      "id": "rate-limiting",
+      "name": "Lack of Resources & Rate Limiting",
+      "endpoint": "*",
+      "check": "rate_limit",
+      "toggled": false,
+      "detected": true,
+      "detected_firm": true,
+      "secure_mode_hits": 11
+    },
+    {
+      "id": "jwt-weak-key",
+      "name": "JWT authentication bypass via weak signing key",
+      "endpoint": "*",
+      "check": "auth",
+      "toggled": false,
+      "detected": true,
+      "detected_firm": true,
+      "secure_mode_hits": 4
+    }
+  ],
+  "findings_vulnerable": [
+    {
+      "rule_id": "APIFUZZ-EXPOSURE-001",
+      "check": "data_exposure",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": true,
+      "vuln": "debug-exposure",
+      "url": "http://127.0.0.1:5002/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5002/me"
+    },
+    {
+      "rule_id": "APIFUZZ-INJECT-SQLI",
+      "check": "injection",
+      "endpoint": "GET /users/v1/{username}",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "sqli",
+      "url": "http://127.0.0.1:5002/users/v1/%27"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "PUT /users/v1/{username}/email",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5002/users/v1/name1/email"
+    },
+    {
+      "rule_id": "APIFUZZ-BOLA-001",
+      "check": "bola",
+      "endpoint": "PUT /users/v1/{username}/password",
+      "confidence": "tentative",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "password-change",
+      "url": "http://127.0.0.1:5002/users/v1/name1/password"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "PUT /users/v1/{username}/password",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5002/users/v1/name1/password"
+    },
+    {
+      "rule_id": "APIFUZZ-BOLA-001",
+      "check": "bola",
+      "endpoint": "GET /books/v1/{book_title}",
+      "confidence": "tentative",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "bola-books",
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle81"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "GET /books/v1/{book_title}",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle81"
+    },
+    {
+      "rule_id": "APIFUZZ-INJECT-SQLI",
+      "check": "injection",
+      "endpoint": "GET /users/v1/{username}",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "sqli",
+      "url": "http://127.0.0.1:5002/users/v1/name1%27%20AND%20SLEEP%285%29--%20-"
+    },
+    {
+      "rule_id": "APIFUZZ-INJECT-SQLI",
+      "check": "injection",
+      "endpoint": "GET /users/v1/{username}",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "sqli",
+      "url": "http://127.0.0.1:5002/users/v1/name1%27%7C%7Cpg_sleep%285%29--"
+    },
+    {
+      "rule_id": "APIFUZZ-BOLA-001",
+      "check": "bola",
+      "endpoint": "GET /books/v1/{book_title}",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "bola-books",
+      "url": "http://127.0.0.1:5002/books/v1/book99"
+    },
+    {
+      "rule_id": "APIFUZZ-INJECT-SQLI-BOOL",
+      "check": "injection",
+      "endpoint": "GET /users/v1/{username}",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "sqli",
+      "url": "http://127.0.0.1:5002/users/v1/name1%27%20AND%20%271%27%3D%271"
+    },
+    {
+      "rule_id": "APIFUZZ-ENUM-001",
+      "check": "user_enum",
+      "endpoint": "POST /users/v1/login",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "user-enumeration",
+      "url": "http://127.0.0.1:5002/users/v1/login"
+    },
+    {
+      "rule_id": "APIFUZZ-REDOS-001",
+      "check": "redos",
+      "endpoint": "PUT /users/v1/{username}/email",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "regex-dos",
+      "url": "http://127.0.0.1:5002/users/v1/name1/email"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "GET /",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5002/"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "GET /users/v1",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5002/users/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5002/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "POST /users/v1/register",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5002/users/v1/register"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "POST /users/v1/login",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5002/users/v1/login"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5002/me"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "GET /users/v1/{username}",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5002/users/v1/name1"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "PUT /users/v1/{username}/email",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5002/users/v1/name1/email"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "PUT /users/v1/{username}/password",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5002/users/v1/name1/password"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "GET /books/v1",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5002/books/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "GET /books/v1/{book_title}",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle81"
+    }
+  ],
+  "findings_secure": [
+    {
+      "rule_id": "APIFUZZ-EXPOSURE-001",
+      "check": "data_exposure",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "high",
+      "tp": true,
+      "vuln": "debug-exposure",
+      "url": "http://127.0.0.1:5001/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5001/me"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "PUT /users/v1/{username}/email",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5001/users/v1/name1/email"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "PUT /users/v1/{username}/password",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5001/users/v1/name1/password"
+    },
+    {
+      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "check": "auth",
+      "endpoint": "GET /books/v1/{book_title}",
+      "confidence": "firm",
+      "severity": "critical",
+      "tp": true,
+      "vuln": "jwt-weak-key",
+      "url": "http://127.0.0.1:5001/books/v1/bookTitle66"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "GET /",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5001/"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "GET /users/v1",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5001/users/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "GET /users/v1/_debug",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5001/users/v1/_debug"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "POST /users/v1/register",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5001/users/v1/register"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "POST /users/v1/login",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5001/users/v1/login"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "GET /me",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5001/me"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "GET /users/v1/{username}",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5001/users/v1/name1"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "PUT /users/v1/{username}/email",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5001/users/v1/name1/email"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "PUT /users/v1/{username}/password",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5001/users/v1/name1/password"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "GET /books/v1",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5001/books/v1"
+    },
+    {
+      "rule_id": "APIFUZZ-RATE-001",
+      "check": "rate_limit",
+      "endpoint": "GET /books/v1/{book_title}",
+      "confidence": "firm",
+      "severity": "medium",
+      "tp": true,
+      "vuln": "rate-limiting",
+      "url": "http://127.0.0.1:5001/books/v1/bookTitle66"
+    }
+  ]
+}
