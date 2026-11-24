@@ -64,7 +64,7 @@ For GitHub code scanning and any SARIF 2.1-compatible tool ([CI integration](../
   parameter. It is stable across runs (probe URLs carry random ids and payloads), so GitHub recognises a
   recurring alert instead of opening a new one.
 - **Properties**: each result carries `owasp_category`, `severity`, `confidence`, `remediation`, and
-  `evidence`/`request_sample`/`response_sample` when present. The run carries totals per severity.
+  `evidence`/`request_sample`/`response_sample` when present. The run's properties carry `totalFindings`, `criticalCount`, `highCount` and `mediumCount`.
 - With `--oob-url`, `runs[0].properties.oobProbes` maps each blind-SSRF probe id to `METHOD /path [param]`.
 
 ## HTML

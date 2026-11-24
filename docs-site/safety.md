@@ -23,7 +23,7 @@ another user's password. The console lists every skipped operation and why.
 
 Expect dozens of new records per `POST` endpoint. Leave `rate_limit` out of `--checks` to avoid the bursts.
 
-With `bola` and `--second-token`, every secured `POST` also gets a baseline `POST` (one more record) and, when
+With `bola` and `--second-token`, every secured `POST` gets a baseline `POST` even when no other check needs one (one more record only with a narrowed `--checks` list; by default it already has one) and, when
 a sibling `GET` can read the created object, two `GET`s that read it back as user A and as user B. Every `GET`
 without path parameters (or id-like query parameters) is read once as user B.
 

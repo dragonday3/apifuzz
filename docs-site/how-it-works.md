@@ -36,7 +36,7 @@ Most detectors need to know what the endpoint *normally* answers. Before any pro
 **baseline** request per endpoint: the spec's example request with the configured credentials. It is sent only
 when a check on that endpoint compares against it (`auth`, `bfla`, `bola`, `injection`, `mass_assignment`,
 `ssrf`), and never for `DELETE` (it would delete the object). With `bola` and `--second-token`, every secured
-`POST` also gets one, so the object it creates can be read back.
+`POST` gets one even when no other check needs it, so the object it creates can be read back.
 
 Two comparisons are used throughout:
 
@@ -116,7 +116,8 @@ Reports show each finding's request as it was sent, so they would otherwise cont
 - Request-body values under password/secret/token/api-key-like keys are masked (recorded HAR/Postman login
   bodies).
 - After the scan, every configured credential (`--token`, `--second-token`, `--low-priv-token`, and any
-  user:password in `--target`), raw and base64-encoded, is replaced wherever it was echoed in any finding field.
+  user:password in `--target`), raw and base64-encoded, is replaced wherever it was echoed in a finding's `title`, `description`, `endpoint_path`, `evidence`,
+  `request_sample` or `response_sample`.
 - `data_exposure` findings mask the sensitive values they report, so the report doesn't repeat the leak.
 - A cracked JWT signing key is shown masked in the evidence.
 

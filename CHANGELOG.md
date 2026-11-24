@@ -21,6 +21,7 @@ false positives, makes scans safe to point at real systems, adds coverage, and m
   added), 0 false positives on both builds.
 
 ### Fixed (correctness)
+- SARIF `tool.driver.version` is the package version (it was hard-coded `0.1.0`).
 - `--token` without `--auth-type` now authenticates as bearer. Before, the default `none` silently ignored the token and scanned unauthenticated; `--auth-type none` together with a token is now an error.
 - The configured token no longer overwrites the auth and cross-user BOLA probes' headers (v0.1.0 reported false
   CRITICAL bypasses on secure APIs). The second user's credential is sent in the same scheme.
@@ -100,6 +101,8 @@ false positives, makes scans safe to point at real systems, adds coverage, and m
   on register, whose response has no id).
 
 ### Added (CI/CD)
+- Documentation website (MkDocs Material, GitHub Pages): a page per check, a CLI reference generated
+  from the code (CI fails if it drifts), CI recipes, safety, benchmarks with every disclosure.
 - SARIF `partialFingerprints` (stable across runs), `--fail-on <severity>`, `.apifuzz-ignore.yaml` accepted
   findings with expiry (`--write-ignore` bootstraps one).
 - CI runs ruff and mypy plus the end-to-end suite; a weekly benchmark workflow fails on regressions.

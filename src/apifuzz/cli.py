@@ -38,7 +38,7 @@ def scan(
     spec: str = typer.Argument(..., help="Path to OpenAPI spec (.yaml/.json), HAR file, or Postman collection"),
     target: str = typer.Option(..., "--target", "-t", help="Base URL of the API to test (e.g. https://api.example.com)"),
     auth_type: Optional[str] = typer.Option(
-        None, "--auth-type", help="Auth type: none | bearer | apikey | basic [default: bearer with --token, else none]"),
+        None, "--auth-type", help="Auth type: none | bearer | apikey | basic (default: bearer with --token, else none)"),
     token: str = typer.Option("", "--token", help="Auth token / credentials"),
     second_token: str = typer.Option("", "--second-token", help="Second token for BOLA cross-user tests"),
     low_priv_token: str = typer.Option(
