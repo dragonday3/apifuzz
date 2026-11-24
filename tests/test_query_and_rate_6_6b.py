@@ -89,3 +89,12 @@ def test_listing_cut_by_max_body_is_still_searched():
     assert _listed_in(a_post, [_listing(cut, truncated=True)]) is not None
     assert _listed_in(a_post, [_listing('{"posts": [{"id": "other"}, {"id": "y", "ti', truncated=True)]) is None
     assert _listed_in(a_post, [_listing('{"posts": [{"id": "zctHL6b7"', truncated=False)]) is None  # just broken
+
+
+def test_cut_listing_needs_key_and_value_together():
+    from apifuzz.analyzer import _listed_in
+    # A's vehicle (carId) quoted under another key in a forum post, and a bare 6 elsewhere: not A's object.
+    cut = '{"posts": [{"id": "p1", "author": {"vehicleid": "v-123", "n": 6}}, {"id": "p2", "ti'
+    assert _listed_in('{"carId": "v-123", "fullName": "A"}', [_listing(cut, truncated=True)]) is None
+    assert _listed_in('{"id": 6, "report": "x"}', [_listing(cut, truncated=True)]) is None
+    assert _listed_in('{"id": "p1", "title": "t"}', [_listing(cut, truncated=True)]) is not None

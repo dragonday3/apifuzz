@@ -88,9 +88,12 @@ def _listed_in(body: str, listings: list[TestResult], extra_keys: tuple[str, ...
     for listing in listings:
         doc = _json(listing.response_body)
         if doc is None and listing.truncated:
-            # A listing longer than --max-body is cut mid-JSON and won't parse: look for the identifying values
-            # as JSON literals in the text that did arrive (crAPI's 30 recent posts are ~12 KB).
-            if all(json.dumps(v) in listing.response_body for v in ident.values()):
+            # A listing longer than --max-body is cut mid-JSON and won't parse: look for every identifying
+            # field as a `"key": value` pair in the text that did arrive (crAPI's 30 recent posts are ~12 KB).
+            # Key and value together: a bare value (an id like 6, a vehicle id quoted under another key) is
+            # found almost anywhere.
+            if all(re.search(rf'"{re.escape(str(k))}"\s*:\s*{re.escape(json.dumps(v))}', listing.response_body)
+                   for k, v in ident.items()):
                 return listing
             continue
         stack, seen = [doc], 0
