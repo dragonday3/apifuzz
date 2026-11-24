@@ -62,7 +62,7 @@ The weak-key and RegexDoS checks were written after VAmPI listed both as uncover
 | ...among the 14 apifuzz has a check for | 5 / 14 | 7 / 14 |
 | Findings outside the documented list | 39: 29 real (no rate limiting, `/.env` with DB credentials, login user enumeration, other users' orders), **10 false positives** | 38: 32 real, **6 false positives** (all tentative) |
 
-Misses include BOLA through a query parameter, SQLi/NoSQLi on the coupon endpoints, mass assignment through `PUT`, and SSRF without an out-of-band collector. They are listed in [`benchmarks/`](benchmarks/README.md#crapi-held-out-target).
+Held-out misses included BOLA through a query parameter (detected after tuning), SQLi/NoSQLi on the coupon endpoints, mass assignment through `PUT`, and SSRF without an out-of-band collector. They are listed in [`benchmarks/`](benchmarks/README.md#crapi-held-out-target).
 
 **Confidence.** Each finding is `firm` (confirmed by a comparison: an authenticated baseline request, the first user's object, a follow-up `GET`, or a true/false pair) or `tentative` (a plausible signal to verify by hand). In SARIF, tentative findings are `note`s under a separate `<rule>/tentative` rule with medium security-severity, so GitHub's default check threshold (High) doesn't fail on them. `--min-confidence firm` hides them.
 

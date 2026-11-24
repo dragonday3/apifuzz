@@ -2,10 +2,11 @@ import hashlib
 from urllib.parse import quote
 import json
 from typing import Any
+from apifuzz import __version__
 from apifuzz.models.finding import Finding, OWASPCategory
 
 TOOL_NAME = "apifuzz"
-TOOL_VERSION = "0.1.0"
+TOOL_VERSION = __version__  # one version, in apifuzz/__init__.py
 TOOL_INFO_URI = "https://github.com/dragonday3/apifuzz"
 SARIF_VERSION = "2.1.0"
 SARIF_SCHEMA = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Documents/CommitteeSpecificationDrafts/CSD01/sarif-schema-2.1.0.json"

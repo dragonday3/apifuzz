@@ -148,3 +148,9 @@ def test_fingerprint_distinguishes_parameters_and_location_uses_operation():
     assert fp(a) != fp(b)
     loc = SARIFReporter().generate([a])["runs"][0]["results"][0]["locations"][0]
     assert loc["physicalLocation"]["artifactLocation"]["uri"] == "/books/%7Bt%7D"
+
+
+def test_sarif_reports_the_package_version():
+    from apifuzz import __version__
+    driver = SARIFReporter().generate([finding()])["runs"][0]["tool"]["driver"]
+    assert driver["version"] == __version__ != "0.1.0"
