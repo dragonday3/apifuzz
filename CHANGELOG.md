@@ -11,8 +11,8 @@ false positives, makes scans safe to point at real systems, adds coverage, and m
 
 ### Benchmark
 - `benchmarks/`: reproducible scoring against VAmPI's own list of documented vulnerabilities, on its vulnerable
-  and secure builds. Current: **6/9 detected** (5 firm, 1 tentative), 6/7 of those apifuzz has a check for,
-  **0 false positives on both builds**. Two rules changed after seeing benchmark output; both are disclosed in
+  and secure builds. Current: **7/9 detected** by default (6 firm), **8/9 with `--time-based`** (7 firm),
+  **0 false positives on both builds**. Rules changed or added after seeing benchmark output are disclosed in
   `benchmarks/README.md`.
 - Second benchmark target: OWASP crAPI, measured before any tuning (held-out): 5/18 documented challenges
   detected (3 firm), 10 false positives among 39 findings outside the documented list. After the fixes that run
