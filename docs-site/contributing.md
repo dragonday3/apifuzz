@@ -113,6 +113,6 @@ number stays published next to any after-tuning number ([Benchmarks](benchmarks.
 ## Releases
 
 The version lives only in `src/fuzzowl/__init__.py`. Pushing a tag `vX.Y.Z` runs the release workflow, which is
-set up to publish to PyPI as `fuzzowl`, push an image to GHCR and create a GitHub release from the
-changelog section. Nothing has been published to PyPI or GHCR yet (v0.1.0 is a git tag only). Details:
+publishes to PyPI as `fuzzowl`, pushes an image to GHCR and creates a GitHub release from the changelog
+section. First release: v0.2.0. Details:
 [DEPLOY.md](https://github.com/dragonday3/fuzzowl/blob/main/DEPLOY.md).

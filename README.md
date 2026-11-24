@@ -75,20 +75,20 @@ Held-out misses included BOLA through a query parameter (detected after tuning),
 
 ## Install
 
-> **Not on PyPI.** The `fuzzowl` package on PyPI is a different, unrelated project — do not `pip install fuzzowl`. Install from this repository instead.
-
 ```bash
-pip install "git+https://github.com/dragonday3/fuzzowl.git"
+pip install fuzzowl                     # Python 3.10+, https://pypi.org/project/fuzzowl/
 
-# or from a clone
+# or Docker
+docker run --rm ghcr.io/dragonday3/fuzzowl:latest --help
+
+# or from a clone (development)
 git clone https://github.com/dragonday3/fuzzowl
 cd fuzzowl
-pip install -e .            # add ".[dev]" for tests
-
-# or Docker, built locally
-docker build -t fuzzowl .
-docker run --rm fuzzowl --help
+pip install -e ".[dev]"
 ```
+
+Not to be confused with the unrelated `apifuzz` package on PyPI (another scanner; fuzzowl was called apifuzz before
+0.2.0).
 
 ---
 

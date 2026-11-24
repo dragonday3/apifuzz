@@ -3,7 +3,7 @@ requires = ["hatchling>=1.27"]  # PEP 639 license metadata
 build-backend = "hatchling.build"
 
 [project]
-# PyPI name: "fuzzowl" belongs to another project. The import package and CLI command stay `fuzzowl`.
+# Package, import and CLI command are all `fuzzowl` (called apifuzz before 0.2.0; PyPI `apifuzz` is another project).
 name = "fuzzowl"
 dynamic = ["version"]
 description = "API Security Testing Framework — OWASP API Top 10 test generation and execution"

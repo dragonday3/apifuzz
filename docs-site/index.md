@@ -58,7 +58,7 @@ challenges. Rules changed after seeing benchmark output are listed. Details and 
 
 ## Where to go next
 
-- [Quickstart](quickstart.md): install from source, run a first scan, read the report.
+- [Quickstart](quickstart.md): `pip install fuzzowl`, run a first scan, read the report.
 - [How it works](how-it-works.md): the pipeline, baselines and scan passes.
 - [Safety and scope](safety.md): what a scan sends and writes, and how to limit it.
 - [CLI reference](reference/cli.md) and [Output formats](reference/output.md).

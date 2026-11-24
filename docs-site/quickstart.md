@@ -2,11 +2,26 @@
 
 ## Install
 
-!!! note "Not published yet"
-    fuzzowl is not published on PyPI or GHCR yet. Install it from source as shown below. The PyPI name
-    `fuzzowl` belongs to a different, unrelated project: do not `pip install fuzzowl`.
+!!! note "fuzzowl, not apifuzz"
+    fuzzowl was called apifuzz before 0.2.0. The `apifuzz` package on PyPI is a different, unrelated scanner:
+    install `fuzzowl`.
 
 fuzzowl needs Python 3.10 or newer (CI tests 3.10, 3.11 and 3.12).
+
+=== "PyPI"
+
+    ```bash
+    pip install fuzzowl
+    ```
+
+=== "Docker"
+
+    ```bash
+    docker run --rm ghcr.io/dragonday3/fuzzowl:latest --help
+    # mount the directory holding your spec and the report
+    docker run --rm -v "$(pwd):/data" ghcr.io/dragonday3/fuzzowl:latest /data/openapi.yaml \
+      --target https://api.example.com --output sarif --out-file /data/results.sarif
+    ```
 
 === "Straight from GitHub"
 
@@ -33,7 +48,7 @@ fuzzowl needs Python 3.10 or newer (CI tests 3.10, 3.11 and 3.12).
       --output sarif --out-file /data/results.sarif
     ```
 
-The command is `fuzzowl` (the distribution will be named `fuzzowl` once released).
+The package, the command and the Python module are all `fuzzowl`.
 
 ## What fuzzowl needs
 

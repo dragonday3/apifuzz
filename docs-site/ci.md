@@ -1,8 +1,8 @@
 # CI integration
 
 fuzzowl is a command that exits non-zero when it finds something at or above `--fail-on`, so any CI system can
-run it. It is not on PyPI yet: install it from the GitHub repository (pin a commit or tag for reproducible
-builds, e.g. `git+https://github.com/dragonday3/fuzzowl.git@<commit>`).
+run it. Install it from PyPI and pin the version for reproducible builds (`pip install fuzzowl==0.2.1`), or use
+the `ghcr.io/dragonday3/fuzzowl` image.
 
 !!! warning "Scan a disposable or staging environment"
     A default scan sends a 50-request burst to every endpoint and creates records through `POST`
@@ -32,8 +32,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install fuzzowl (from GitHub; not on PyPI yet)
-        run: pip install "git+https://github.com/dragonday3/fuzzowl.git"
+      - name: Install fuzzowl
+        run: pip install fuzzowl==0.2.1
 
       - name: Run API security scan
         run: |
@@ -68,8 +68,7 @@ Notes:
 api-security:
   image: python:3.12-slim
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends git
-    - pip install "git+https://github.com/dragonday3/fuzzowl.git"
+    - pip install fuzzowl==0.2.1
   script:
     - fuzzowl openapi.yaml --target "$API_BASE_URL" --token "$API_TEST_TOKEN"
         --output html --out-file fuzzowl-report.html --fail-on high

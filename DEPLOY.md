@@ -5,8 +5,8 @@
 Releases are automated by `.github/workflows/release.yml`. Pushing a tag `vX.Y.Z`:
 
 1. checks the tag matches `__version__` in `src/fuzzowl/__init__.py`, runs the tests and builds the wheel/sdist;
-2. publishes to PyPI as **`fuzzowl`** (the name `fuzzowl` belongs to another project; the import package
-   and the CLI command stay `fuzzowl`);
+2. publishes to PyPI as **`fuzzowl`** (package, import and CLI command share the name; before 0.2.0 the
+   project was called apifuzz, a name another PyPI project uses);
 3. pushes the image to `ghcr.io/dragonday3/fuzzowl:vX.Y.Z` and `:latest`;
 4. creates the GitHub release with that version's `CHANGELOG.md` section and the built files.
 
@@ -102,4 +102,5 @@ This project follows [Semantic Versioning](https://semver.org/):
 - `MINOR` — new checks, new input parsers, new output formats
 - `PATCH` — bug fixes, detection improvements, dependency updates
 
-Released: **v0.1.0** (tag only, not on PyPI). Next: **v0.2.0**, see `CHANGELOG.md`.
+Released: **v0.2.1** (2026-11-24, README fix) and **v0.2.0** (2026-11-24): PyPI `fuzzowl`,
+`ghcr.io/dragonday3/fuzzowl:vX.Y.Z` and `:latest`, GitHub releases. v0.1.0 (as apifuzz) was a git tag only.

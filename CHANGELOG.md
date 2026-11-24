@@ -3,6 +3,13 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-11-24
+
+### Fixed
+- The README published with 0.2.0 (and shown on its PyPI page) said the `fuzzowl` package on PyPI was an unrelated
+  project and not to install it: a sentence about the other `apifuzz` package that the rename turned around. The
+  README and the docs now install from PyPI (`pip install fuzzowl`) or GHCR. No code changes.
+
 ## [0.2.0] - 2026-11-24
 
 Hardening release: v0.1.0's findings could not be trusted (on the VAmPI benchmark it detected 0 of 9 documented
