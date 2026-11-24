@@ -91,7 +91,8 @@ def _listed_in(body: str, listings: list[TestResult], extra_keys: tuple[str, ...
             # A listing longer than --max-body is cut mid-JSON and won't parse: look for every identifying
             # field as a `"key": value` pair in the text that did arrive (crAPI's 30 recent posts are ~12 KB).
             # Key and value together: a bare value (an id like 6, a vehicle id quoted under another key) is
-            # found almost anywhere.
+            # found almost anywhere. ponytail: the pairs may come from different objects in the cut text; that can
+            # only downgrade firm -> tentative, never drop a finding. Same-object matching needs a lenient parser.
             if all(re.search(rf'"{re.escape(str(k))}"\s*:\s*{re.escape(json.dumps(v))}', listing.response_body)
                    for k, v in ident.items()):
                 return listing

@@ -177,7 +177,7 @@ on an API it wasn't developed against.
 |---|---|---|
 | Detected | 5 / 18 (3 firm) | **7 / 18 (4 firm)** |
 | ...among the 14 apifuzz has a check for | 5 / 14 | 7 / 14 |
-| Findings | 62 | 69 |
+| Findings | 62 (61 in the `5a117ab` reproduction) | 69 |
 | Outside the documented list, triaged by hand | 39: 29 real, 10 false positives (4 firm) | 38: 32 real, **6 false positives (0 firm)** |
 
 New detections:
