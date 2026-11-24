@@ -1,7 +1,7 @@
 {
   "meta": {
     "date": "2026-11-24",
-    "commit": "d8653f0",
+    "commit": "45fd130",
     "scan": "{\"allow_destructive\": true, \"exclude\": [\"/createdb\"], \"rate_limit_rps\": 20, \"time_based\": true}",
     "sent_vulnerable": 1127,
     "sent_secure": 1127,
@@ -186,7 +186,7 @@
       "severity": "critical",
       "tp": true,
       "vuln": "bola-books",
-      "url": "http://127.0.0.1:5002/books/v1/bookTitle81"
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle82"
     },
     {
       "rule_id": "FUZZOWL-AUTH-JWT_WEAK_K",
@@ -196,7 +196,7 @@
       "severity": "critical",
       "tp": true,
       "vuln": "jwt-weak-key",
-      "url": "http://127.0.0.1:5002/books/v1/bookTitle81"
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle82"
     },
     {
       "rule_id": "FUZZOWL-INJECT-SQLI",
@@ -366,7 +366,7 @@
       "severity": "medium",
       "tp": true,
       "vuln": "rate-limiting",
-      "url": "http://127.0.0.1:5002/books/v1/bookTitle81"
+      "url": "http://127.0.0.1:5002/books/v1/bookTitle82"
     }
   ],
   "findings_secure": [
@@ -418,7 +418,7 @@
       "severity": "critical",
       "tp": true,
       "vuln": "jwt-weak-key",
-      "url": "http://127.0.0.1:5001/books/v1/bookTitle66"
+      "url": "http://127.0.0.1:5001/books/v1/bookTitle79"
     },
     {
       "rule_id": "FUZZOWL-RATE-001",
@@ -528,7 +528,7 @@
       "severity": "medium",
       "tp": true,
       "vuln": "rate-limiting",
-      "url": "http://127.0.0.1:5001/books/v1/bookTitle66"
+      "url": "http://127.0.0.1:5001/books/v1/bookTitle79"
     }
   ]
 }

@@ -1,6 +1,6 @@
 # fuzzowl vs vampi-time-based
 
-Measured 2026-11-24 with fuzzowl `d8653f0`. Scan settings: `{"allow_destructive": true, "exclude": ["/createdb"], "rate_limit_rps": 20, "time_based": true}`. Requests: 1127 (vulnerable) / 1127 (secure); failed: none / none.
+Measured 2026-11-24 with fuzzowl `45fd130`. Scan settings: `{"allow_destructive": true, "exclude": ["/createdb"], "rate_limit_rps": 20, "time_based": true}`. Requests: 1127 (vulnerable) / 1127 (secure); failed: none / none.
 
 | Metric | Value |
 |---|---|
