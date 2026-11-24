@@ -4,7 +4,7 @@ import httpx
 from pathlib import Path
 from typer.testing import CliRunner
 
-from apifuzz.cli import app
+from fuzzowl.cli import app
 
 FIXTURES = Path(__file__).parent / "fixtures"
 PETSTORE = str(FIXTURES / "petstore.yaml")

@@ -1,12 +1,12 @@
 import json
 import pytest
-from apifuzz.reporters.sarif import SARIFReporter, SARIF_VERSION, TOOL_NAME
-from apifuzz.models.finding import Finding, Severity, OWASPCategory
+from fuzzowl.reporters.sarif import SARIFReporter, SARIF_VERSION, TOOL_NAME
+from fuzzowl.models.finding import Finding, Severity, OWASPCategory
 
 
 def make_finding(
     title="SQL Injection found",
-    rule_id="APIFUZZ-INJECT-SQLI",
+    rule_id="FUZZOWL-INJECT-SQLI",
     severity=Severity.CRITICAL,
     owasp=OWASPCategory.INJECTION,
     method="GET",
@@ -57,13 +57,13 @@ class TestSARIFReporter:
         sarif = reporter.generate(single_finding)
         rules = sarif["runs"][0]["tool"]["driver"]["rules"]
         assert len(rules) == 1
-        assert rules[0]["id"] == "APIFUZZ-INJECT-SQLI"
+        assert rules[0]["id"] == "FUZZOWL-INJECT-SQLI"
 
     def test_results_populated(self, reporter, single_finding):
         sarif = reporter.generate(single_finding)
         results = sarif["runs"][0]["results"]
         assert len(results) == 1
-        assert results[0]["ruleId"] == "APIFUZZ-INJECT-SQLI"
+        assert results[0]["ruleId"] == "FUZZOWL-INJECT-SQLI"
 
     def test_critical_maps_to_error_level(self, reporter, single_finding):
         sarif = reporter.generate(single_finding)
@@ -81,8 +81,8 @@ class TestSARIFReporter:
 
     def test_rule_dedup_across_findings(self, reporter):
         findings = [
-            make_finding(rule_id="APIFUZZ-BOLA-001"),
-            make_finding(rule_id="APIFUZZ-BOLA-001"),
+            make_finding(rule_id="FUZZOWL-BOLA-001"),
+            make_finding(rule_id="FUZZOWL-BOLA-001"),
         ]
         sarif = reporter.generate(findings)
         rules = sarif["runs"][0]["tool"]["driver"]["rules"]
@@ -127,6 +127,6 @@ def test_tentative_finding_is_note_level(reporter):
 
 
 def test_oob_probes_in_run_properties():
-    probes = {"apifuzz-ab12cd34": "GET /fetch [url]"}
+    probes = {"fuzzowl-ab12cd34": "GET /fetch [url]"}
     assert SARIFReporter().generate([make_finding()], probes)["runs"][0]["properties"]["oobProbes"] == probes
     assert "oobProbes" not in SARIFReporter().generate([make_finding()])["runs"][0]["properties"]

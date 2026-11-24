@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | OWASP | API3:2023 Broken Object Property Level Authorization (formerly "excessive data exposure") |
-| Rule ids | `APIFUZZ-EXPOSURE-001` sensitive fields (high, firm or tentative), `APIFUZZ-EXPOSURE-002` undocumented fields (low, tentative) |
+| Rule ids | `FUZZOWL-EXPOSURE-001` sensitive fields (high, firm or tentative), `FUZZOWL-EXPOSURE-002` undocumented fields (low, tentative) |
 | Needs | `GET` operations; a documented response schema for `EXPOSURE-002` (OpenAPI only) |
 
 ## What it sends
@@ -13,7 +13,7 @@ baselines.
 
 ## How it decides
 
-**Sensitive fields (`APIFUZZ-EXPOSURE-001`)**: the JSON response is walked (nested objects, the first 50 items
+**Sensitive fields (`FUZZOWL-EXPOSURE-001`)**: the JSON response is walked (nested objects, the first 50 items
 of each list) for fields named `password`, `passwd`, `pwd`, `password_hash`, `hashed_password`,
 `client_secret`, `secret_key`, `api_secret`, `api_key`, `private_key`, `access_token`, `refresh_token`, `ssn`,
 `social_security_number`, `card_number`, `cvv` or `cvc` (case-insensitive, underscore optional) holding a real
@@ -24,7 +24,7 @@ string or number.
   `/current`, `/whoami`) when every flagged field is a key or token (`api_key`, `access_token`, `refresh_token`,
   `*secret*`): it may be the caller's own credential by design.
 
-**Undocumented fields (`APIFUZZ-EXPOSURE-002`, tentative)**: fields present in the response but not declared in
+**Undocumented fields (`FUZZOWL-EXPOSURE-002`, tentative)**: fields present in the response but not declared in
 the operation's documented 2xx response schema. Only objects with declared `properties` are compared (up to 4
 levels deep, the first 3 items of a list); schemas with `additionalProperties`, `allOf`, `oneOf` or `anyOf` are
 skipped, since what is undocumented can't be told there.
@@ -47,7 +47,7 @@ From a scan of the test suite's petstore mock API (`tests/e2e/conftest.py` `Mock
 
 ```json
 {
-  "rule_id": "APIFUZZ-EXPOSURE-001",
+  "rule_id": "FUZZOWL-EXPOSURE-001",
   "title": "Data Exposure: Sensitive fields returned to the client",
   "severity": "high",
   "confidence": "firm",

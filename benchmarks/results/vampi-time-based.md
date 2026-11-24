@@ -1,11 +1,11 @@
-# apifuzz vs vampi-time-based
+# fuzzowl vs vampi-time-based
 
-Measured 2026-11-24 with apifuzz `d8653f0`. Scan settings: `{"allow_destructive": true, "exclude": ["/createdb"], "rate_limit_rps": 20, "time_based": true}`. Requests: 1127 (vulnerable) / 1127 (secure); failed: none / none.
+Measured 2026-11-24 with fuzzowl `d8653f0`. Scan settings: `{"allow_destructive": true, "exclude": ["/createdb"], "rate_limit_rps": 20, "time_based": true}`. Requests: 1127 (vulnerable) / 1127 (secure); failed: none / none.
 
 | Metric | Value |
 |---|---|
 | Documented vulnerabilities detected | 8 / 9 (89%) |
-| ...of those apifuzz has a check for | 8 / 9 (89%) |
+| ...of those fuzzowl has a check for | 8 / 9 (89%) |
 | ...detected with a firm finding | 7 / 9 |
 | Findings on the vulnerable build | 25 (0 false positive) |
 | ...of which rate-limit (one per endpoint) | 11 |

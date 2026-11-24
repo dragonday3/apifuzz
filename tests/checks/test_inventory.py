@@ -1,9 +1,9 @@
 import httpx
 import respx
 
-from apifuzz.checks.inventory import InventoryCheck
-from apifuzz.models.endpoint import AuthConfig, Endpoint
-from apifuzz.scanner import Scanner
+from fuzzowl.checks.inventory import InventoryCheck
+from fuzzowl.models.endpoint import AuthConfig, Endpoint
+from fuzzowl.scanner import Scanner
 
 EPS = [Endpoint(method="GET", path="/api/v1/users", base_url="http://api"),
        Endpoint(method="GET", path="/openapi.json", base_url="http://api")]  # documented: not probed
@@ -40,8 +40,8 @@ async def test_exposed_items_need_matching_content(tmp_path):
             "/metrics": httpx.Response(200, text="all good"),          # 200, but not Prometheus output
         }.get(request.url.path, httpx.Response(404))
     found = {(f.rule_id, f.endpoint_path.removeprefix("http://api")) for f in await scan(api, tmp_path)}
-    assert found == {("APIFUZZ-INVENTORY-002", "/actuator/env"), ("APIFUZZ-INVENTORY-002", "/.env"),
-                     ("APIFUZZ-INVENTORY-001", "/swagger.json"), ("APIFUZZ-INVENTORY-003", "/api/v2/users")}
+    assert found == {("FUZZOWL-INVENTORY-002", "/actuator/env"), ("FUZZOWL-INVENTORY-002", "/.env"),
+                     ("FUZZOWL-INVENTORY-001", "/swagger.json"), ("FUZZOWL-INVENTORY-003", "/api/v2/users")}
 
 
 async def test_catch_all_server_yields_nothing(tmp_path):

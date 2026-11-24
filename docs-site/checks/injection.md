@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | OWASP | A03:2021 Injection (OWASP Top 10). The API Security Top 10 (2023) has no injection category. |
-| Rule ids | `APIFUZZ-INJECT-SQLI`, `-SQLI-BOOL`, `-SQLI-TIME`, `-NOSQLI`, `-NOSQLI-BOOL`, `-SSTI`, `-CMD`, `-XSS` |
+| Rule ids | `FUZZOWL-INJECT-SQLI`, `-SQLI-BOOL`, `-SQLI-TIME`, `-NOSQLI`, `-NOSQLI-BOOL`, `-SSTI`, `-CMD`, `-XSS` |
 | Needs | string query/path parameters or top-level string fields in a JSON body; `--time-based` for time-based SQLi |
 
 ## What it sends
@@ -20,16 +20,16 @@ field at a time; the rest of the body stays valid). Per target:
 | `{{1337*7331}}` | SSTI (Jinja2, Twig, Nunjucks) |
 | `${1337*7331}` | SSTI (FreeMarker, JSP EL, Thymeleaf) |
 | `; id` | command injection |
-| `; echo apifuzz$((1337*7331))` | command injection |
-| `<script>apifuzz(1337)</script>` | XSS |
+| `; echo fuzzowl$((1337*7331))` | command injection |
+| `<script>fuzzowl(1337)</script>` | XSS |
 
 **4 boolean SQLi probes** (not for `DELETE`, since the control carries the real value), sent one at a time in
 this order: the original value (control), value + `' AND '1'='1` (true), value + `' AND '1'='2` (false), the
 original value again.
 
-**2 NoSQLi probes** (query parameters and body fields, not path parameters): `param[$ne]=apifuzz-nonexistent`
-and `param[$eq]=apifuzz-nonexistent` in the query (Express-style bracket syntax); `{"$ne": null}` and
-`{"$eq": "apifuzz-nonexistent"}` in a JSON body.
+**2 NoSQLi probes** (query parameters and body fields, not path parameters): `param[$ne]=fuzzowl-nonexistent`
+and `param[$eq]=fuzzowl-nonexistent` in the query (Express-style bracket syntax); `{"$ne": null}` and
+`{"$eq": "fuzzowl-nonexistent"}` in a JSON body.
 
 **With `--time-based`, 9 more** (3 payloads × 3 repeats, one at a time): value + `' AND SLEEP(5)-- -`,
 `'||pg_sleep(5)--` and `'; WAITFOR DELAY '0:0:5'--`.
@@ -47,7 +47,7 @@ Every rule compares with the endpoint's baseline, so content the endpoint always
 | `INJECT-SQLI-BOOL` | critical | the true probe resembles the control, the false probe resembles neither control, and the two controls resemble each other |
 | `INJECT-SQLI-TIME` | critical | every repeat of a sleep payload took at least 4.5 s longer than the control, or timed out |
 | `INJECT-SSTI` | critical | the response contains the computed product `9801547`, does not contain the literal `1337*7331`, and the baseline doesn't contain `9801547` |
-| `INJECT-CMD` | critical | the response contains `uid=N(name) gid=N` or the computed canary `apifuzz9801547`, and the baseline contains neither |
+| `INJECT-CMD` | critical | the response contains `uid=N(name) gid=N` or the computed canary `fuzzowl9801547`, and the baseline contains neither |
 | `INJECT-XSS` | medium | the script payload is reflected verbatim in a `text/html` response |
 | `INJECT-NOSQLI` | high | the response contains a MongoDB error (`MongoError`, `MongoServerError`, `unknown operator`, `$where`) that the baseline doesn't |
 | `INJECT-NOSQLI-BOOL` | high | the `$ne` probe got a 2xx and the `$eq` probe a different status or a body differing in length by more than 10% (at least 20 bytes) |
@@ -72,7 +72,7 @@ From a scan of `vulnerable_api` in `tests/e2e/test_injection_e2e.py` (renders `q
 
 ```json
 {
-  "rule_id": "APIFUZZ-INJECT-SQLI-BOOL",
+  "rule_id": "FUZZOWL-INJECT-SQLI-BOOL",
   "title": "SQL Injection: Boolean-based (true/false conditions change the response)",
   "severity": "critical",
   "confidence": "firm",

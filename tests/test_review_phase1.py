@@ -3,15 +3,15 @@ import textwrap
 
 import pytest
 
-from apifuzz.analyzer import Analyzer
-from apifuzz.checks.auth import AuthCheck
-from apifuzz.checks.bola import BOLACheck
-from apifuzz.executor import TestCase as Case, TestResult as Result
-from apifuzz.models.endpoint import AuthConfig, Endpoint, Parameter, ParamLocation
-from apifuzz.models.finding import Finding, OWASPCategory, Severity
-from apifuzz.parsers.openapi import OpenAPIParser
-from apifuzz.reporters.sarif import SARIFReporter
-from apifuzz.scanner import Scanner
+from fuzzowl.analyzer import Analyzer
+from fuzzowl.checks.auth import AuthCheck
+from fuzzowl.checks.bola import BOLACheck
+from fuzzowl.executor import TestCase as Case, TestResult as Result
+from fuzzowl.models.endpoint import AuthConfig, Endpoint, Parameter, ParamLocation
+from fuzzowl.models.finding import Finding, OWASPCategory, Severity
+from fuzzowl.parsers.openapi import OpenAPIParser
+from fuzzowl.reporters.sarif import SARIFReporter
+from fuzzowl.scanner import Scanner
 
 KEY = "GET /items/{itemId}"
 JSON = {"content-type": "application/json"}
@@ -65,7 +65,7 @@ def test_volatile_ids_and_wrappers_do_not_hide_identity(analyzer):
     leak = res("bola", body='{"data": {"id": 1, "owner": "alice"}, "meta": {"request_id": "r3"}}',
                strategy="cross_user", param_name="itemId")
     findings = analyzer.analyze([base, own, leak])
-    assert [(f.rule_id, f.confidence) for f in findings] == [("APIFUZZ-BOLA-001", "firm")]
+    assert [(f.rule_id, f.confidence) for f in findings] == [("FUZZOWL-BOLA-001", "firm")]
 
 
 def test_values_already_present_are_not_mass_assignment(analyzer):
@@ -80,10 +80,10 @@ def test_values_already_present_are_not_mass_assignment(analyzer):
 
 def test_tentative_sarif_rule_is_separate_and_capped():
     f = Finding(title="t", description="d", severity=Severity.CRITICAL, owasp_category=OWASPCategory.API1_BOLA,
-                endpoint_method="GET", endpoint_path="/x", rule_id="APIFUZZ-BOLA-001", confidence="tentative")
+                endpoint_method="GET", endpoint_path="/x", rule_id="FUZZOWL-BOLA-001", confidence="tentative")
     sarif = SARIFReporter().generate([f])["runs"][0]
     [rule] = sarif["tool"]["driver"]["rules"]
-    assert rule["id"] == sarif["results"][0]["ruleId"] == "APIFUZZ-BOLA-001/tentative"
+    assert rule["id"] == sarif["results"][0]["ruleId"] == "FUZZOWL-BOLA-001/tentative"
     assert float(rule["properties"]["security-severity"]) < 7.0
 
 
@@ -103,7 +103,7 @@ def test_timed_out_sleep_probe_counts_as_delayed(analyzer):
         r.error, r.elapsed_ms = "ReadTimeout: timed out", 3000.0  # --timeout 3
         timed.append(r)
     [f] = analyzer.analyze([control, *timed])
-    assert f.rule_id == "APIFUZZ-INJECT-SQLI-TIME"
+    assert f.rule_id == "FUZZOWL-INJECT-SQLI-TIME"
 
 
 def _spec(tmp_path, text):
@@ -152,7 +152,7 @@ async def test_scan_pass_order(tmp_path, monkeypatch):
     async def fake_run(self, cases):
         calls.append({tc.extra.get("strategy") or tc.check_id for tc in cases} if cases else set())
         return []
-    monkeypatch.setattr("apifuzz.executor.Executor.run", fake_run)
+    monkeypatch.setattr("fuzzowl.executor.Executor.run", fake_run)
     await scanner.run()
     assert calls[0] == {"baseline"}
     assert not {"baseline", "sqli_time", "sqli_bool", "burst"} & calls[1]
@@ -168,7 +168,7 @@ async def test_bursts_run_one_endpoint_at_a_time(tmp_path, monkeypatch):
     async def fake_run(self, cases):
         calls.append({tc.extra["endpoint_key"] for tc in cases})
         return []
-    monkeypatch.setattr("apifuzz.executor.Executor.run", fake_run)
+    monkeypatch.setattr("fuzzowl.executor.Executor.run", fake_run)
     await scanner.run()
     burst_calls = [c for c in calls if c]
     assert burst_calls == [{"GET /a"}, {"GET /b"}, {"GET /c"}]

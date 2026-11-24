@@ -3,7 +3,7 @@ import httpx
 import respx
 from typer.testing import CliRunner
 
-from apifuzz.cli import app
+from fuzzowl.cli import app
 
 SPEC = """openapi: "3.0.3"
 info: {title: t, version: "1"}

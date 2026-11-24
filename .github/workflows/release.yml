@@ -1,8 +1,8 @@
 name: Release
 
-# Push a tag vX.Y.Z (matching src/apifuzz/__init__.py) to publish:
-#   - the wheel/sdist to PyPI as `apifuzz-scanner` (trusted publishing: no token; see DEPLOY.md)
-#   - the image to ghcr.io/<owner>/apifuzz (GITHUB_TOKEN: no secret)
+# Push a tag vX.Y.Z (matching src/fuzzowl/__init__.py) to publish:
+#   - the wheel/sdist to PyPI as `fuzzowl` (trusted publishing: no token; see DEPLOY.md)
+#   - the image to ghcr.io/<owner>/fuzzowl (GITHUB_TOKEN: no secret)
 #   - a GitHub release with the CHANGELOG section and the built files
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
           python-version: "3.12"
       - name: Tag must match the package version
         run: |
-          version=$(python -c "import re;print(re.search(r'__version__ = \"(.+?)\"', open('src/apifuzz/__init__.py').read())[1])")
+          version=$(python -c "import re;print(re.search(r'__version__ = \"(.+?)\"', open('src/fuzzowl/__init__.py').read())[1])")
           test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME != version v$version"; exit 1; }
       - run: pip install -e ".[dev]" build
       - run: pytest -q tests/
@@ -60,7 +60,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Image name (lowercase owner)
         id: img
-        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/apifuzz" >> "$GITHUB_OUTPUT"
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/fuzzowl" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v7
         with:
           context: .
@@ -87,6 +87,6 @@ jobs:
           test -s notes.md || { echo "no CHANGELOG section for $GITHUB_REF_NAME"; exit 1; }
       - run: |
           pre=""; case "$GITHUB_REF_NAME" in *-*) pre="--prerelease";; esac
-          gh release create "$GITHUB_REF_NAME" dist/* --title "apifuzz $GITHUB_REF_NAME" --notes-file notes.md $pre
+          gh release create "$GITHUB_REF_NAME" dist/* --title "fuzzowl $GITHUB_REF_NAME" --notes-file notes.md $pre
         env:
           GH_TOKEN: ${{ github.token }}

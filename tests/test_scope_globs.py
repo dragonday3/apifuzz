@@ -2,8 +2,8 @@
 VAmPI's data."""
 from typer.testing import CliRunner
 
-from apifuzz.cli import app
-from apifuzz.scanner import Scanner
+from fuzzowl.cli import app
+from fuzzowl.scanner import Scanner
 
 SPEC = """openapi: "3.0.3"
 info: {title: t, version: "1"}

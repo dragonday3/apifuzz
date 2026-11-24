@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | OWASP | API1:2023 Broken Object Level Authorization |
-| Rule ids | `APIFUZZ-BOLA-001` cross-user access (critical), `APIFUZZ-BOLA-002` ID enumeration (high, always tentative) |
+| Rule ids | `FUZZOWL-BOLA-001` cross-user access (critical), `FUZZOWL-BOLA-002` ID enumeration (high, always tentative) |
 | Needs | `--second-token` (a second user's credential) for the cross-user tests; `--allow-destructive` to test `PUT`/`PATCH`/`DELETE` |
 
 ## What it sends
@@ -34,7 +34,7 @@ With `--second-token` there are two more kinds of request:
 
 Only 2xx responses are considered.
 
-**Cross-user (`APIFUZZ-BOLA-001`)**: user B's response is compared with user A's baseline for the same object
+**Cross-user (`FUZZOWL-BOLA-001`)**: user B's response is compared with user A's baseline for the same object
 (for a created object, with user A's own read of it).
 
 - **Firm** when user B got user A's object back: the identifying fields agree (`id`, `uuid`, `username`,
@@ -49,7 +49,7 @@ Only 2xx responses are considered.
 - Nothing when user A's baseline has a body and user B got something else (B's own data, an error object).
 - For a created object, nothing unless user A could read it and user B got the same object.
 
-**ID enumeration (`APIFUZZ-BOLA-002`, tentative)**: a probed id returned an object with the same top-level
+**ID enumeration (`FUZZOWL-BOLA-002`, tentative)**: a probed id returned an object with the same top-level
 fields as the caller's own object (the baseline) but a different identity. A 2xx alone is not a finding; most
 APIs have an object `1`.
 
@@ -68,7 +68,7 @@ From a scan of the test suite's petstore mock API (`tests/e2e/conftest.py` `Mock
 
 ```json
 {
-  "rule_id": "APIFUZZ-BOLA-001",
+  "rule_id": "FUZZOWL-BOLA-001",
   "title": "BOLA: Cross-user object access succeeded",
   "severity": "critical",
   "confidence": "firm",

@@ -1,9 +1,9 @@
 import pytest
 
-from apifuzz.analyzer import Analyzer
-from apifuzz.checks.user_enum import WRONG_PASSWORD, UserEnumCheck
-from apifuzz.executor import TestResult as Result
-from apifuzz.models.endpoint import AuthConfig, Endpoint
+from fuzzowl.analyzer import Analyzer
+from fuzzowl.checks.user_enum import WRONG_PASSWORD, UserEnumCheck
+from fuzzowl.executor import TestResult as Result
+from fuzzowl.models.endpoint import AuthConfig, Endpoint
 
 LOGIN = Endpoint(method="POST", path="/auth/login", base_url="http://api",
                  body_example={"username": "alice", "password": "pw"})
@@ -38,7 +38,7 @@ def analyze(known, u1, u2):
 
 def test_different_answers_flagged():
     [f] = analyze((401, '{"m": "wrong password"}'), (401, '{"m": "no such user"}'), (401, '{"m": "no such user"}'))
-    assert f.rule_id == "APIFUZZ-ENUM-001" and f.confidence == "firm"
+    assert f.rule_id == "FUZZOWL-ENUM-001" and f.confidence == "firm"
 
 
 def test_same_answer_not_flagged_even_with_username_echo():

@@ -10,7 +10,7 @@ Every format carries the same findings:
 
 | Field | Meaning |
 |---|---|
-| `rule_id` | Stable rule identifier, e.g. `APIFUZZ-BOLA-001` (listed on each [check page](../checks/index.md)) |
+| `rule_id` | Stable rule identifier, e.g. `FUZZOWL-BOLA-001` (listed on each [check page](../checks/index.md)) |
 | `title`, `description` | What was found |
 | `severity` | `critical`, `high`, `medium`, `low` or `info` |
 | `confidence` | `firm` (confirmed by a comparison) or `tentative` (verify by hand) |
@@ -32,7 +32,7 @@ A list of findings:
 
 ```json
 [
-  {"title": "...", "severity": "critical", "confidence": "firm", "rule_id": "APIFUZZ-AUTH-NO_AUTH", "...": "..."}
+  {"title": "...", "severity": "critical", "confidence": "firm", "rule_id": "FUZZOWL-AUTH-NO_AUTH", "...": "..."}
 ]
 ```
 
@@ -42,7 +42,7 @@ reaches your collector after the scan can be mapped back from the report alone:
 ```json
 {
   "findings": [ ... ],
-  "oob_probes": {"apifuzz-<id>": "METHOD /path [param]"}
+  "oob_probes": {"fuzzowl-<id>": "METHOD /path [param]"}
 }
 ```
 
@@ -60,7 +60,7 @@ For GitHub code scanning and any SARIF 2.1-compatible tool ([CI integration](../
   findings have level `error` (critical, high), `warning` (medium) or `note` (low, info).
 - **Locations**: the spec operation's path (probe URLs change every run), relative to `%APIROOT%`, plus a
   logical location `METHOD URL`.
-- **Fingerprints**: `partialFingerprints.apifuzzFinding/v1` is a SHA-256 of rule id, method, spec operation and
+- **Fingerprints**: `partialFingerprints.fuzzowlFinding/v1` is a SHA-256 of rule id, method, spec operation and
   parameter. It is stable across runs (probe URLs carry random ids and payloads), so GitHub recognises a
   recurring alert instead of opening a new one.
 - **Properties**: each result carries `owasp_category`, `severity`, `confidence`, `remediation`, and
@@ -76,7 +76,7 @@ remediation. With `--oob-url`, a "Blind SSRF probes" section lists which probe i
 ## Filtering
 
 - `--min-confidence firm` drops tentative findings from every output (default `tentative`: report all).
-- `--ignore-file PATH` suppresses accepted findings; by default `.apifuzz-ignore.yaml` is used when it exists in
+- `--ignore-file PATH` suppresses accepted findings; by default `.fuzzowl-ignore.yaml` is used when it exists in
   the working directory ([CI integration](../ci.md#accepting-known-findings)). The console says how many
   findings were suppressed and warns about expired entries.
 

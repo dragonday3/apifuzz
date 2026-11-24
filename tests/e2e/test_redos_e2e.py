@@ -8,9 +8,9 @@ import types
 import httpx
 import respx
 
-import apifuzz.executor
-from apifuzz.checks.redos import REPEATS
-from apifuzz.scanner import Scanner
+import fuzzowl.executor
+from fuzzowl.checks.redos import REPEATS
+from fuzzowl.scanner import Scanner
 
 BASE = "http://testserver"
 SPEC = textwrap.dedent("""
@@ -35,7 +35,7 @@ EVIL = re.compile(r"^\w{20,}[^\w@.]$")
 
 async def scan(tmp_path, monkeypatch, vulnerable: bool, time_based=True):
     clock = [0.0]
-    monkeypatch.setattr(apifuzz.executor, "time", types.SimpleNamespace(monotonic=lambda: clock[0], time=lambda: 0))
+    monkeypatch.setattr(fuzzowl.executor, "time", types.SimpleNamespace(monotonic=lambda: clock[0], time=lambda: 0))
     seen: list[str] = []
 
     def api(request: httpx.Request) -> httpx.Response:
@@ -55,7 +55,7 @@ async def scan(tmp_path, monkeypatch, vulnerable: bool, time_based=True):
 async def test_vulnerable_regex_detected(tmp_path, monkeypatch):
     findings, seen = await scan(tmp_path, monkeypatch, vulnerable=True)
     [f] = findings
-    assert (f.rule_id, f.confidence, f.endpoint, f.parameter) == ("APIFUZZ-REDOS-001", "firm", "POST /users", "email")
+    assert (f.rule_id, f.confidence, f.endpoint, f.parameter) == ("FUZZOWL-REDOS-001", "firm", "POST /users", "email")
     assert len(seen) == 2 * REPEATS  # no baseline needed: the controls are the comparison
 
 

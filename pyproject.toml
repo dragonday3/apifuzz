@@ -3,8 +3,8 @@ requires = ["hatchling>=1.27"]  # PEP 639 license metadata
 build-backend = "hatchling.build"
 
 [project]
-# PyPI name: "apifuzz" belongs to another project. The import package and CLI command stay `apifuzz`.
-name = "apifuzz-scanner"
+# PyPI name: "fuzzowl" belongs to another project. The import package and CLI command stay `fuzzowl`.
+name = "fuzzowl"
 dynamic = ["version"]
 description = "API Security Testing Framework — OWASP API Top 10 test generation and execution"
 readme = "README.md"
@@ -36,9 +36,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/dragonday3/apifuzz"
-Issues = "https://github.com/dragonday3/apifuzz/issues"
-Benchmarks = "https://github.com/dragonday3/apifuzz/tree/main/benchmarks"
+Homepage = "https://github.com/dragonday3/fuzzowl"
+Issues = "https://github.com/dragonday3/fuzzowl/issues"
+Benchmarks = "https://github.com/dragonday3/fuzzowl/tree/main/benchmarks"
 
 [project.optional-dependencies]
 dev = [
@@ -60,13 +60,13 @@ docs = [
 ]
 
 [project.scripts]
-apifuzz = "apifuzz.cli:app"
+fuzzowl = "fuzzowl.cli:app"
 
 [tool.hatch.version]
-path = "src/apifuzz/__init__.py"
+path = "src/fuzzowl/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/apifuzz"]
+packages = ["src/fuzzowl"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -1,8 +1,8 @@
 # Comparison and limitations
 
-## Where apifuzz fits
+## Where fuzzowl fits
 
-apifuzz is a small, spec-driven scanner for the OWASP API Security Top 10. Its focus:
+fuzzowl is a small, spec-driven scanner for the OWASP API Security Top 10. Its focus:
 
 - **Authorization comparisons**: cross-user BOLA with two real accounts, BFLA with a low-privilege account, auth
   bypasses judged against the authenticated response rather than the status code.
@@ -23,7 +23,7 @@ focuses on:
 | [Nuclei](https://github.com/projectdiscovery/nuclei) | ProjectDiscovery's template-based scanner for known vulnerabilities and misconfigurations, driven by a large community template library, built for scanning many hosts. |
 | Commercial API security platforms | Hosted products that typically combine API discovery, testing and runtime monitoring, with vendor support. |
 
-These tools are complementary: apifuzz works well alongside an intercepting proxy (`--proxy`) for verifying its
+These tools are complementary: fuzzowl works well alongside an intercepting proxy (`--proxy`) for verifying its
 findings by hand.
 
 !!! note
@@ -33,7 +33,7 @@ findings by hand.
 
 ## Limitations
 
-What apifuzz does not do, from the code and the benchmark misses:
+What fuzzowl does not do, from the code and the benchmark misses:
 
 **Coverage**
 
@@ -48,7 +48,7 @@ What apifuzz does not do, from the code and the benchmark misses:
 - **Mass assignment** uses a fixed list of privileged field names, and needs the API to show the stored value
   somewhere (VAmPI's register endpoint stores `admin` but never returns it). Mass assignment through `PUT` was
   not confirmed on crAPI; fields documented as read-only are not specifically targeted.
-- **SSRF** is selected by parameter name. Blind SSRF needs your own `--oob-url` collector, and apifuzz doesn't
+- **SSRF** is selected by parameter name. Blind SSRF needs your own `--oob-url` collector, and fuzzowl doesn't
   read the collector: you match callbacks to the probe map yourself.
 - **ReDoS** is tuned for backtracking engines like Python's and PCRE; faster engines may need longer input, and
   polynomial ReDoS is not tested.
@@ -56,12 +56,12 @@ What apifuzz does not do, from the code and the benchmark misses:
 
 **Model of the API**
 
-- **No crawler**: apifuzz needs an OpenAPI/Swagger file, a HAR recording or a Postman collection. A HAR
+- **No crawler**: fuzzowl needs an OpenAPI/Swagger file, a HAR recording or a Postman collection. A HAR
   recording has concrete URLs, so no path parameters are inferred from it.
 - **No GraphQL**, gRPC or SOAP.
 - **No stateful sequences** beyond one step: it links a `POST` to the `GET` that reads what it created, but
   doesn't drive multi-step flows (create, then pay, then refund).
-- Tokens are supplied by you; apifuzz doesn't log in, refresh expired tokens, or handle session cookies.
+- Tokens are supplied by you; fuzzowl doesn't log in, refresh expired tokens, or handle session cookies.
 
 **Evidence**
 

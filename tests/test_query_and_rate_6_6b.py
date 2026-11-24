@@ -3,9 +3,9 @@ authentication operations."""
 import httpx
 import respx
 
-from apifuzz.analyzer import Analyzer
-from apifuzz.executor import TestCase, TestResult
-from apifuzz.scanner import Scanner
+from fuzzowl.analyzer import Analyzer
+from fuzzowl.executor import TestCase, TestResult
+from fuzzowl.scanner import Scanner
 
 SPEC = """openapi: "3.0.3"
 info: {title: t, version: "1"}
@@ -39,10 +39,10 @@ async def test_cross_user_read_through_a_query_id(tmp_path):
 
     with respx.mock(assert_all_called=False) as router:
         router.route(host="api").mock(side_effect=handler)
-        from apifuzz.models.endpoint import AuthConfig
+        from fuzzowl.models.endpoint import AuthConfig
         findings = await Scanner(str(spec), "http://api", checks=["bola"], rate_limit_rps=0,
                                  auth=AuthConfig(type="bearer", token="a", second_token="b")).run()
-    assert any(f.rule_id == "APIFUZZ-BOLA-001" and f.confidence == "firm" for f in findings)
+    assert any(f.rule_id == "FUZZOWL-BOLA-001" and f.confidence == "firm" for f in findings)
 
 
 def burst(path, status, n=50, headers=None, body=b'{"message":"Invalid OTP"}'):
@@ -83,7 +83,7 @@ def _listing(body, truncated):
 
 
 def test_listing_cut_by_max_body_is_still_searched():
-    from apifuzz.analyzer import _listed_in
+    from fuzzowl.analyzer import _listed_in
     a_post = '{"id": "zctHL6b7", "title": "mine"}'
     cut = '{"posts": [{"id": "other"}, {"id": "zctHL6b7", "title": "mine"}, {"id": "x", "tit'  # cut mid-JSON
     assert _listed_in(a_post, [_listing(cut, truncated=True)]) is not None
@@ -92,7 +92,7 @@ def test_listing_cut_by_max_body_is_still_searched():
 
 
 def test_cut_listing_needs_key_and_value_together():
-    from apifuzz.analyzer import _listed_in
+    from fuzzowl.analyzer import _listed_in
     # A's vehicle (carId) quoted under another key in a forum post, and a bare 6 elsewhere: not A's object.
     cut = '{"posts": [{"id": "p1", "author": {"vehicleid": "v-123", "n": 6}}, {"id": "p2", "ti'
     assert _listed_in('{"carId": "v-123", "fullName": "A"}', [_listing(cut, truncated=True)]) is None

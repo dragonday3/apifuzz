@@ -1,4 +1,4 @@
-"""Score apifuzz v0.1.0 against the same target, seeding, expected list and scoring as run.py.
+"""Score apifuzz v0.1.0 (the project's name before fuzzowl) against the same target, seeding, expected list and scoring as run.py.
 
 v0.1.0's Scanner takes no safety options and its findings have no spec operation, so this adapter maps each
 finding URL back to a spec template and drops /createdb findings (run.py excludes that endpoint).
@@ -60,7 +60,9 @@ def main() -> int:
                                                            second_token=auth.second_token)
         findings = asyncio.run(OldScanner(spec_path, base, auth=old_auth, rate_limit_rps=20).run())
         for f in findings:  # v0.1.0 has no confidence levels and no spec operation
-            f.__dict__.update(confidence="firm", endpoint=operation(f.endpoint_method, f.endpoint_path))
+            f.__dict__.update(confidence="firm", endpoint=operation(f.endpoint_method, f.endpoint_path),
+                              # v0.1.0 was named apifuzz: its rule ids carry the old prefix
+                              rule_id=f.rule_id.replace("APIFUZZ-", "FUZZOWL-", 1))
         found[mode] = [f for f in findings if "/createdb" not in f.endpoint_path]
 
     result = bench.score(vulns, found["vulnerable"], found["secure"])

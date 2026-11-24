@@ -1,8 +1,8 @@
 import json
 import pytest
-from apifuzz.analyzer import Analyzer
-from apifuzz.executor import TestCase, TestResult
-from apifuzz.models.finding import Severity, OWASPCategory
+from fuzzowl.analyzer import Analyzer
+from fuzzowl.executor import TestCase, TestResult
+from fuzzowl.models.finding import Severity, OWASPCategory
 
 
 def make_tc(check_id="bola", method="GET", url="http://api.example.com/users/1", extra=None):
@@ -74,7 +74,7 @@ class TestAnalyzerBOLA:
         leak = make_result(make_tc("bola", extra={"strategy": "cross_user", **key}), 200,
                            body='{"id": 1, "owner": "alice", "n": 6}')
         [f] = analyzer.analyze([base, leak])
-        assert f.rule_id == "APIFUZZ-BOLA-001" and f.confidence == "firm"
+        assert f.rule_id == "FUZZOWL-BOLA-001" and f.confidence == "firm"
 
     def _cross_with_listing(self, analyzer, method, listing):
         key = {"endpoint_key": f"{method} /posts/{{id}}"}
@@ -158,21 +158,21 @@ class TestAnalyzerAuth:
     def test_jwt_unsigned_accepted_is_firm_critical(self, analyzer):
         [f] = self._jwt("jwt_unsigned", 200)
         assert f.confidence == "firm" and f.severity == Severity.CRITICAL
-        assert f.rule_id == "APIFUZZ-AUTH-JWT_UNSIGN"
+        assert f.rule_id == "FUZZOWL-AUTH-JWT_UNSIGN"
 
     def test_jwt_kid_trav_accepted_is_firm_critical(self, analyzer):
         [f] = self._jwt("jwt_kid_trav", 200)
-        assert f.severity == Severity.CRITICAL and f.rule_id == "APIFUZZ-AUTH-JWT_KID_TR"
+        assert f.severity == Severity.CRITICAL and f.rule_id == "FUZZOWL-AUTH-JWT_KID_TR"
 
     def test_jwt_weak_key_masks_secret_in_evidence(self, analyzer):
         [f] = self._jwt("jwt_weak_key", 200, extra={"cracked_secret": "supersecretvalue"})
-        assert f.rule_id == "APIFUZZ-AUTH-JWT_WEAK_K" and f.severity == Severity.CRITICAL
+        assert f.rule_id == "FUZZOWL-AUTH-JWT_WEAK_K" and f.severity == Severity.CRITICAL
         assert "supersecretvalue" not in f.evidence          # full secret never printed
         assert "supe****" in f.evidence                      # masked like other credentials
 
     def test_jwt_expired_accepted_is_high(self, analyzer):
         [f] = self._jwt("jwt_expired", 200, extra={"cracked_secret": "random"})
-        assert f.severity == Severity.HIGH and f.rule_id == "APIFUZZ-AUTH-JWT_EXPIRE"
+        assert f.severity == Severity.HIGH and f.rule_id == "FUZZOWL-AUTH-JWT_EXPIRE"
         assert "random" not in f.evidence
 
     def test_jwt_probe_rejected_is_no_finding(self, analyzer):
@@ -181,7 +181,7 @@ class TestAnalyzerAuth:
     def test_all_jwt_rule_ids_in_family(self, analyzer):
         for strat in ("jwt_alg_none", "jwt_unsigned", "jwt_kid_trav", "jwt_weak_key", "jwt_expired"):
             [f] = self._jwt(strat, 200, extra={"cracked_secret": "x"})
-            assert f.rule_id.startswith("APIFUZZ-AUTH-JWT")
+            assert f.rule_id.startswith("FUZZOWL-AUTH-JWT")
 
 
 class TestAnalyzerMassAssignment:
@@ -309,8 +309,8 @@ class TestAnalyzerDedup:
         findings = analyzer.analyze([base, high, critical])
         # Both have different rule_ids so both kept
         rule_ids = {f.rule_id for f in findings}
-        assert "APIFUZZ-BOLA-001" in rule_ids
-        assert "APIFUZZ-BOLA-002" in rule_ids
+        assert "FUZZOWL-BOLA-001" in rule_ids
+        assert "FUZZOWL-BOLA-002" in rule_ids
 
     def test_dedup_same_rule_id_keeps_one(self, analyzer):
         tc1 = make_tc("auth", url="http://api.example.com/items/1",
@@ -339,7 +339,7 @@ class TestOWASP2023Labels:
         assert f.owasp_category.value == "API8:2023 - Security Misconfiguration"
 
     def test_member_names_match_values(self):
-        from apifuzz.models.finding import OWASPCategory
+        from fuzzowl.models.finding import OWASPCategory
         for member in OWASPCategory:
             if member.name.startswith("API"):
                 assert member.value.startswith(member.name.split("_")[0] + ":2023")
@@ -371,8 +371,8 @@ class TestDetectionFalsePositives:
         assert analyzer.analyze([probe("cmd_injection", "Total: $ 12.00\n# Heading\n")]) == []
 
     def test_cmd_canary_detected(self, analyzer):
-        [f] = analyzer.analyze([probe("cmd_injection", "out: apifuzz9801547")])
-        assert f.rule_id == "APIFUZZ-INJECT-CMD"
+        [f] = analyzer.analyze([probe("cmd_injection", "out: fuzzowl9801547")])
+        assert f.rule_id == "FUZZOWL-INJECT-CMD"
 
     def test_uid_with_hyphenated_user_detected(self, analyzer):
         assert len(analyzer.analyze([probe("cmd_injection", "uid=33(www-data) gid=33(www-data)")])) == 1
@@ -386,18 +386,18 @@ class TestDetectionFalsePositives:
         assert len(analyzer.analyze([probe("sqli", body, status=500)])) == 1
 
     def test_xss_needs_html_content_type(self, analyzer):
-        payload = "<script>apifuzz(1337)</script>"
+        payload = "<script>fuzzowl(1337)</script>"
         json_resp = probe("xss", f'{{"q": "{payload}"}}', payload=payload,
                           headers={"content-type": "application/json"})
         html_resp = probe("xss", f"<p>{payload}</p>", payload=payload,
                           headers={"content-type": "text/html; charset=utf-8"})
         assert analyzer.analyze([json_resp]) == []
         [f] = analyzer.analyze([html_resp])
-        assert f.rule_id == "APIFUZZ-INJECT-XSS"
+        assert f.rule_id == "FUZZOWL-INJECT-XSS"
 
     def test_nosql_error_detected(self, analyzer):
         [f] = analyzer.analyze([probe("nosqli", "MongoServerError: unknown operator: $eq", status=500)])
-        assert f.rule_id == "APIFUZZ-INJECT-NOSQLI"
+        assert f.rule_id == "FUZZOWL-INJECT-NOSQLI"
 
     def test_ssrf_reflected_localhost_is_not_a_finding(self, analyzer):
         body = '{"error": "could not fetch http://localhost:8080 or http://169.254.169.254/latest/meta-data/"}'
@@ -408,7 +408,7 @@ class TestDetectionFalsePositives:
 
     def test_ssrf_metadata_detected(self, analyzer):
         [f] = analyzer.analyze([probe("", "ami-id\ninstance-id\nhostname", check_id="ssrf")])
-        assert f.rule_id == "APIFUZZ-SSRF-001"
+        assert f.rule_id == "FUZZOWL-SSRF-001"
 
 
 def nosqli_pair(true_status, true_body, false_status, false_body):
@@ -424,7 +424,7 @@ class TestNoSQLiPairs:
     def test_differing_pair_is_flagged(self, analyzer):
         users = '[{"name": "alice"}, {"name": "bob"}, {"name": "carol"}]'
         [f] = analyzer.analyze(nosqli_pair(200, users, 200, "[]"))
-        assert f.rule_id == "APIFUZZ-INJECT-NOSQLI-BOOL"
+        assert f.rule_id == "FUZZOWL-INJECT-NOSQLI-BOOL"
 
     def test_identical_pair_is_not_flagged(self, analyzer):
         assert analyzer.analyze(nosqli_pair(200, "[]", 200, "[]")) == []
@@ -525,7 +525,7 @@ class TestBlindSQLi:
 
     def test_boolean_flagged(self, analyzer):
         [f] = analyzer.analyze(sqli_triple((200, self.USER), (200, self.USER), (404, '{"m": "not found"}')))
-        assert f.rule_id == "APIFUZZ-INJECT-SQLI-BOOL"
+        assert f.rule_id == "FUZZOWL-INJECT-SQLI-BOOL"
 
     def test_literal_handling_not_flagged(self, analyzer):
         # Input treated as a literal: both conditions miss the same way.
@@ -559,7 +559,7 @@ class TestBlindSQLi:
     def test_boolean_flagged_on_stable_post(self, analyzer):
         post = self._post_with(3)
         [f] = analyzer.analyze(sqli_triple((200, post), (200, post), (404, '{"m": "not found"}'), (200, post)))
-        assert f.rule_id == "APIFUZZ-INJECT-SQLI-BOOL" and "control again" in f.evidence
+        assert f.rule_id == "FUZZOWL-INJECT-SQLI-BOOL" and "control again" in f.evidence
 
     def test_missing_repeated_control_no_verdict(self, analyzer):
         triple = sqli_triple((200, self.USER), (200, self.USER), (404, '{"m": "not found"}'))[:3]
@@ -581,7 +581,7 @@ class TestBlindSQLi:
 
     def test_time_based_all_repeats_delayed(self, analyzer):
         [f] = analyzer.analyze(self._timed(80, [5200, 5150, 5300]))
-        assert f.rule_id == "APIFUZZ-INJECT-SQLI-TIME"
+        assert f.rule_id == "FUZZOWL-INJECT-SQLI-TIME"
 
     def test_time_based_one_fast_repeat_not_flagged(self, analyzer):
         assert analyzer.analyze(self._timed(80, [5200, 90, 5300])) == []
@@ -653,7 +653,7 @@ class TestRedos:
 
     def test_every_evil_slow_is_firm(self, analyzer):
         [f] = analyzer.analyze(self._group([40, 60, 50], [6100, 5900, 6300]))
-        assert (f.rule_id, f.confidence, f.severity) == ("APIFUZZ-REDOS-001", "firm", Severity.MEDIUM)
+        assert (f.rule_id, f.confidence, f.severity) == ("FUZZOWL-REDOS-001", "firm", Severity.MEDIUM)
         assert f.owasp_category == OWASPCategory.API4_RATE and f.parameter == "email"
         assert "6100" in f.evidence and "60" in f.evidence
 
@@ -670,7 +670,7 @@ class TestRedos:
 
     def test_evil_timeouts_count_as_slow(self, analyzer):
         [f] = analyzer.analyze(self._group([40, 60, 50], [15000, 15000, 15000], evil_error="ReadTimeout: timed out"))
-        assert f.rule_id == "APIFUZZ-REDOS-001" and "timeout" in f.evidence
+        assert f.rule_id == "FUZZOWL-REDOS-001" and "timeout" in f.evidence
 
     def test_other_errors_and_429_no_verdict(self, analyzer):
         assert analyzer.analyze(self._group([40, 60, 50], [6100, 5900, 6300], evil_error="ConnectError: x")) == []

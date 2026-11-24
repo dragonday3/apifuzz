@@ -5,8 +5,8 @@ import textwrap
 import httpx
 import respx
 
-from apifuzz.models.endpoint import AuthConfig
-from apifuzz.scanner import Scanner
+from fuzzowl.models.endpoint import AuthConfig
+from fuzzowl.scanner import Scanner
 
 BASE = "http://testserver"
 SPEC = textwrap.dedent("""

@@ -1,6 +1,6 @@
 # Safety and scope
 
-apifuzz sends real attack payloads to a real API. The defaults aim to make a scan safe to point at a staging
+fuzzowl sends real attack payloads to a real API. The defaults aim to make a scan safe to point at a staging
 system, but read this page before you scan anything shared.
 
 !!! warning "Authorized use only"

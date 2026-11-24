@@ -11,10 +11,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 FROM python:3.11-slim
 
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin/apifuzz /usr/local/bin/apifuzz
+COPY --from=builder /usr/local/bin/fuzzowl /usr/local/bin/fuzzowl
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-ENTRYPOINT ["apifuzz"]
+ENTRYPOINT ["fuzzowl"]
 CMD ["--help"]

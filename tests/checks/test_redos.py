@@ -1,10 +1,10 @@
 """Phase 6.3: ReDoS probes (opt-in with --time-based): targeting, payload shape, scan pass placement."""
 import textwrap
 
-from apifuzz.checks.redos import REDOS_CONTROL, REDOS_EVIL, REDOS_N, REPEATS, RedosCheck
-from apifuzz.models.endpoint import AuthConfig, Endpoint, Parameter, ParamLocation
-from apifuzz.parsers.openapi import OpenAPIParser
-from apifuzz.scanner import Scanner
+from fuzzowl.checks.redos import REDOS_CONTROL, REDOS_EVIL, REDOS_N, REPEATS, RedosCheck
+from fuzzowl.models.endpoint import AuthConfig, Endpoint, Parameter, ParamLocation
+from fuzzowl.parsers.openapi import OpenAPIParser
+from fuzzowl.scanner import Scanner
 
 
 def check(time_based=True) -> RedosCheck:
@@ -93,7 +93,7 @@ async def test_scan_sends_redos_serially_in_time_pass(tmp_path, monkeypatch):
     async def fake_run(self, cases):
         calls.append((self._sem._value, [tc.extra.get("strategy") or tc.check_id for tc in cases]))
         return []
-    monkeypatch.setattr("apifuzz.executor.Executor.run", fake_run)
+    monkeypatch.setattr("fuzzowl.executor.Executor.run", fake_run)
     await _scanner(tmp_path, monkeypatch, True).run()
     [(concurrency, strategies)] = [c for c in calls if "redos" in c[1]]
     assert concurrency == 1 and set(strategies) == {"redos", "sqli_time", "sqli_bool"}  # shares the serial pass

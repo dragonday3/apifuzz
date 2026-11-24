@@ -209,7 +209,7 @@
   ],
   "findings_vulnerable": [
     {
-      "rule_id": "APIFUZZ-EXPOSURE-002",
+      "rule_id": "FUZZOWL-EXPOSURE-002",
       "check": "data_exposure",
       "endpoint": "GET /identity/api/v2/user/videos/{video_id}",
       "confidence": "tentative",
@@ -219,7 +219,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/user/videos/6"
     },
     {
-      "rule_id": "APIFUZZ-EXPOSURE-002",
+      "rule_id": "FUZZOWL-EXPOSURE-002",
       "check": "data_exposure",
       "endpoint": "GET /identity/api/v2/vehicle/{vehicleId}/location",
       "confidence": "tentative",
@@ -229,7 +229,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/e615199d-f6a7-4ab1-8a8a-b1cdd863e053/location"
     },
     {
-      "rule_id": "APIFUZZ-EXPOSURE-002",
+      "rule_id": "FUZZOWL-EXPOSURE-002",
       "check": "data_exposure",
       "endpoint": "GET /workshop/api/shop/orders/{order_id}",
       "confidence": "tentative",
@@ -239,7 +239,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
     },
     {
-      "rule_id": "APIFUZZ-EXPOSURE-002",
+      "rule_id": "FUZZOWL-EXPOSURE-002",
       "check": "data_exposure",
       "endpoint": "GET /workshop/api/shop/orders/all",
       "confidence": "tentative",
@@ -249,7 +249,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/all"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "POST /identity/api/v2/user/reset-password",
       "confidence": "firm",
@@ -259,7 +259,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/user/reset-password"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "POST /identity/api/v2/user/change-email",
       "confidence": "firm",
@@ -269,7 +269,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/user/change-email"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "GET /identity/api/v2/user/dashboard",
       "confidence": "firm",
@@ -279,7 +279,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/user/dashboard"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_UNSIGN",
+      "rule_id": "FUZZOWL-AUTH-JWT_UNSIGN",
       "check": "auth",
       "endpoint": "GET /identity/api/v2/user/dashboard",
       "confidence": "firm",
@@ -289,7 +289,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/user/dashboard"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_KID_TR",
+      "rule_id": "FUZZOWL-AUTH-JWT_KID_TR",
       "check": "auth",
       "endpoint": "GET /identity/api/v2/user/dashboard",
       "confidence": "firm",
@@ -299,7 +299,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/user/dashboard"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "GET /identity/api/v2/user/videos/{video_id}",
       "confidence": "firm",
@@ -309,7 +309,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/user/videos/6"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "PUT /identity/api/v2/user/videos/{video_id}",
       "confidence": "firm",
@@ -319,7 +319,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/user/videos/6"
     },
     {
-      "rule_id": "APIFUZZ-BOLA-001",
+      "rule_id": "FUZZOWL-BOLA-001",
       "check": "bola",
       "endpoint": "DELETE /identity/api/v2/admin/videos/{video_id}",
       "confidence": "tentative",
@@ -329,7 +329,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/admin/videos/6"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "GET /identity/api/v2/vehicle/vehicles",
       "confidence": "firm",
@@ -339,7 +339,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/vehicles"
     },
     {
-      "rule_id": "APIFUZZ-BOLA-001",
+      "rule_id": "FUZZOWL-BOLA-001",
       "check": "bola",
       "endpoint": "GET /identity/api/v2/vehicle/{vehicleId}/location",
       "confidence": "firm",
@@ -349,7 +349,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/e615199d-f6a7-4ab1-8a8a-b1cdd863e053/location"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "GET /identity/api/v2/vehicle/{vehicleId}/location",
       "confidence": "firm",
@@ -359,7 +359,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/e615199d-f6a7-4ab1-8a8a-b1cdd863e053/location"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "POST /identity/api/v2/vehicle/resend_email",
       "confidence": "firm",
@@ -369,7 +369,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/resend_email"
     },
     {
-      "rule_id": "APIFUZZ-BOLA-001",
+      "rule_id": "FUZZOWL-BOLA-001",
       "check": "bola",
       "endpoint": "GET /community/api/v2/community/posts/{postId}",
       "confidence": "tentative",
@@ -379,7 +379,7 @@
       "url": "http://127.0.0.1:8888/community/api/v2/community/posts/L694wM4WhvkmVnxW2r3k27"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "POST /community/api/v2/community/posts",
       "confidence": "firm",
@@ -389,7 +389,7 @@
       "url": "http://127.0.0.1:8888/community/api/v2/community/posts"
     },
     {
-      "rule_id": "APIFUZZ-BOLA-001",
+      "rule_id": "FUZZOWL-BOLA-001",
       "check": "bola",
       "endpoint": "POST /community/api/v2/community/posts/{postId}/comment",
       "confidence": "tentative",
@@ -399,7 +399,7 @@
       "url": "http://127.0.0.1:8888/community/api/v2/community/posts/L694wM4WhvkmVnxW2r3k27/comment"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "POST /community/api/v2/coupon/validate-coupon",
       "confidence": "firm",
@@ -409,7 +409,7 @@
       "url": "http://127.0.0.1:8888/community/api/v2/coupon/validate-coupon"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "POST /workshop/api/shop/products",
       "confidence": "firm",
@@ -419,7 +419,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/products"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "POST /workshop/api/shop/orders",
       "confidence": "firm",
@@ -429,7 +429,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "PUT /workshop/api/shop/orders/{order_id}",
       "confidence": "firm",
@@ -439,7 +439,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
     },
     {
-      "rule_id": "APIFUZZ-BOLA-002",
+      "rule_id": "FUZZOWL-BOLA-002",
       "check": "bola",
       "endpoint": "GET /workshop/api/shop/orders/{order_id}",
       "confidence": "tentative",
@@ -449,7 +449,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/1"
     },
     {
-      "rule_id": "APIFUZZ-BOLA-002",
+      "rule_id": "FUZZOWL-BOLA-002",
       "check": "bola",
       "endpoint": "GET /workshop/api/shop/orders/{order_id}",
       "confidence": "tentative",
@@ -459,7 +459,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/2"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-NO_AUTH",
+      "rule_id": "FUZZOWL-AUTH-NO_AUTH",
       "check": "auth",
       "endpoint": "GET /workshop/api/shop/orders/{order_id}",
       "confidence": "firm",
@@ -469,7 +469,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-INVALID_TO",
+      "rule_id": "FUZZOWL-AUTH-INVALID_TO",
       "check": "auth",
       "endpoint": "GET /workshop/api/shop/orders/{order_id}",
       "confidence": "firm",
@@ -479,7 +479,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-EMPTY_BEAR",
+      "rule_id": "FUZZOWL-AUTH-EMPTY_BEAR",
       "check": "auth",
       "endpoint": "GET /workshop/api/shop/orders/{order_id}",
       "confidence": "firm",
@@ -489,7 +489,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "GET /workshop/api/shop/orders/{order_id}",
       "confidence": "firm",
@@ -499,7 +499,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_UNSIGN",
+      "rule_id": "FUZZOWL-AUTH-JWT_UNSIGN",
       "check": "auth",
       "endpoint": "GET /workshop/api/shop/orders/{order_id}",
       "confidence": "firm",
@@ -509,7 +509,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_KID_TR",
+      "rule_id": "FUZZOWL-AUTH-JWT_KID_TR",
       "check": "auth",
       "endpoint": "GET /workshop/api/shop/orders/{order_id}",
       "confidence": "firm",
@@ -519,7 +519,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-MALFORMED_",
+      "rule_id": "FUZZOWL-AUTH-MALFORMED_",
       "check": "auth",
       "endpoint": "GET /workshop/api/shop/orders/{order_id}",
       "confidence": "firm",
@@ -529,7 +529,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "GET /workshop/api/management/users/all",
       "confidence": "firm",
@@ -539,7 +539,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/management/users/all"
     },
     {
-      "rule_id": "APIFUZZ-BOLA-002",
+      "rule_id": "FUZZOWL-BOLA-002",
       "check": "bola",
       "endpoint": "GET /workshop/api/mechanic/mechanic_report",
       "confidence": "tentative",
@@ -549,7 +549,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/mechanic/mechanic_report"
     },
     {
-      "rule_id": "APIFUZZ-BOLA-001",
+      "rule_id": "FUZZOWL-BOLA-001",
       "check": "bola",
       "endpoint": "GET /workshop/api/mechanic/mechanic_report",
       "confidence": "firm",
@@ -559,7 +559,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/mechanic/mechanic_report"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "GET /workshop/api/mechanic/mechanic_report",
       "confidence": "firm",
@@ -569,7 +569,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/mechanic/mechanic_report"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_ALG_NO",
+      "rule_id": "FUZZOWL-AUTH-JWT_ALG_NO",
       "check": "auth",
       "endpoint": "GET /workshop/api/mechanic/service_requests",
       "confidence": "firm",
@@ -579,7 +579,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/mechanic/service_requests"
     },
     {
-      "rule_id": "APIFUZZ-INVENTORY-002",
+      "rule_id": "FUZZOWL-INVENTORY-002",
       "check": "inventory",
       "endpoint": "GET /.env (not in spec)",
       "confidence": "firm",
@@ -589,7 +589,7 @@
       "url": "http://127.0.0.1:8888/.env"
     },
     {
-      "rule_id": "APIFUZZ-BOLA-001",
+      "rule_id": "FUZZOWL-BOLA-001",
       "check": "bola",
       "endpoint": "GET /community/api/v2/community/posts/{postId}",
       "confidence": "tentative",
@@ -599,7 +599,7 @@
       "url": "http://127.0.0.1:8888/community/api/v2/community/posts/5JNcCH9o6cqUyDLgamQX6C"
     },
     {
-      "rule_id": "APIFUZZ-BOLA-001",
+      "rule_id": "FUZZOWL-BOLA-001",
       "check": "bola",
       "endpoint": "GET /workshop/api/shop/orders/{order_id}",
       "confidence": "firm",
@@ -609,7 +609,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/7"
     },
     {
-      "rule_id": "APIFUZZ-ENUM-001",
+      "rule_id": "FUZZOWL-ENUM-001",
       "check": "user_enum",
       "endpoint": "POST /identity/api/auth/login",
       "confidence": "firm",
@@ -619,7 +619,7 @@
       "url": "http://127.0.0.1:8888/identity/api/auth/login"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /identity/api/auth/login",
       "confidence": "firm",
@@ -629,7 +629,7 @@
       "url": "http://127.0.0.1:8888/identity/api/auth/login"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /identity/api/auth/forget-password",
       "confidence": "firm",
@@ -639,7 +639,7 @@
       "url": "http://127.0.0.1:8888/identity/api/auth/forget-password"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /identity/api/auth/v3/check-otp",
       "confidence": "tentative",
@@ -649,7 +649,7 @@
       "url": "http://127.0.0.1:8888/identity/api/auth/v3/check-otp"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /identity/api/auth/v2/check-otp",
       "confidence": "tentative",
@@ -659,7 +659,7 @@
       "url": "http://127.0.0.1:8888/identity/api/auth/v2/check-otp"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /identity/api/auth/v4.0/user/login-with-token",
       "confidence": "tentative",
@@ -669,7 +669,7 @@
       "url": "http://127.0.0.1:8888/identity/api/auth/v4.0/user/login-with-token"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /identity/api/auth/v2.7/user/login-with-token",
       "confidence": "tentative",
@@ -679,7 +679,7 @@
       "url": "http://127.0.0.1:8888/identity/api/auth/v2.7/user/login-with-token"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /identity/api/v2/user/reset-password",
       "confidence": "firm",
@@ -689,7 +689,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/user/reset-password"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /identity/api/v2/user/change-email",
       "confidence": "firm",
@@ -699,7 +699,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/user/change-email"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /identity/api/v2/user/verify-email-token",
       "confidence": "tentative",
@@ -709,7 +709,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/user/verify-email-token"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /identity/api/v2/user/dashboard",
       "confidence": "firm",
@@ -719,7 +719,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/user/dashboard"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /identity/api/v2/vehicle/vehicles",
       "confidence": "firm",
@@ -729,7 +729,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/vehicles"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /identity/api/v2/vehicle/{vehicleId}/location",
       "confidence": "firm",
@@ -739,7 +739,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/e615199d-f6a7-4ab1-8a8a-b1cdd863e053/location"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /identity/api/v2/vehicle/resend_email",
       "confidence": "firm",
@@ -749,7 +749,7 @@
       "url": "http://127.0.0.1:8888/identity/api/v2/vehicle/resend_email"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /community/api/v2/community/posts/{postId}",
       "confidence": "firm",
@@ -759,7 +759,7 @@
       "url": "http://127.0.0.1:8888/community/api/v2/community/posts/L694wM4WhvkmVnxW2r3k27"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /community/api/v2/community/posts",
       "confidence": "firm",
@@ -769,7 +769,7 @@
       "url": "http://127.0.0.1:8888/community/api/v2/community/posts"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /community/api/v2/community/posts/{postId}/comment",
       "confidence": "firm",
@@ -779,7 +779,7 @@
       "url": "http://127.0.0.1:8888/community/api/v2/community/posts/L694wM4WhvkmVnxW2r3k27/comment"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /community/api/v2/community/posts/recent",
       "confidence": "firm",
@@ -789,7 +789,7 @@
       "url": "http://127.0.0.1:8888/community/api/v2/community/posts/recent"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /community/api/v2/coupon/validate-coupon",
       "confidence": "firm",
@@ -799,7 +799,7 @@
       "url": "http://127.0.0.1:8888/community/api/v2/coupon/validate-coupon"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /workshop/api/shop/products",
       "confidence": "firm",
@@ -809,7 +809,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/products"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /workshop/api/shop/products",
       "confidence": "firm",
@@ -819,7 +819,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/products"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "PUT /workshop/api/shop/orders/{order_id}",
       "confidence": "firm",
@@ -829,7 +829,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /workshop/api/shop/orders/{order_id}",
       "confidence": "firm",
@@ -839,7 +839,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/6"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /workshop/api/shop/orders/all",
       "confidence": "firm",
@@ -849,7 +849,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/orders/all"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /workshop/api/shop/return_qr_code",
       "confidence": "firm",
@@ -859,7 +859,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/shop/return_qr_code"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /workshop/api/management/users/all",
       "confidence": "firm",
@@ -869,7 +869,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/management/users/all"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /workshop/api/mechanic/",
       "confidence": "firm",
@@ -879,7 +879,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/mechanic/"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /workshop/api/mechanic/mechanic_report",
       "confidence": "firm",
@@ -889,7 +889,7 @@
       "url": "http://127.0.0.1:8888/workshop/api/mechanic/mechanic_report"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /workshop/api/mechanic/service_requests",
       "confidence": "firm",

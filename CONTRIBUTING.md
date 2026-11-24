@@ -1,12 +1,12 @@
-# Contributing to apifuzz
+# Contributing to fuzzowl
 
 Thanks for your interest in contributing. This document covers how to set up the project, submit changes, and the standards we hold contributions to.
 
 ## Development Setup
 
 ```bash
-git clone https://github.com/dragonday3/apifuzz.git
-cd apifuzz
+git clone https://github.com/dragonday3/fuzzowl.git
+cd fuzzowl
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
@@ -23,7 +23,7 @@ ruff check .
 mypy src
 
 # With coverage
-pytest --cov=apifuzz --cov-report=term-missing tests/
+pytest --cov=fuzzowl --cov-report=term-missing tests/
 
 # Specific module
 pytest tests/checks/test_injection.py -v
@@ -35,13 +35,13 @@ All PRs must keep the test suite green across Python 3.10, 3.11, and 3.12.
 
 Checks only generate requests; detection lives in the analyzer. A new check touches these places:
 
-1. `src/apifuzz/checks/your_check.py`: subclass `BaseCheck`, set `check_id` and `name`, and implement
+1. `src/fuzzowl/checks/your_check.py`: subclass `BaseCheck`, set `check_id` and `name`, and implement
    `generate(endpoint, auth) -> list[TestCase]` (or `generate_global(endpoints, auth)` for probes sent once per
    scan, like `inventory`). Build URLs with `self._build_url()` and bodies from
    `endpoint.body_example`. Pass context for the analyzer in `TestCase.extra`. If your probe sets its own
    auth headers, set `auth_mode="override"` (or `"none"`) so the configured token doesn't replace them.
-2. Register it in `_ALL_CHECKS` in `src/apifuzz/scanner.py`.
-3. Add a `_check_<id>` handler to `Analyzer._dispatch` in `src/apifuzz/analyzer.py`, with an OWASP API
+2. Register it in `_ALL_CHECKS` in `src/fuzzowl/scanner.py`.
+3. Add a `_check_<id>` handler to `Analyzer._dispatch` in `src/fuzzowl/analyzer.py`, with an OWASP API
    Top 10 (2023) category and a stable `rule_id`. Compare against `self._baseline_body(result)` so
    content the endpoint always returns isn't reported.
 4. Tests: generation in `tests/checks/test_your_check.py`, detection in `tests/test_analyzer.py`, and an
@@ -51,13 +51,13 @@ Checks only generate requests; detection lives in the analyzer. A new check touc
 
 ## Documentation
 
-The website (https://dragonday3.github.io/apifuzz/) is built with MkDocs Material from `docs-site/`:
+The website (https://dragonday3.github.io/fuzzowl/) is built with MkDocs Material from `docs-site/`:
 
 ```bash
 pip install -e ".[docs]"
 mkdocs build --strict      # CI fails on any warning
 # after changing a CLI option or its help text, regenerate the CLI reference and commit it:
-python -m typer apifuzz.cli utils docs --name apifuzz --output docs-site/reference/cli.md
+python -m typer fuzzowl.cli utils docs --name fuzzowl --output docs-site/reference/cli.md
 ```
 
 ## Submitting Changes

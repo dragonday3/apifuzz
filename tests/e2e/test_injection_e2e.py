@@ -5,7 +5,7 @@ import textwrap
 import httpx
 import respx
 
-from apifuzz.scanner import Scanner
+from fuzzowl.scanner import Scanner
 
 BASE = "http://testserver"
 SPEC = textwrap.dedent("""
@@ -64,9 +64,9 @@ async def test_echoing_api_has_no_injection_findings(tmp_path):
 
 async def test_vulnerable_api_findings(tmp_path):
     rules = {(f.rule_id, f.endpoint_path.split("/")[3].split("?")[0]) for f in await run(tmp_path, vulnerable_api)}
-    assert ("APIFUZZ-INJECT-SQLI", "users") in rules     # lone-quote payload on the path param
-    assert ("APIFUZZ-INJECT-SSTI", "search") in rules
-    assert ("APIFUZZ-INJECT-SQLI-BOOL", "users") in rules  # true/false conditions differ
+    assert ("FUZZOWL-INJECT-SQLI", "users") in rules     # lone-quote payload on the path param
+    assert ("FUZZOWL-INJECT-SSTI", "search") in rules
+    assert ("FUZZOWL-INJECT-SQLI-BOOL", "users") in rules  # true/false conditions differ
 
 
 GROWING_SPEC = textwrap.dedent("""
@@ -103,4 +103,4 @@ async def test_growing_response_is_not_boolean_sqli(tmp_path):
     with respx.mock(assert_all_called=False) as router:
         router.route(host="testserver").mock(side_effect=growing_api())
         findings = await Scanner(str(spec), BASE, checks=["injection"], rate_limit_rps=0).run()
-    assert not [f for f in findings if f.rule_id == "APIFUZZ-INJECT-SQLI-BOOL"], [f.evidence for f in findings]
+    assert not [f for f in findings if f.rule_id == "FUZZOWL-INJECT-SQLI-BOOL"], [f.evidence for f in findings]

@@ -11,7 +11,7 @@
 **Do not open a public GitHub issue for security vulnerabilities.**
 
 Report security issues privately through GitHub's private vulnerability reporting:
-**[Report a vulnerability](https://github.com/dragonday3/apifuzz/security/advisories/new)** (Security tab → *Report a vulnerability*).
+**[Report a vulnerability](https://github.com/dragonday3/fuzzowl/security/advisories/new)** (Security tab → *Report a vulnerability*).
 
 Only the maintainer can see the report.
 
@@ -26,10 +26,10 @@ You can expect an acknowledgement within **48 hours** and a resolution timeline 
 ## Scope
 
 Security reports are welcome for:
-- Vulnerabilities in apifuzz itself (code execution, path traversal, injection, etc.)
+- Vulnerabilities in fuzzowl itself (code execution, path traversal, injection, etc.)
 - Issues in the Docker image or CI/CD configuration
 - Dependency vulnerabilities with direct exploitability
 
 ## Responsible Use
 
-apifuzz is a security testing tool intended for use against APIs you own or have **explicit written authorization** to test. Misuse against systems without authorization is illegal. The maintainers are not responsible for unauthorized or illegal use of this software.
+fuzzowl is a security testing tool intended for use against APIs you own or have **explicit written authorization** to test. Misuse against systems without authorization is illegal. The maintainers are not responsible for unauthorized or illegal use of this software.

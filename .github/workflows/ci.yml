@@ -41,7 +41,7 @@ jobs:
 
       # Unit tests plus the end-to-end suite (tests/e2e: real scans against a mocked API).
       - name: Run tests with coverage
-        run: pytest --cov=apifuzz --cov-report=term-missing --cov-report=xml -q tests/
+        run: pytest --cov=fuzzowl --cov-report=term-missing --cov-report=xml -q tests/
 
       - name: Upload coverage
         uses: codecov/codecov-action@v7

@@ -1,7 +1,11 @@
 # Benchmarks
 
-apifuzz is scored against deliberately vulnerable APIs, using each target's **own list of documented
+fuzzowl is scored against deliberately vulnerable APIs, using each target's **own list of documented
 vulnerabilities**, not a list we wrote to fit the scanner.
+
+fuzzowl was called **apifuzz** until 0.2.0. Results measured before the rename keep that name and its `APIFUZZ-`
+rule ids: `results/vampi-v0.1.0*.json` and `results/crapi-held-out.*`. `compare_v010.py` maps v0.1.0's ids to
+the current `FUZZOWL-` ids when it scores.
 
 ```bash
 py -3.10 -m pip install -e ".[dev]"
@@ -17,7 +21,7 @@ py -3.10 benchmarks/run.py vampi          # writes benchmarks/results/vampi.{md,
   - On the **secure** build, any finding for a flaw the switch removes is a false positive. Flaws VAmPI keeps
     in both builds (debug endpoint, rate limiting, weak JWT key) are still real there.
 - **Expected list.** `vampi/expected.yaml` holds VAmPI's README list of 9 vulnerabilities, each mapped to the
-  endpoint in VAmPI's source and to the apifuzz rules that count as detecting it. Vulnerabilities apifuzz has
+  endpoint in VAmPI's source and to the fuzzowl rules that count as detecting it. Vulnerabilities fuzzowl has
   no check for are kept in the list and count as misses.
 - **Matching.** A finding detects a vulnerability when its rule matches and its spec operation (`Finding.endpoint`)
   is the vulnerability's endpoint. Rate limiting is documented API-wide (`*`), so it matches any endpoint.
@@ -43,7 +47,7 @@ which adds the opt-in timing probes: time-based SQLi and ReDoS).
 | VAmPI (9 documented vulnerabilities) | v0.1.0 | 0.2.0 before the JWT and ReDoS checks (`6036d56`) | current, default scan | current, `--time-based` |
 |---|---|---|---|---|
 | Detected | 0 | 6 | 7: SQLi, BOLA, debug-endpoint data exposure, user enumeration, rate limiting, **weak JWT signing key** (firm); unauthorized password change (tentative) | 8: the same plus **RegexDoS** (firm) |
-| Detected, among the vulnerabilities apifuzz has a check for | 0 | 6 / 7 | 7 / 9 | 8 / 9 |
+| Detected, among the vulnerabilities fuzzowl has a check for | 0 | 6 / 7 | 7 / 9 | 8 / 9 |
 | False positives, vulnerable build | 25 with tokens / 12 without | 0 | 0 | 0 |
 | False positives, secure build | 25 with tokens / 12 without | 0 | 0 | 0 |
 
@@ -136,7 +140,7 @@ table below is the held-out run. [`results/crapi.md`](results/crapi.md) is now t
 | crAPI (18 documented challenges) | held-out |
 |---|---|
 | Detected | 5 / 18: vehicle-location BOLA, unauthenticated order access, JWT `alg:none` accepted (firm); video internal property exposed, admin video delete by a normal user (tentative; found by the BOLA probe, since the `bfla` check needs `--low-priv-token` and the run passes none) |
-| ...among the 14 apifuzz has a check for | 5 / 14 |
+| ...among the 14 fuzzowl has a check for | 5 / 14 |
 | Findings | 62 (23 match a documented challenge, 39 don't) |
 | Unmatched findings, triaged by hand | 29 real but undocumented, **10 false positives** (4 firm, 6 tentative) |
 
@@ -148,7 +152,7 @@ Triage of the 39 unmatched findings (each re-checked against the live API):
 | `/.env` served (`INVENTORY-002`) | 1 | Real: returns crAPI's database credentials; a random path returns 404. |
 | Login reveals registered emails (`ENUM-001`) | 1 | Real: "Given Email is not registered!" vs "Invalid Credentials". |
 | Other users' orders readable (`BOLA-001` firm, `BOLA-002` ×2) on `GET /workshop/api/shop/orders/{order_id}` | 3 | Real: the same unauthenticated order endpoint as challenge 14, seen as BOLA. |
-| Sensitive field in the order response (`EXPOSURE-001`) | 1 | **False positive** (firm). The field it flagged is `payment.card_number`, and its value is already masked (`XXXXXXXXXXXX9999`), a shape the placeholder filter doesn't recognise. The response does expose the owner's email and phone to anyone, but apifuzz didn't report that. |
+| Sensitive field in the order response (`EXPOSURE-001`) | 1 | **False positive** (firm). The field it flagged is `payment.card_number`, and its value is already masked (`XXXXXXXXXXXX9999`), a shape the placeholder filter doesn't recognise. The response does expose the owner's email and phone to anyone, but fuzzowl didn't report that. |
 | Undocumented response fields (`EXPOSURE-002`): owner `email` in vehicle location (readable by other users), `payment` object in the unauthenticated order detail | 2 | Real. |
 | Undocumented response field (`EXPOSURE-002`): `previousOwners` on the caller's own vehicles | 1 | **False positive** (tentative): an empty list for a new vehicle, so nothing was exposed. |
 | Undocumented response fields (`EXPOSURE-002`): only pagination fields (`count`, `next_offset`, `previous_offset`; plus `transaction_id` on orders/all) | 5 | **False positive** (tentative): spec drift with no security impact. |
@@ -168,15 +172,15 @@ Triage of the 39 unmatched findings (each re-checked against the live API):
 
 ### After tuning (`d8653f0`)
 
-Everything in apifuzz 0.2.0 that was changed **because of the held-out crAPI run** (each rule generic, none
+Everything in fuzzowl 0.2.0 that was changed **because of the held-out crAPI run** (each rule generic, none
 names a crAPI path or field), measured on a freshly created stack from the same pinned images:
-[`results/crapi.md`](results/crapi.md). The held-out number above stays the honest measure of how apifuzz does
+[`results/crapi.md`](results/crapi.md). The held-out number above stays the honest measure of how fuzzowl does
 on an API it wasn't developed against.
 
 | crAPI (18 documented challenges) | held-out (`b21ea70`) | after tuning (`d8653f0`) |
 |---|---|---|
 | Detected | 5 / 18 (3 firm) | **7 / 18 (4 firm)** |
-| ...among the 14 apifuzz has a check for | 5 / 14 | 7 / 14 |
+| ...among the 14 fuzzowl has a check for | 5 / 14 | 7 / 14 |
 | Findings | 62 (61 in the `5a117ab` reproduction) | 69 |
 | Outside the documented list, triaged by hand | 39: 29 real, 10 false positives (4 firm) | 38: 32 real, **6 false positives (0 firm)** |
 

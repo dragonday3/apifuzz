@@ -1,12 +1,12 @@
 import pytest
 from pathlib import Path
-from apifuzz.reporters.html import HTMLReporter
-from apifuzz.models.finding import Finding, Severity, OWASPCategory
+from fuzzowl.reporters.html import HTMLReporter
+from fuzzowl.models.finding import Finding, Severity, OWASPCategory
 
-TEMPLATES_DIR = str(Path(__file__).parent.parent.parent / "src" / "apifuzz" / "templates")
+TEMPLATES_DIR = str(Path(__file__).parent.parent.parent / "src" / "fuzzowl" / "templates")
 
 
-def make_finding(severity=Severity.CRITICAL, rule_id="APIFUZZ-TEST", title="Test Finding"):
+def make_finding(severity=Severity.CRITICAL, rule_id="FUZZOWL-TEST", title="Test Finding"):
     return Finding(
         title=title,
         description="Test description for this finding.",
@@ -88,20 +88,20 @@ class TestHTMLReporter:
         assert "Fix it." in html
 
     def test_rule_id_in_output(self, reporter):
-        html = reporter.generate([make_finding(rule_id="APIFUZZ-BOLA-001")])
-        assert "APIFUZZ-BOLA-001" in html
+        html = reporter.generate([make_finding(rule_id="FUZZOWL-BOLA-001")])
+        assert "FUZZOWL-BOLA-001" in html
 
 
 def test_default_template_ships_inside_package():
-    import apifuzz
-    from apifuzz.reporters.html import _get_template_dir
+    import fuzzowl
+    from fuzzowl.reporters.html import _get_template_dir
     template_dir = Path(_get_template_dir())
-    assert template_dir.parent == Path(apifuzz.__file__).parent
+    assert template_dir.parent == Path(fuzzowl.__file__).parent
     assert (template_dir / "report.html.j2").is_file()
     assert "<html" in HTMLReporter().generate([]).lower()
 
 
 def test_oob_probes_section():
-    html = HTMLReporter().generate([], {"apifuzz-ab12cd34": "GET /fetch [url]"})
-    assert "Blind SSRF probes (1)" in html and "apifuzz-ab12cd34  GET /fetch [url]" in html
+    html = HTMLReporter().generate([], {"fuzzowl-ab12cd34": "GET /fetch [url]"})
+    assert "Blind SSRF probes (1)" in html and "fuzzowl-ab12cd34  GET /fetch [url]" in html
     assert "Blind SSRF probes" not in HTMLReporter().generate([])

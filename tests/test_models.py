@@ -1,4 +1,4 @@
-from apifuzz.models import (
+from fuzzowl.models import (
     Endpoint, Parameter, ParamLocation, AuthConfig,
     Finding, Severity, OWASPCategory,
 )

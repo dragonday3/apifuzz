@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | OWASP | API4:2023 Unrestricted Resource Consumption |
-| Rule id | `APIFUZZ-RATE-001` (medium; firm for accepted bursts, tentative for unthrottled guessing) |
+| Rule id | `FUZZOWL-RATE-001` (medium; firm for accepted bursts, tentative for unthrottled guessing) |
 | Needs | nothing; leave it out of `--checks` to avoid the bursts |
 
 ## What it sends
@@ -42,7 +42,7 @@ From a scan of the test suite's petstore mock API (`tests/e2e/conftest.py` `Mock
 
 ```json
 {
-  "rule_id": "APIFUZZ-RATE-001",
+  "rule_id": "FUZZOWL-RATE-001",
   "title": "Rate Limiting: Burst requests all succeeded",
   "severity": "medium",
   "confidence": "firm",

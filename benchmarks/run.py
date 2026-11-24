@@ -1,4 +1,4 @@
-"""Benchmark apifuzz against a deliberately vulnerable API and score it against the target's own list of
+"""Benchmark fuzzowl against a deliberately vulnerable API and score it against the target's own list of
 documented vulnerabilities.
 
     docker compose -f benchmarks/vampi/docker-compose.yml up -d
@@ -24,9 +24,9 @@ from typing import Any
 import httpx
 import yaml
 
-from apifuzz.models.endpoint import AuthConfig
-from apifuzz.models.finding import Finding
-from apifuzz.scanner import Scanner
+from fuzzowl.models.endpoint import AuthConfig
+from fuzzowl.models.finding import Finding
+from fuzzowl.scanner import Scanner
 
 HERE = Path(__file__).parent
 RULE_CHECK = {"INJECT": "injection", "BOLA": "bola", "AUTH": "auth", "MASS": "mass_assignment",
@@ -236,16 +236,16 @@ def markdown(name: str, meta: dict, s: dict) -> str:
     if not meta.get("has_secure", True):
         return markdown_no_secure(name, meta, s, pct)
     lines = [
-        f"# apifuzz vs {name}",
+        f"# fuzzowl vs {name}",
         "",
-        f"Measured {meta['date']} with apifuzz `{meta['commit']}`. Scan settings: `{meta['scan']}`. "
+        f"Measured {meta['date']} with fuzzowl `{meta['commit']}`. Scan settings: `{meta['scan']}`. "
         f"Requests: {meta['sent_vulnerable']} (vulnerable) / {meta['sent_secure']} (secure); "
         f"failed: {meta['errors_vulnerable'] or 'none'} / {meta['errors_secure'] or 'none'}.",
         "",
         "| Metric | Value |",
         "|---|---|",
         f"| Documented vulnerabilities detected | {s['detected']} / {s['documented']} ({pct(s['recall_documented'])}) |",
-        f"| ...of those apifuzz has a check for | {s['detected']} / {s['covered']} ({pct(s['recall_covered'])}) |",
+        f"| ...of those fuzzowl has a check for | {s['detected']} / {s['covered']} ({pct(s['recall_covered'])}) |",
         f"| ...detected with a firm finding | {s['detected_firm']} / {s['documented']} |",
         f"| Findings on the vulnerable build | {s['vulnerable_findings']} ({s['vulnerable_fp']} false positive) |",
         f"| ...of which rate-limit (one per endpoint) | {s['vulnerable_rate_findings']} |",
@@ -278,9 +278,9 @@ def markdown(name: str, meta: dict, s: dict) -> str:
 def markdown_no_secure(name: str, meta: dict, s: dict, pct: Any) -> str:
     unmatched = [r for r in s["findings_vulnerable"] if not r["tp"]]
     lines = [
-        f"# apifuzz vs {name}",
+        f"# fuzzowl vs {name}",
         "",
-        f"Measured {meta['date']} with apifuzz `{meta['commit']}`. Scan settings: `{meta['scan']}`. "
+        f"Measured {meta['date']} with fuzzowl `{meta['commit']}`. Scan settings: `{meta['scan']}`. "
         f"Requests: {meta['sent_vulnerable']}; failed: {meta['errors_vulnerable'] or 'none'}.",
         "",
         f"{name} has no fixed build, so there is no false-positive run. Findings that match no documented "
@@ -290,7 +290,7 @@ def markdown_no_secure(name: str, meta: dict, s: dict, pct: Any) -> str:
         "| Metric | Value |",
         "|---|---|",
         f"| Documented vulnerabilities detected | {s['detected']} / {s['documented']} ({pct(s['recall_documented'])}) |",
-        f"| ...of those apifuzz has a check for | {s['detected']} / {s['covered']} ({pct(s['recall_covered'])}) |",
+        f"| ...of those fuzzowl has a check for | {s['detected']} / {s['covered']} ({pct(s['recall_covered'])}) |",
         f"| ...detected with a firm finding | {s['detected_firm']} / {s['documented']} |",
         f"| Findings | {s['vulnerable_findings']} ({len(unmatched)} match no documented vulnerability) |",
         f"| ...of which rate-limit (one per endpoint) | {s['vulnerable_rate_findings']} |",

@@ -3,9 +3,9 @@ import textwrap
 import httpx
 import respx
 
-from apifuzz.checks.bfla import BFLACheck
-from apifuzz.models.endpoint import AuthConfig, Endpoint
-from apifuzz.scanner import Scanner
+from fuzzowl.checks.bfla import BFLACheck
+from fuzzowl.models.endpoint import AuthConfig, Endpoint
+from fuzzowl.scanner import Scanner
 
 AUTH = AuthConfig(type="bearer", token="admin-tok", low_priv_token="user-tok")
 
@@ -49,7 +49,7 @@ async def scan(tmp_path, enforce_roles: bool, auth=AUTH):
 
 async def test_low_priv_reaching_admin_function_is_firm(tmp_path):
     [f] = await scan(tmp_path, enforce_roles=False)
-    assert (f.rule_id, f.endpoint, f.confidence) == ("APIFUZZ-BFLA-001", "GET /admin/stats", "firm")
+    assert (f.rule_id, f.endpoint, f.confidence) == ("FUZZOWL-BFLA-001", "GET /admin/stats", "firm")
     assert "user-tok" not in f.request_sample  # low-privilege token redacted too
 
 

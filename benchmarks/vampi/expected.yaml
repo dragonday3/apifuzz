@@ -1,8 +1,8 @@
 # VAmPI's documented vulnerabilities (README "List of Vulnerabilities"), mapped to where they live in
-# the source (api_views/*.py) and to the apifuzz rules that should report them.
+# the source (api_views/*.py) and to the fuzzowl rules that should report them.
 #
 #   endpoint  spec operation ("*" = any endpoint)
-#   check     apifuzz check that covers it; null = no check yet (counts as a miss)
+#   check     fuzzowl check that covers it; null = no check yet (counts as a miss)
 #   rules     rule ids that count as detecting it
 #   toggled   true if `vulnerable=0` fixes it; a finding for it in secure mode is a false positive.
 #             false = present in both modes (VAmPI's app.py: "some functionalities will still be
@@ -14,53 +14,53 @@ vulnerabilities:
     name: SQLi Injection
     endpoint: GET /users/v1/{username}
     check: injection
-    rules: [APIFUZZ-INJECT-SQLI, APIFUZZ-INJECT-SQLI-BOOL, APIFUZZ-INJECT-SQLI-TIME]
+    rules: [FUZZOWL-INJECT-SQLI, FUZZOWL-INJECT-SQLI-BOOL, FUZZOWL-INJECT-SQLI-TIME]
     toggled: true
   - id: password-change
     name: Unauthorized Password Change
     endpoint: PUT /users/v1/{username}/password
     check: bola
-    rules: [APIFUZZ-BOLA-001]
+    rules: [FUZZOWL-BOLA-001]
     toggled: true
   - id: bola-books
     name: Broken Object Level Authorization
     endpoint: GET /books/v1/{book_title}
     check: bola
-    rules: [APIFUZZ-BOLA-001, APIFUZZ-BOLA-002]
+    rules: [FUZZOWL-BOLA-001, FUZZOWL-BOLA-002]
     toggled: true
   - id: mass-assignment
     name: Mass Assignment
     endpoint: POST /users/v1/register
     check: mass_assignment
-    rules: [APIFUZZ-MASS-001]
+    rules: [FUZZOWL-MASS-001]
     toggled: true
   - id: debug-exposure
     name: Excessive Data Exposure through debug endpoint
     endpoint: GET /users/v1/_debug
     check: data_exposure
-    rules: [APIFUZZ-EXPOSURE-001]
+    rules: [FUZZOWL-EXPOSURE-001]
     toggled: false
   - id: user-enumeration
     name: User and Password Enumeration
     endpoint: POST /users/v1/login
     check: user_enum
-    rules: [APIFUZZ-ENUM-001]
+    rules: [FUZZOWL-ENUM-001]
     toggled: true
   - id: regex-dos
     name: RegexDOS (Denial of Service)
     endpoint: PUT /users/v1/{username}/email
     check: redos          # added in 0.2.0 (opt-in: only runs with --time-based)
-    rules: [APIFUZZ-REDOS-*]
+    rules: [FUZZOWL-REDOS-*]
     toggled: true
   - id: rate-limiting
     name: Lack of Resources & Rate Limiting
     endpoint: "*"
     check: rate_limit
-    rules: [APIFUZZ-RATE-001]
+    rules: [FUZZOWL-RATE-001]
     toggled: false
   - id: jwt-weak-key
     name: JWT authentication bypass via weak signing key
     endpoint: "*"
     check: auth           # added in 0.2.0: the auth check cracks HS256 keys offline (JWT_WEAK_K)
-    rules: [APIFUZZ-AUTH-JWT*]
+    rules: [FUZZOWL-AUTH-JWT*]
     toggled: false

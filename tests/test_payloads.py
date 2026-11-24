@@ -1,7 +1,7 @@
 import textwrap
 
-from apifuzz.parsers.openapi import OpenAPIParser
-from apifuzz.payloads import example_from_schema
+from fuzzowl.parsers.openapi import OpenAPIParser
+from fuzzowl.payloads import example_from_schema
 
 
 def test_precedence_example_default_enum():
@@ -11,7 +11,7 @@ def test_precedence_example_default_enum():
 
 
 def test_formats_and_type_defaults():
-    assert example_from_schema({"type": "string", "format": "email"}) == "apifuzz@example.com"
+    assert example_from_schema({"type": "string", "format": "email"}) == "fuzzowl@example.com"
     assert example_from_schema({"type": "string", "format": "uuid"}).count("-") == 4
     assert example_from_schema({"type": "integer"}) == 1
     assert example_from_schema({"type": "integer", "minimum": 5}) == 5
@@ -25,7 +25,7 @@ def test_nested_object_and_array():
         "tags": {"type": "array", "items": {"type": "string", "enum": ["a"]}},
         "owner": {"type": "object", "properties": {"id": {"type": "integer"}}},
     }}
-    assert example_from_schema(schema) == {"name": "apifuzz", "tags": ["a"], "owner": {"id": 1}}
+    assert example_from_schema(schema) == {"name": "fuzzowl", "tags": ["a"], "owner": {"id": 1}}
 
 
 def test_all_of_merges_properties():
@@ -38,12 +38,12 @@ def test_all_of_merges_properties():
 
 def test_one_of_and_nullable_type_list():
     assert example_from_schema({"oneOf": [{"type": "integer"}, {"type": "string"}]}) == 1
-    assert example_from_schema({"type": ["null", "string"]}) == "apifuzz"
+    assert example_from_schema({"type": ["null", "string"]}) == "fuzzowl"
 
 
 def test_missing_or_invalid_schema():
     assert example_from_schema(None) is None
-    assert example_from_schema({}) == "apifuzz"
+    assert example_from_schema({}) == "fuzzowl"
 
 
 def test_recursive_schema_terminates():
@@ -80,7 +80,7 @@ def test_openapi_parser_fills_body_example_through_refs(tmp_path):
                 role: {type: string, enum: [user, admin]}
     """))
     ep = OpenAPIParser().parse(str(spec))[0]
-    assert ep.body_example == {"email": "apifuzz@example.com", "role": "user"}
+    assert ep.body_example == {"email": "fuzzowl@example.com", "role": "user"}
     assert ep.body_schema["type"] == "object"           # schema kept for later phases
     assert ep.parameters[0].example == 1                # typed path placeholder
 
@@ -125,7 +125,7 @@ def test_all_of_branch_example_does_not_hide_other_branches():
 def test_read_only_properties_skipped():
     schema = {"type": "object", "properties": {"id": {"type": "integer", "readOnly": True},
                                                "name": {"type": "string"}}}
-    assert example_from_schema(schema) == {"name": "apifuzz"}
+    assert example_from_schema(schema) == {"name": "fuzzowl"}
 
 
 def _parse(tmp_path, body):

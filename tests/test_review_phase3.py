@@ -6,14 +6,14 @@ import textwrap
 
 import pytest
 
-from apifuzz.analyzer import Analyzer, _undocumented_fields
-from apifuzz.checks.bfla import BFLACheck, privilege_hint
-from apifuzz.checks.user_enum import UserEnumCheck, lookalike
-from apifuzz.executor import TestCase as Case
-from apifuzz.executor import TestResult as Result
-from apifuzz.models.endpoint import AuthConfig, Endpoint
-from apifuzz.parsers.openapi import OpenAPIParser
-from apifuzz.scanner import Scanner
+from fuzzowl.analyzer import Analyzer, _undocumented_fields
+from fuzzowl.checks.bfla import BFLACheck, privilege_hint
+from fuzzowl.checks.user_enum import UserEnumCheck, lookalike
+from fuzzowl.executor import TestCase as Case
+from fuzzowl.executor import TestResult as Result
+from fuzzowl.models.endpoint import AuthConfig, Endpoint
+from fuzzowl.parsers.openapi import OpenAPIParser
+from fuzzowl.scanner import Scanner
 
 
 def enum(known_user, responses):
@@ -138,7 +138,7 @@ def test_exposure_placeholders_and_caller_scope(body, expected):
     found = [f.confidence for f in Analyzer().analyze([Result(test_case=tc, status_code=200,
                                                               response_body=json.dumps(body),
                                                               response_headers={}, elapsed_ms=1.0)])
-             if f.rule_id == "APIFUZZ-EXPOSURE-001"]
+             if f.rule_id == "FUZZOWL-EXPOSURE-001"]
     assert found == ([expected] if expected else [])
 
 
@@ -156,6 +156,6 @@ async def test_exposure_reads_run_with_baselines(tmp_path, monkeypatch):
     async def fake_run(self, cases):
         calls.append({tc.check_id for tc in cases})
         return []
-    monkeypatch.setattr("apifuzz.executor.Executor.run", fake_run)
+    monkeypatch.setattr("fuzzowl.executor.Executor.run", fake_run)
     await s.run()
     assert calls[0] == {"baseline", "data_exposure"} and "data_exposure" not in calls[1]

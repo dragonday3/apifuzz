@@ -4,16 +4,16 @@
 
 Releases are automated by `.github/workflows/release.yml`. Pushing a tag `vX.Y.Z`:
 
-1. checks the tag matches `__version__` in `src/apifuzz/__init__.py`, runs the tests and builds the wheel/sdist;
-2. publishes to PyPI as **`apifuzz-scanner`** (the name `apifuzz` belongs to another project; the import package
-   and the CLI command stay `apifuzz`);
-3. pushes the image to `ghcr.io/dragonday3/apifuzz:vX.Y.Z` and `:latest`;
+1. checks the tag matches `__version__` in `src/fuzzowl/__init__.py`, runs the tests and builds the wheel/sdist;
+2. publishes to PyPI as **`fuzzowl`** (the name `fuzzowl` belongs to another project; the import package
+   and the CLI command stay `fuzzowl`);
+3. pushes the image to `ghcr.io/dragonday3/fuzzowl:vX.Y.Z` and `:latest`;
 4. creates the GitHub release with that version's `CHANGELOG.md` section and the built files.
 
 ### Release steps
 
 ```bash
-# 1. Bump __version__ in src/apifuzz/__init__.py (the only place the version lives)
+# 1. Bump __version__ in src/fuzzowl/__init__.py (the only place the version lives)
 # 2. Move the "Unreleased" notes in CHANGELOG.md under "## [X.Y.Z] - YYYY-MM-DD"
 # 3. Commit, then tag and push the tag
 git tag vX.Y.Z
@@ -23,18 +23,18 @@ git push origin vX.Y.Z
 ### One-time setup
 
 - **PyPI trusted publishing** (no API token stored anywhere): on pypi.org, add a pending publisher for the
-  project `apifuzz-scanner` with owner `dragonday3`, repository `apifuzz`, workflow `release.yml` and environment
+  project `fuzzowl` with owner `dragonday3`, repository `fuzzowl`, workflow `release.yml` and environment
   `pypi`. In the GitHub repo, create the environment `pypi` (Settings → Environments). Requiring a reviewer there
   gives you an approval step before each PyPI upload.
 - **GHCR**: nothing to configure; the workflow uses `GITHUB_TOKEN`. After the first release, make the package
-  public (GitHub → Packages → apifuzz → Package settings → Change visibility).
+  public (GitHub → Packages → fuzzowl → Package settings → Change visibility).
 
 ### Build locally
 
 ```bash
-py -3.10 -m pip install build && py -3.10 -m build     # dist/apifuzz_scanner-X.Y.Z-py3-none-any.whl
-docker build -t apifuzz .
-docker run --rm -v "$(pwd):/data" apifuzz /data/openapi.yaml --target https://api.example.com \
+py -3.10 -m pip install build && py -3.10 -m build     # dist/fuzzowl_scanner-X.Y.Z-py3-none-any.whl
+docker build -t fuzzowl .
+docker run --rm -v "$(pwd):/data" fuzzowl /data/openapi.yaml --target https://api.example.com \
   --output sarif --out-file /data/results.sarif
 ```
 
@@ -47,16 +47,16 @@ drops or false positives appear compared with the committed `benchmarks/results/
 
 ## Self-Hosted (Docker Compose)
 
-For running apifuzz as a persistent service against internal APIs:
+For running fuzzowl as a persistent service against internal APIs:
 
 ```yaml
 # docker-compose.yml
 version: "3.9"
 
 services:
-  apifuzz:
-    # Published by the release workflow from the first release on; until then: docker build -t apifuzz .
-    image: ghcr.io/dragonday3/apifuzz:latest
+  fuzzowl:
+    # Published by the release workflow from the first release on; until then: docker build -t fuzzowl .
+    image: ghcr.io/dragonday3/fuzzowl:latest
     volumes:
       - ./specs:/specs:ro
       - ./reports:/reports
@@ -75,7 +75,7 @@ networks:
 ```
 
 ```bash
-docker compose run --rm apifuzz
+docker compose run --rm fuzzowl
 ```
 
 ---

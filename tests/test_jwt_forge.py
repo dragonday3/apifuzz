@@ -5,7 +5,7 @@ import hmac
 import json
 import time
 
-from apifuzz import jwt_forge
+from fuzzowl import jwt_forge
 
 
 def _b64(obj) -> str:

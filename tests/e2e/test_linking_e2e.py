@@ -1,7 +1,7 @@
 """Phase 6.2: resource linking. A POST whose response has no id or Location is followed up through a sibling
 GET whose path param matches a request/response field; objects user A creates are read as user B."""
-from apifuzz.models.endpoint import AuthConfig
-from apifuzz.scanner import Scanner
+from fuzzowl.models.endpoint import AuthConfig
+from fuzzowl.scanner import Scanner
 
 from .conftest import BASE, PETSTORE, REGISTER
 
@@ -23,7 +23,7 @@ def probe_reads(api):
 
 async def test_register_without_id_confirmed_through_sibling_get(mock_api):
     api, findings = await register_scan(mock_api, "persist")
-    assert findings == [("APIFUZZ-MASS-001", "firm", "POST /users/register")]
+    assert findings == [("FUZZOWL-MASS-001", "firm", "POST /users/register")]
     assert probe_reads(api) == [200]  # the (unique) username from the probe's request body
 
 
@@ -36,7 +36,7 @@ async def test_register_allowlisted_no_finding(mock_api):
 async def test_register_enforcing_unique_usernames_still_confirmed(mock_api):
     # The baseline registers the spec's example user first; the probe needs its own username or it gets a 409.
     api, findings = await register_scan(mock_api, "persist", unique_users=True)
-    assert findings == [("APIFUZZ-MASS-001", "firm", "POST /users/register")]
+    assert findings == [("FUZZOWL-MASS-001", "firm", "POST /users/register")]
     assert api.statuses[("POST", "/users/register")] == [200, 200]
 
 
@@ -48,7 +48,7 @@ async def bola_scan(mock_api, enforce_ownership):
 
 async def test_bob_reads_object_alice_created(mock_api):
     api, findings = await bola_scan(mock_api, enforce_ownership=False)
-    assert ("APIFUZZ-BOLA-001", "firm", f"{BASE}/pets/3") in findings
+    assert ("FUZZOWL-BOLA-001", "firm", f"{BASE}/pets/3") in findings
     assert api.statuses[("GET", "/pets/3")] == [200, 200]  # alice's read + bob's read
 
 
@@ -68,7 +68,7 @@ async def test_publicly_listed_object_read_by_bob_is_tentative(mock_api):
     # Forum-style objects: bob reads alice's pet directly, but GET /pets lists it to him anyway.
     api = mock_api(enforce_ownership=False, store_created=True, public_listing=True)
     findings = await Scanner(PETSTORE, BASE, auth=ALICE_BOB, checks=["bola"], rate_limit_rps=0).run()
-    bola = [(f.confidence, f.endpoint_path) for f in findings if f.rule_id == "APIFUZZ-BOLA-001"]
+    bola = [(f.confidence, f.endpoint_path) for f in findings if f.rule_id == "FUZZOWL-BOLA-001"]
     assert bola and all(c == "tentative" for c, _ in bola), bola
     assert any("also listed for user B in GET" in f.evidence for f in findings)
     assert api.hits[("GET", "/pets")] == 1  # bob's listing read, sent once
@@ -77,5 +77,5 @@ async def test_publicly_listed_object_read_by_bob_is_tentative(mock_api):
 async def test_private_listing_keeps_bola_firm(mock_api):
     # Same API, but GET /pets lists only the caller's own pets: bob reading alice's pet stays firm.
     api, findings = await bola_scan(mock_api, enforce_ownership=False)
-    assert ("APIFUZZ-BOLA-001", "firm", f"{BASE}/pets/1") in findings
+    assert ("FUZZOWL-BOLA-001", "firm", f"{BASE}/pets/1") in findings
     assert api.statuses[("GET", "/pets")] == [200]

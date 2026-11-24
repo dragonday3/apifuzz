@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | OWASP | API4:2023 Unrestricted Resource Consumption |
-| Rule id | `APIFUZZ-REDOS-001` (medium, firm only; no tentative verdict) |
+| Rule id | `FUZZOWL-REDOS-001` (medium, firm only; no tentative verdict) |
 | Needs | `--time-based` (off by default: a vulnerable server really burns CPU on every probe) |
 
 ## What it sends
@@ -40,7 +40,7 @@ From the scan in `tests/e2e/test_redos_e2e.py` with `vulnerable=True` and time-b
 
 ```json
 {
-  "rule_id": "APIFUZZ-REDOS-001",
+  "rule_id": "FUZZOWL-REDOS-001",
   "title": "ReDoS: Regex backtracking delays the response",
   "severity": "medium",
   "confidence": "firm",

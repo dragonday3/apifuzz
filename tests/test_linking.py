@@ -2,9 +2,9 @@
 cross-user BOLA reads of objects user A created during the scan."""
 import re
 
-from apifuzz.analyzer import Analyzer, _link
-from apifuzz.executor import TestCase, TestResult
-from apifuzz.models.endpoint import AuthConfig, Endpoint, Parameter, ParamLocation
+from fuzzowl.analyzer import Analyzer, _link
+from fuzzowl.executor import TestCase, TestResult
+from fuzzowl.models.endpoint import AuthConfig, Endpoint, Parameter, ParamLocation
 
 
 def ep(method, path, secured=None, **examples):
@@ -123,7 +123,7 @@ class TestCreatedObjectBOLA:
 
     def test_b_gets_a_object_is_firm(self):
         [f] = self._verdict((200, self.OBJ), (200, self.OBJ))
-        assert f.rule_id == "APIFUZZ-BOLA-001" and f.confidence == "firm" and f.endpoint == "GET /pets/{petId}"
+        assert f.rule_id == "FUZZOWL-BOLA-001" and f.confidence == "firm" and f.endpoint == "GET /pets/{petId}"
 
     def test_b_denied_or_other_object_or_owner_failed_no_finding(self):
         assert self._verdict((200, self.OBJ), (403, '{"error": "forbidden"}')) == []

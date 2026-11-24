@@ -3,8 +3,8 @@ import hashlib
 import hmac
 import json
 
-from apifuzz.checks.auth import AuthCheck, _make_alg_none_jwt
-from apifuzz.models.endpoint import Endpoint, AuthConfig
+from fuzzowl.checks.auth import AuthCheck, _make_alg_none_jwt
+from fuzzowl.models.endpoint import Endpoint, AuthConfig
 
 
 def _hs256(secret: str, claims: dict | None = None) -> str:
@@ -157,7 +157,7 @@ class TestJWTProbes:
         assert weak.extra["cracked_secret"] == "random"
 
     def test_crack_runs_once_per_token(self, monkeypatch):
-        import apifuzz.jwt_forge as jf
+        import fuzzowl.jwt_forge as jf
         calls = []
         real = jf.crack_hs256
         monkeypatch.setattr(jf, "crack_hs256", lambda *a, **k: calls.append(1) or real(*a, **k))

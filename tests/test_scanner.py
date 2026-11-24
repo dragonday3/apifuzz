@@ -3,8 +3,8 @@ import respx
 import httpx
 from pathlib import Path
 
-from apifuzz.scanner import Scanner, _detect_format
-from apifuzz.models.endpoint import AuthConfig
+from fuzzowl.scanner import Scanner, _detect_format
+from fuzzowl.models.endpoint import AuthConfig
 
 FIXTURES = Path(__file__).parent / "fixtures"
 PETSTORE = str(FIXTURES / "petstore.yaml")
@@ -140,7 +140,7 @@ def test_baseline_only_for_endpoints_with_probes(tmp_path):
 
 
 def test_max_body_reaches_every_executor(tmp_path):
-    from apifuzz.executor import Executor
+    from fuzzowl.executor import Executor
     s = Scanner(spec_path=str(FIXTURES / "petstore.yaml"), base_url="http://api", max_body=7)
     assert s._executor_opts["max_body"] == 7 and s.executor._max_body == 7
     assert Executor(s.auth, 1, **s._executor_opts)._max_body == 7  # the extra executors (timed SQLi, bursts)
@@ -149,7 +149,7 @@ def test_max_body_reaches_every_executor(tmp_path):
 def test_cli_max_body(tmp_path):
     import json
     from typer.testing import CliRunner
-    from apifuzz.cli import app
+    from fuzzowl.cli import app
     spec = tmp_path / "s.yaml"
     spec.write_text('openapi: "3.0.3"\ninfo: {title: t, version: "1"}\npaths:\n  /me:\n    get:\n'
                     '      responses: {"200": {description: ok}}\n', encoding="utf-8")

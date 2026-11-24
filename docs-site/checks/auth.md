@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | OWASP | API2:2023 Broken Authentication |
-| Rule ids | `APIFUZZ-AUTH-` + the first 10 characters of the strategy in upper case (table below) |
+| Rule ids | `FUZZOWL-AUTH-` + the first 10 characters of the strategy in upper case (table below) |
 | Needs | nothing for the basic probes; a bearer JWT in `--token` for the JWT attacks |
 
 ## What it sends
@@ -14,16 +14,16 @@ against the header the API authenticates with (the `--header-name` header for `-
 
 | Strategy | Request | Rule id | Severity |
 |---|---|---|---|
-| `no_auth` | no credential at all (the custom API-key header is stripped too) | `APIFUZZ-AUTH-NO_AUTH` | critical |
-| `invalid_token` | `Bearer INVALID_TOKEN_apifuzz`; for basic auth, `apifuzz:invalid`; for API keys, `INVALID_TOKEN_apifuzz` | `APIFUZZ-AUTH-INVALID_TO` | high |
-| `empty_apikey` | API-key header with an empty value (apikey only) | `APIFUZZ-AUTH-EMPTY_APIK` | high |
-| `empty_bearer` | `Authorization: Bearer` with no token (not for apikey) | `APIFUZZ-AUTH-EMPTY_BEAR` | high |
-| `malformed_scheme` | `NotBearer token123` (not for apikey) | `APIFUZZ-AUTH-MALFORMED_` | high |
-| `jwt_alg_none` | your JWT with header `{"alg":"none"}` and an empty signature | `APIFUZZ-AUTH-JWT_ALG_NO` | critical |
-| `jwt_unsigned` | your JWT with its signature replaced by garbage | `APIFUZZ-AUTH-JWT_UNSIGN` | critical |
-| `jwt_kid_trav` | your claims, header `kid: ../../../../../../dev/null`, signed HS256 with a null key (`\x00`) | `APIFUZZ-AUTH-JWT_KID_TR` | critical |
-| `jwt_weak_key` | your claims re-signed with a cracked HS256 key (`iat`/`nbf`/`exp` refreshed when present) | `APIFUZZ-AUTH-JWT_WEAK_K` | critical |
-| `jwt_expired` | the same, with `exp` an hour in the past | `APIFUZZ-AUTH-JWT_EXPIRE` | high |
+| `no_auth` | no credential at all (the custom API-key header is stripped too) | `FUZZOWL-AUTH-NO_AUTH` | critical |
+| `invalid_token` | `Bearer INVALID_TOKEN_fuzzowl`; for basic auth, `fuzzowl:invalid`; for API keys, `INVALID_TOKEN_fuzzowl` | `FUZZOWL-AUTH-INVALID_TO` | high |
+| `empty_apikey` | API-key header with an empty value (apikey only) | `FUZZOWL-AUTH-EMPTY_APIK` | high |
+| `empty_bearer` | `Authorization: Bearer` with no token (not for apikey) | `FUZZOWL-AUTH-EMPTY_BEAR` | high |
+| `malformed_scheme` | `NotBearer token123` (not for apikey) | `FUZZOWL-AUTH-MALFORMED_` | high |
+| `jwt_alg_none` | your JWT with header `{"alg":"none"}` and an empty signature | `FUZZOWL-AUTH-JWT_ALG_NO` | critical |
+| `jwt_unsigned` | your JWT with its signature replaced by garbage | `FUZZOWL-AUTH-JWT_UNSIGN` | critical |
+| `jwt_kid_trav` | your claims, header `kid: ../../../../../../dev/null`, signed HS256 with a null key (`\x00`) | `FUZZOWL-AUTH-JWT_KID_TR` | critical |
+| `jwt_weak_key` | your claims re-signed with a cracked HS256 key (`iat`/`nbf`/`exp` refreshed when present) | `FUZZOWL-AUTH-JWT_WEAK_K` | critical |
+| `jwt_expired` | the same, with `exp` an hour in the past | `FUZZOWL-AUTH-JWT_EXPIRE` | high |
 
 So an endpoint gets 3 requests with an API key, 4 with basic auth, a non-JWT bearer token or no token, 7 with
 a bearer JWT, and 9 when the JWT's key was cracked.
@@ -33,10 +33,10 @@ The JWT attacks run only when `--auth-type` is bearer and `--token` is a JWT (th
 
 ### Weak HS256 signing key (offline)
 
-When the token is HS256, apifuzz tries to crack its key **offline, without sending anything**: it recomputes
+When the token is HS256, fuzzowl tries to crack its key **offline, without sending anything**: it recomputes
 HMAC-SHA256 over the token's header and payload for each candidate of a bundled wordlist, once per scan. The
 list is the first 10,000 entries of the public [wallarm/jwt-secrets](https://github.com/wallarm/jwt-secrets)
-list (MIT), copied verbatim (provenance in `src/apifuzz/jwt_secrets.README.md`). A hit is not reported on its
+list (MIT), copied verbatim (provenance in `src/fuzzowl/jwt_secrets.README.md`). A hit is not reported on its
 own: it is proved by two requests per endpoint, a token re-signed with the cracked key (same identity) and an
 expired one. The key appears masked in the evidence.
 
@@ -63,7 +63,7 @@ From a scan of the test suite's petstore mock API (`tests/e2e/conftest.py` `Mock
 
 ```json
 {
-  "rule_id": "APIFUZZ-AUTH-INVALID_TO",
+  "rule_id": "FUZZOWL-AUTH-INVALID_TO",
   "title": "Broken Auth: Invalid Token accepted",
   "severity": "high",
   "confidence": "firm",

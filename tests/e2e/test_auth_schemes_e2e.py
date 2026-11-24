@@ -2,8 +2,8 @@
 credential must be sent in the same scheme, and a secure API must yield nothing."""
 import pytest
 
-from apifuzz.models.endpoint import AuthConfig
-from apifuzz.scanner import Scanner
+from fuzzowl.models.endpoint import AuthConfig
+from fuzzowl.scanner import Scanner
 
 from .conftest import BASE, PETSTORE
 
@@ -26,5 +26,5 @@ async def test_vulnerable_api_findings(mock_api, scheme):
     mock_api(accept_any_token=True, enforce_ownership=False, scheme=scheme)
     findings = await Scanner(PETSTORE, BASE, auth=SCHEMES[scheme], checks=["auth", "bola"], rate_limit_rps=0).run()
     rules = {(f.rule_id, f.endpoint) for f in findings}
-    assert ("APIFUZZ-AUTH-INVALID_TO", "GET /pets") in rules          # garbage credential accepted
-    assert ("APIFUZZ-BOLA-001", "GET /pets/{petId}") in rules         # bob's credential reads alice's pet
+    assert ("FUZZOWL-AUTH-INVALID_TO", "GET /pets") in rules          # garbage credential accepted
+    assert ("FUZZOWL-BOLA-001", "GET /pets/{petId}") in rules         # bob's credential reads alice's pet

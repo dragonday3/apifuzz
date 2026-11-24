@@ -1,11 +1,11 @@
-# `apifuzz`
+# `fuzzowl`
 
 Scan an API for OWASP API Top 10 security issues.
 
 **Usage**:
 
 ```console
-$ apifuzz [OPTIONS] {spec}
+$ fuzzowl [OPTIONS] {spec}
 ```
 
 **Arguments**:
@@ -39,7 +39,7 @@ $ apifuzz [OPTIONS] {spec}
 * `--proxy <str>`: Send traffic through a proxy, e.g. http://127.0.0.1:8080
 * `--oob-url <str>`: Collector URL you control (interactsh, webhook) for blind SSRF payloads
 * `--fail-on <str>`: Exit 1 if any finding is at least this severe: critical | high | medium | low | info | never  [default: high]
-* `--ignore-file <str>`: Accepted findings to suppress (default: .apifuzz-ignore.yaml if present)
+* `--ignore-file <str>`: Accepted findings to suppress (default: .fuzzowl-ignore.yaml if present)
 * `--write-ignore <str>`: Write an ignore file accepting every finding of this scan, then exit 0
 * `-q, --quiet`: Suppress progress output
 * `--install-completion`: Install completion for the current shell.

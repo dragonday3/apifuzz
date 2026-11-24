@@ -1,5 +1,5 @@
-from apifuzz.models.endpoint import Endpoint, AuthConfig
-from apifuzz.checks.mass_assignment import MassAssignmentCheck, PRIVILEGED_FIELDS
+from fuzzowl.models.endpoint import Endpoint, AuthConfig
+from fuzzowl.checks.mass_assignment import MassAssignmentCheck, PRIVILEGED_FIELDS
 
 
 def make_endpoint(body_schema=None, method="POST"):

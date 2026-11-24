@@ -1,18 +1,18 @@
 # Benchmarks
 
-apifuzz is scored against deliberately vulnerable APIs using each target's **own list of documented
+fuzzowl is scored against deliberately vulnerable APIs using each target's **own list of documented
 vulnerabilities**, not a list written to fit the scanner. This page summarises the method, the results and
 every disclosure. The full write-up, with hand triage of every finding, is
-[`benchmarks/README.md`](https://github.com/dragonday3/apifuzz/blob/main/benchmarks/README.md); the numbers come
+[`benchmarks/README.md`](https://github.com/dragonday3/fuzzowl/blob/main/benchmarks/README.md); the numbers come
 from the committed result files:
 
 | Run | Result files |
 |---|---|
-| VAmPI, default scan | [`vampi.md`](https://github.com/dragonday3/apifuzz/blob/main/benchmarks/results/vampi.md), [`vampi.json`](https://github.com/dragonday3/apifuzz/blob/main/benchmarks/results/vampi.json) |
-| VAmPI, `--time-based` | [`vampi-time-based.md`](https://github.com/dragonday3/apifuzz/blob/main/benchmarks/results/vampi-time-based.md), [`vampi-time-based.json`](https://github.com/dragonday3/apifuzz/blob/main/benchmarks/results/vampi-time-based.json) |
-| VAmPI, v0.1.0 | [`vampi-v0.1.0.json`](https://github.com/dragonday3/apifuzz/blob/main/benchmarks/results/vampi-v0.1.0.json), [`vampi-v0.1.0-noauth.json`](https://github.com/dragonday3/apifuzz/blob/main/benchmarks/results/vampi-v0.1.0-noauth.json) |
-| crAPI, held-out (reproduction) | [`crapi-held-out.md`](https://github.com/dragonday3/apifuzz/blob/main/benchmarks/results/crapi-held-out.md), [`crapi-held-out.json`](https://github.com/dragonday3/apifuzz/blob/main/benchmarks/results/crapi-held-out.json) |
-| crAPI, after tuning | [`crapi.md`](https://github.com/dragonday3/apifuzz/blob/main/benchmarks/results/crapi.md), [`crapi.json`](https://github.com/dragonday3/apifuzz/blob/main/benchmarks/results/crapi.json) |
+| VAmPI, default scan | [`vampi.md`](https://github.com/dragonday3/fuzzowl/blob/main/benchmarks/results/vampi.md), [`vampi.json`](https://github.com/dragonday3/fuzzowl/blob/main/benchmarks/results/vampi.json) |
+| VAmPI, `--time-based` | [`vampi-time-based.md`](https://github.com/dragonday3/fuzzowl/blob/main/benchmarks/results/vampi-time-based.md), [`vampi-time-based.json`](https://github.com/dragonday3/fuzzowl/blob/main/benchmarks/results/vampi-time-based.json) |
+| VAmPI, v0.1.0 | [`vampi-v0.1.0.json`](https://github.com/dragonday3/fuzzowl/blob/main/benchmarks/results/vampi-v0.1.0.json), [`vampi-v0.1.0-noauth.json`](https://github.com/dragonday3/fuzzowl/blob/main/benchmarks/results/vampi-v0.1.0-noauth.json) |
+| crAPI, held-out (reproduction) | [`crapi-held-out.md`](https://github.com/dragonday3/fuzzowl/blob/main/benchmarks/results/crapi-held-out.md), [`crapi-held-out.json`](https://github.com/dragonday3/fuzzowl/blob/main/benchmarks/results/crapi-held-out.json) |
+| crAPI, after tuning | [`crapi.md`](https://github.com/dragonday3/fuzzowl/blob/main/benchmarks/results/crapi.md), [`crapi.json`](https://github.com/dragonday3/fuzzowl/blob/main/benchmarks/results/crapi.json) |
 
 ## VAmPI
 
@@ -23,8 +23,8 @@ from the committed result files:
   detected or missed. On the **secure** build, any finding for a flaw the switch removes is a false positive;
   flaws VAmPI keeps in both builds (debug endpoint, rate limiting, weak JWT key) are still real there.
 - **Expected list.** `benchmarks/vampi/expected.yaml` holds VAmPI's README list of 9 vulnerabilities, each
-  mapped to its endpoint in VAmPI's source and to the apifuzz rules that count as detecting it.
-  Vulnerabilities apifuzz has no check for stay in the list and count as misses.
+  mapped to its endpoint in VAmPI's source and to the fuzzowl rules that count as detecting it.
+  Vulnerabilities fuzzowl has no check for stay in the list and count as misses.
 - **Matching.** A finding detects a vulnerability when its rule matches and its spec operation is the
   vulnerability's endpoint. Rate limiting is documented API-wide, so it matches any endpoint. Every finding that
   matches nothing is a false positive.
@@ -43,7 +43,7 @@ Latest runs at commit `d8653f0`:
 | VAmPI (9 documented vulnerabilities) | v0.1.0 | 0.2.0 before the JWT and ReDoS checks (`6036d56`) | current, default scan | current, `--time-based` |
 |---|---|---|---|---|
 | Detected | 0 | 6 | 7: SQLi, BOLA, debug-endpoint data exposure, user enumeration, rate limiting, **weak JWT signing key** (firm); unauthorized password change (tentative) | 8: the same plus **RegexDoS** (firm) |
-| Detected, among the vulnerabilities apifuzz has a check for | 0 | 6 / 7 | 7 / 9 | 8 / 9 |
+| Detected, among the vulnerabilities fuzzowl has a check for | 0 | 6 / 7 | 7 / 9 | 8 / 9 |
 | False positives, vulnerable build | 25 with tokens / 12 without | 0 | 0 | 0 |
 | False positives, secure build | 25 with tokens / 12 without | 0 | 0 | 0 |
 
@@ -94,7 +94,7 @@ placeholder handling) also landed after benchmark runs; they did not change any 
 
 [OWASP crAPI](https://github.com/OWASP/crAPI) was added as a second target **after** the VAmPI work and measured
 once with the code as it was (commit `b21ea70`, detection identical to `4bf7b6d`) before any rule was changed for
-it. That is the held-out number: how apifuzz does on an API it wasn't developed against. Anything tuned later is
+it. That is the held-out number: how fuzzowl does on an API it wasn't developed against. Anything tuned later is
 reported separately as "after tuning".
 
 ### How the method differs
@@ -102,7 +102,7 @@ reported separately as "after tuning".
 - **Expected list**: crAPI's 18 documented challenges (`docs/challenges.md` at v1.1.6), each mapped to its
   endpoint from crAPI's solutions doc and service source, written before the first scan. Challenge 9 (refund by
   quantity) is business logic and the 3 chatbot challenges need an OpenAI key: they stay in the list as "not
-  covered", leaving 14 that apifuzz has a check for. crAPI's 3 undisclosed "secret challenges" aren't listed.
+  covered", leaving 14 that fuzzowl has a check for. crAPI's 3 undisclosed "secret challenges" aren't listed.
 - **No fixed build**, so there is no false-positive run. Every finding that matches no documented challenge
   counts against precision and was re-checked by hand against the live API.
 - **Setup**: `run.py` signs up two fresh users, gives user A a vehicle, an order, a mechanic report, a video
@@ -114,7 +114,7 @@ reported separately as "after tuning".
 | crAPI (18 documented challenges) | held-out (`b21ea70`; reproduced at `5a117ab`) | after tuning (`d8653f0`) |
 |---|---|---|
 | Documented challenges detected | 5 / 18 (3 firm): vehicle-location BOLA, unauthenticated order access, JWT `alg:none` accepted (firm); video internal property exposed, admin video delete by a normal user (tentative, via the BOLA probe) | **7 / 18 (4 firm)**: also mechanic-report BOLA (firm, an id in a query parameter) and OTP brute force (tentative, weak evidence) |
-| ...among the 14 apifuzz has a check for | 5 / 14 | 7 / 14 |
+| ...among the 14 fuzzowl has a check for | 5 / 14 | 7 / 14 |
 | Findings | 62 (61 in the `5a117ab` reproduction) | 69 |
 | Outside the documented list, triaged by hand | 39: 29 real, **10 false positives** (4 firm) | 38: 32 real, **6 false positives** (0 firm, all tentative) |
 

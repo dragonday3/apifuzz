@@ -1,6 +1,6 @@
 from pathlib import Path
-from apifuzz.parsers.har import HARParser
-from apifuzz.models.endpoint import ParamLocation
+from fuzzowl.parsers.har import HARParser
+from fuzzowl.models.endpoint import ParamLocation
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
 

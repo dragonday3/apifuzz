@@ -3,42 +3,42 @@
 ## Install
 
 !!! note "Not published yet"
-    apifuzz is not published on PyPI or GHCR yet. Install it from source as shown below. The PyPI name
-    `apifuzz` belongs to a different, unrelated project: do not `pip install apifuzz`.
+    fuzzowl is not published on PyPI or GHCR yet. Install it from source as shown below. The PyPI name
+    `fuzzowl` belongs to a different, unrelated project: do not `pip install fuzzowl`.
 
-apifuzz needs Python 3.10 or newer (CI tests 3.10, 3.11 and 3.12).
+fuzzowl needs Python 3.10 or newer (CI tests 3.10, 3.11 and 3.12).
 
 === "Straight from GitHub"
 
     ```bash
-    pip install "git+https://github.com/dragonday3/apifuzz.git"
+    pip install "git+https://github.com/dragonday3/fuzzowl.git"
     ```
 
 === "From a clone"
 
     ```bash
-    git clone https://github.com/dragonday3/apifuzz
-    cd apifuzz
+    git clone https://github.com/dragonday3/fuzzowl
+    cd fuzzowl
     pip install -e .            # add ".[dev]" for the test tools
     ```
 
 === "Docker (build locally)"
 
     ```bash
-    git clone https://github.com/dragonday3/apifuzz && cd apifuzz
-    docker build -t apifuzz .
-    docker run --rm apifuzz --help
+    git clone https://github.com/dragonday3/fuzzowl && cd fuzzowl
+    docker build -t fuzzowl .
+    docker run --rm fuzzowl --help
     # mount the directory holding your spec and the report
-    docker run --rm -v "$(pwd):/data" apifuzz /data/openapi.yaml --target https://api.example.com \
+    docker run --rm -v "$(pwd):/data" fuzzowl /data/openapi.yaml --target https://api.example.com \
       --output sarif --out-file /data/results.sarif
     ```
 
-The command is `apifuzz` (the distribution will be named `apifuzz-scanner` once released).
+The command is `fuzzowl` (the distribution will be named `fuzzowl` once released).
 
-## What apifuzz needs
+## What fuzzowl needs
 
 1. **A description of the API**: an OpenAPI 3.x or Swagger 2.0 file (`.yaml`/`.json`), a HAR recording
-   (`.har`) or a Postman collection v2 (`.json`/`.yaml` with `info` and `item`). apifuzz is a test-case
+   (`.har`) or a Postman collection v2 (`.json`/`.yaml` with `info` and `item`). fuzzowl is a test-case
    generator, not a traffic interceptor: it has to know which endpoints exist and what their parameters are
    before it can inject anything. A bare URL tells it nothing; `GET /weather?q=STRING` is what lets it try
    `q='; DROP TABLE--`.
@@ -62,7 +62,7 @@ Start with `--dry-run`: it prints what a scan would send and sends nothing. Usin
 repository's test fixtures:
 
 ```console
-$ apifuzz tests/fixtures/petstore.yaml --target https://api.example.com --dry-run
+$ fuzzowl tests/fixtures/petstore.yaml --target https://api.example.com --dry-run
                             Test plan (nothing sent)
 +------------------------------------------------------------------------------+
 | Endpoint                                        | Check           | Requests |
@@ -98,22 +98,22 @@ The plan covers the first pass only: confirmation requests depend on responses (
 
 ```bash
 # JSON to stdout (the default)
-apifuzz openapi.yaml --target https://staging.example.com --token "$API_TOKEN"
+fuzzowl openapi.yaml --target https://staging.example.com --token "$API_TOKEN"
 
 # an HTML report
-apifuzz openapi.yaml --target https://staging.example.com --token "$API_TOKEN" \
+fuzzowl openapi.yaml --target https://staging.example.com --token "$API_TOKEN" \
   --output html --out-file report.html
 
 # cross-user BOLA tests with a second account
-apifuzz openapi.yaml --target https://staging.example.com \
+fuzzowl openapi.yaml --target https://staging.example.com \
   --token "$USER_A_TOKEN" --second-token "$USER_B_TOKEN"
 
 # only some checks; no 50-request bursts
-apifuzz openapi.yaml --target https://staging.example.com --checks bola,auth,cors
+fuzzowl openapi.yaml --target https://staging.example.com --checks bola,auth,cors
 
 # route traffic through Burp or ZAP to verify findings by hand
 # (TLS is verified: trust the proxy's CA, or add --insecure)
-apifuzz openapi.yaml --target https://staging.example.com --proxy http://127.0.0.1:8080 --insecure
+fuzzowl openapi.yaml --target https://staging.example.com --proxy http://127.0.0.1:8080 --insecure
 ```
 
 ### No spec? Record a HAR
@@ -124,13 +124,13 @@ apifuzz openapi.yaml --target https://staging.example.com --proxy http://127.0.0
 4. Scan the recording:
 
 ```bash
-apifuzz recording.har --target https://api.example.com
+fuzzowl recording.har --target https://api.example.com
 ```
 
-apifuzz reads the recorded requests (method, path, query parameters, JSON bodies) as endpoints. Recorded URLs
+fuzzowl reads the recorded requests (method, path, query parameters, JSON bodies) as endpoints. Recorded URLs
 are concrete (`/users/42`), so no path parameters are inferred from them; checks that probe path parameters
 (BOLA ID probes, path injection) get more out of a spec. A Postman collection works the same way:
-`apifuzz collection.json --target https://api.example.com`.
+`fuzzowl collection.json --target https://api.example.com`.
 
 ## Reading the report
 
@@ -150,7 +150,7 @@ ignores credentials:
   "response_sample": "{\"id\":1,\"name\":\"rex\",\"tag\":\"dog\"}",
   "evidence": "HTTP 200 returned with strategy: no_auth; matches the authenticated baseline (HTTP 200, 33 bytes)",
   "remediation": "Require valid authentication on all protected endpoints.",
-  "rule_id": "APIFUZZ-AUTH-NO_AUTH",
+  "rule_id": "FUZZOWL-AUTH-NO_AUTH",
   "confidence": "firm",
   "endpoint": "GET /pets",
   "parameter": ""
@@ -172,7 +172,7 @@ Deliberately vulnerable APIs such as [VAmPI](https://github.com/erev0s/VAmPI) an
 instructions, then scan them with their OpenAPI spec:
 
 ```bash
-apifuzz ./target-openapi.yaml --target http://localhost:<port> \
+fuzzowl ./target-openapi.yaml --target http://localhost:<port> \
   --allow-destructive --output html --out-file report.html
 ```
 

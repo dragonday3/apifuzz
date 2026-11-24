@@ -6,13 +6,13 @@ import httpx
 import respx
 from typer.testing import CliRunner
 
-from apifuzz.analyzer import Analyzer
-from apifuzz.cli import app
-from apifuzz.executor import Executor, RequestBudget, origin
-from apifuzz.executor import TestCase as Case
-from apifuzz.executor import TestResult as Result
-from apifuzz.models.endpoint import AuthConfig
-from apifuzz.scanner import Scanner
+from fuzzowl.analyzer import Analyzer
+from fuzzowl.cli import app
+from fuzzowl.executor import Executor, RequestBudget, origin
+from fuzzowl.executor import TestCase as Case
+from fuzzowl.executor import TestResult as Result
+from fuzzowl.models.endpoint import AuthConfig
+from fuzzowl.scanner import Scanner
 
 SEARCH_SPEC = textwrap.dedent("""
     openapi: "3.0.3"
@@ -150,8 +150,8 @@ def test_invalid_target_is_a_clean_cli_error(tmp_path):
 
 
 async def test_every_auth_probe_is_actually_sent():
-    from apifuzz.checks.auth import AuthCheck
-    from apifuzz.models.endpoint import Endpoint
+    from fuzzowl.checks.auth import AuthCheck
+    from fuzzowl.models.endpoint import Endpoint
     cases = AuthCheck().generate(Endpoint(method="GET", path="/me", base_url="http://api"),
                                  AuthConfig(type="bearer", token="a.b.c"))
     with respx.mock() as router:

@@ -1,5 +1,5 @@
-from apifuzz.models.endpoint import Endpoint, AuthConfig, Parameter, ParamLocation
-from apifuzz.checks.injection import InjectionCheck, INJECTION_PAYLOADS
+from fuzzowl.models.endpoint import Endpoint, AuthConfig, Parameter, ParamLocation
+from fuzzowl.checks.injection import InjectionCheck, INJECTION_PAYLOADS
 
 
 def make_endpoint(path="/search", method="GET", params=None, body_schema=None):
@@ -47,7 +47,7 @@ class TestInjectionCheck:
         for tc in probes:
             assert tc.params["q"] in [p["payload"] for p in INJECTION_PAYLOADS]
         pair = [tc.params for tc in results if tc.extra["strategy"] == "nosqli_pair"]
-        assert pair == [{"q[$ne]": "apifuzz-nonexistent"}, {"q[$eq]": "apifuzz-nonexistent"}]
+        assert pair == [{"q[$ne]": "fuzzowl-nonexistent"}, {"q[$eq]": "fuzzowl-nonexistent"}]
 
     def test_path_param_generates_cases_with_path_override(self):
         ep = make_endpoint(
@@ -134,7 +134,7 @@ class TestInjectionCheck:
     def test_body_nosqli_pair_uses_operator_objects(self):
         ep = make_endpoint(method="POST", body_schema={"user": "a", "n": 1})
         pair = [tc.body for tc in self.check.generate(ep, self.auth) if tc.extra["strategy"] == "nosqli_pair"]
-        assert pair == [{"user": {"$ne": None}, "n": 1}, {"user": {"$eq": "apifuzz-nonexistent"}, "n": 1}]
+        assert pair == [{"user": {"$ne": None}, "n": 1}, {"user": {"$eq": "fuzzowl-nonexistent"}, "n": 1}]
 
     def test_quote_breaker_sqli_payload_present(self):
         # VAmPI: "' OR '1'='1" is valid SQL there (200, no error); a lone quote raises the DB error.

@@ -119,7 +119,7 @@
   ],
   "findings_vulnerable": [
     {
-      "rule_id": "APIFUZZ-EXPOSURE-001",
+      "rule_id": "FUZZOWL-EXPOSURE-001",
       "check": "data_exposure",
       "endpoint": "GET /users/v1/_debug",
       "confidence": "firm",
@@ -129,7 +129,7 @@
       "url": "http://127.0.0.1:5002/users/v1/_debug"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "rule_id": "FUZZOWL-AUTH-JWT_WEAK_K",
       "check": "auth",
       "endpoint": "GET /me",
       "confidence": "firm",
@@ -139,7 +139,7 @@
       "url": "http://127.0.0.1:5002/me"
     },
     {
-      "rule_id": "APIFUZZ-INJECT-SQLI",
+      "rule_id": "FUZZOWL-INJECT-SQLI",
       "check": "injection",
       "endpoint": "GET /users/v1/{username}",
       "confidence": "firm",
@@ -149,7 +149,7 @@
       "url": "http://127.0.0.1:5002/users/v1/%27"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "rule_id": "FUZZOWL-AUTH-JWT_WEAK_K",
       "check": "auth",
       "endpoint": "PUT /users/v1/{username}/email",
       "confidence": "firm",
@@ -159,7 +159,7 @@
       "url": "http://127.0.0.1:5002/users/v1/name1/email"
     },
     {
-      "rule_id": "APIFUZZ-BOLA-001",
+      "rule_id": "FUZZOWL-BOLA-001",
       "check": "bola",
       "endpoint": "PUT /users/v1/{username}/password",
       "confidence": "tentative",
@@ -169,7 +169,7 @@
       "url": "http://127.0.0.1:5002/users/v1/name1/password"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "rule_id": "FUZZOWL-AUTH-JWT_WEAK_K",
       "check": "auth",
       "endpoint": "PUT /users/v1/{username}/password",
       "confidence": "firm",
@@ -179,7 +179,7 @@
       "url": "http://127.0.0.1:5002/users/v1/name1/password"
     },
     {
-      "rule_id": "APIFUZZ-BOLA-001",
+      "rule_id": "FUZZOWL-BOLA-001",
       "check": "bola",
       "endpoint": "GET /books/v1/{book_title}",
       "confidence": "tentative",
@@ -189,7 +189,7 @@
       "url": "http://127.0.0.1:5002/books/v1/bookTitle81"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "rule_id": "FUZZOWL-AUTH-JWT_WEAK_K",
       "check": "auth",
       "endpoint": "GET /books/v1/{book_title}",
       "confidence": "firm",
@@ -199,7 +199,7 @@
       "url": "http://127.0.0.1:5002/books/v1/bookTitle81"
     },
     {
-      "rule_id": "APIFUZZ-INJECT-SQLI",
+      "rule_id": "FUZZOWL-INJECT-SQLI",
       "check": "injection",
       "endpoint": "GET /users/v1/{username}",
       "confidence": "firm",
@@ -209,7 +209,7 @@
       "url": "http://127.0.0.1:5002/users/v1/name1%27%20AND%20SLEEP%285%29--%20-"
     },
     {
-      "rule_id": "APIFUZZ-INJECT-SQLI",
+      "rule_id": "FUZZOWL-INJECT-SQLI",
       "check": "injection",
       "endpoint": "GET /users/v1/{username}",
       "confidence": "firm",
@@ -219,7 +219,7 @@
       "url": "http://127.0.0.1:5002/users/v1/name1%27%7C%7Cpg_sleep%285%29--"
     },
     {
-      "rule_id": "APIFUZZ-BOLA-001",
+      "rule_id": "FUZZOWL-BOLA-001",
       "check": "bola",
       "endpoint": "GET /books/v1/{book_title}",
       "confidence": "firm",
@@ -229,7 +229,7 @@
       "url": "http://127.0.0.1:5002/books/v1/book99"
     },
     {
-      "rule_id": "APIFUZZ-INJECT-SQLI-BOOL",
+      "rule_id": "FUZZOWL-INJECT-SQLI-BOOL",
       "check": "injection",
       "endpoint": "GET /users/v1/{username}",
       "confidence": "firm",
@@ -239,7 +239,7 @@
       "url": "http://127.0.0.1:5002/users/v1/name1%27%20AND%20%271%27%3D%271"
     },
     {
-      "rule_id": "APIFUZZ-ENUM-001",
+      "rule_id": "FUZZOWL-ENUM-001",
       "check": "user_enum",
       "endpoint": "POST /users/v1/login",
       "confidence": "firm",
@@ -249,7 +249,7 @@
       "url": "http://127.0.0.1:5002/users/v1/login"
     },
     {
-      "rule_id": "APIFUZZ-REDOS-001",
+      "rule_id": "FUZZOWL-REDOS-001",
       "check": "redos",
       "endpoint": "PUT /users/v1/{username}/email",
       "confidence": "firm",
@@ -259,7 +259,7 @@
       "url": "http://127.0.0.1:5002/users/v1/name1/email"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /",
       "confidence": "firm",
@@ -269,7 +269,7 @@
       "url": "http://127.0.0.1:5002/"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /users/v1",
       "confidence": "firm",
@@ -279,7 +279,7 @@
       "url": "http://127.0.0.1:5002/users/v1"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /users/v1/_debug",
       "confidence": "firm",
@@ -289,7 +289,7 @@
       "url": "http://127.0.0.1:5002/users/v1/_debug"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /users/v1/register",
       "confidence": "firm",
@@ -299,7 +299,7 @@
       "url": "http://127.0.0.1:5002/users/v1/register"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /users/v1/login",
       "confidence": "firm",
@@ -309,7 +309,7 @@
       "url": "http://127.0.0.1:5002/users/v1/login"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /me",
       "confidence": "firm",
@@ -319,7 +319,7 @@
       "url": "http://127.0.0.1:5002/me"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /users/v1/{username}",
       "confidence": "firm",
@@ -329,7 +329,7 @@
       "url": "http://127.0.0.1:5002/users/v1/name1"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "PUT /users/v1/{username}/email",
       "confidence": "firm",
@@ -339,7 +339,7 @@
       "url": "http://127.0.0.1:5002/users/v1/name1/email"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "PUT /users/v1/{username}/password",
       "confidence": "firm",
@@ -349,7 +349,7 @@
       "url": "http://127.0.0.1:5002/users/v1/name1/password"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /books/v1",
       "confidence": "firm",
@@ -359,7 +359,7 @@
       "url": "http://127.0.0.1:5002/books/v1"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /books/v1/{book_title}",
       "confidence": "firm",
@@ -371,7 +371,7 @@
   ],
   "findings_secure": [
     {
-      "rule_id": "APIFUZZ-EXPOSURE-001",
+      "rule_id": "FUZZOWL-EXPOSURE-001",
       "check": "data_exposure",
       "endpoint": "GET /users/v1/_debug",
       "confidence": "firm",
@@ -381,7 +381,7 @@
       "url": "http://127.0.0.1:5001/users/v1/_debug"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "rule_id": "FUZZOWL-AUTH-JWT_WEAK_K",
       "check": "auth",
       "endpoint": "GET /me",
       "confidence": "firm",
@@ -391,7 +391,7 @@
       "url": "http://127.0.0.1:5001/me"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "rule_id": "FUZZOWL-AUTH-JWT_WEAK_K",
       "check": "auth",
       "endpoint": "PUT /users/v1/{username}/email",
       "confidence": "firm",
@@ -401,7 +401,7 @@
       "url": "http://127.0.0.1:5001/users/v1/name1/email"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "rule_id": "FUZZOWL-AUTH-JWT_WEAK_K",
       "check": "auth",
       "endpoint": "PUT /users/v1/{username}/password",
       "confidence": "firm",
@@ -411,7 +411,7 @@
       "url": "http://127.0.0.1:5001/users/v1/name1/password"
     },
     {
-      "rule_id": "APIFUZZ-AUTH-JWT_WEAK_K",
+      "rule_id": "FUZZOWL-AUTH-JWT_WEAK_K",
       "check": "auth",
       "endpoint": "GET /books/v1/{book_title}",
       "confidence": "firm",
@@ -421,7 +421,7 @@
       "url": "http://127.0.0.1:5001/books/v1/bookTitle66"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /",
       "confidence": "firm",
@@ -431,7 +431,7 @@
       "url": "http://127.0.0.1:5001/"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /users/v1",
       "confidence": "firm",
@@ -441,7 +441,7 @@
       "url": "http://127.0.0.1:5001/users/v1"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /users/v1/_debug",
       "confidence": "firm",
@@ -451,7 +451,7 @@
       "url": "http://127.0.0.1:5001/users/v1/_debug"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /users/v1/register",
       "confidence": "firm",
@@ -461,7 +461,7 @@
       "url": "http://127.0.0.1:5001/users/v1/register"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "POST /users/v1/login",
       "confidence": "firm",
@@ -471,7 +471,7 @@
       "url": "http://127.0.0.1:5001/users/v1/login"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /me",
       "confidence": "firm",
@@ -481,7 +481,7 @@
       "url": "http://127.0.0.1:5001/me"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /users/v1/{username}",
       "confidence": "firm",
@@ -491,7 +491,7 @@
       "url": "http://127.0.0.1:5001/users/v1/name1"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "PUT /users/v1/{username}/email",
       "confidence": "firm",
@@ -501,7 +501,7 @@
       "url": "http://127.0.0.1:5001/users/v1/name1/email"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "PUT /users/v1/{username}/password",
       "confidence": "firm",
@@ -511,7 +511,7 @@
       "url": "http://127.0.0.1:5001/users/v1/name1/password"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /books/v1",
       "confidence": "firm",
@@ -521,7 +521,7 @@
       "url": "http://127.0.0.1:5001/books/v1"
     },
     {
-      "rule_id": "APIFUZZ-RATE-001",
+      "rule_id": "FUZZOWL-RATE-001",
       "check": "rate_limit",
       "endpoint": "GET /books/v1/{book_title}",
       "confidence": "firm",

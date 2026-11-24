@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | OWASP | API5:2023 Broken Function Level Authorization |
-| Rule id | `APIFUZZ-BFLA-001` (high; firm, tentative without a baseline) |
+| Rule id | `FUZZOWL-BFLA-001` (high; firm, tentative without a baseline) |
 | Needs | `--low-priv-token` (a low-privilege user's credential); `--token` should then be a privileged user |
 
 ## What it sends
@@ -44,7 +44,7 @@ From the scan in `tests/checks/test_bfla.py` with `enforce_roles=False` (`/admin
 
 ```json
 {
-  "rule_id": "APIFUZZ-BFLA-001",
+  "rule_id": "FUZZOWL-BFLA-001",
   "title": "BFLA: Privileged operation allowed for a low-privilege user",
   "severity": "high",
   "confidence": "firm",

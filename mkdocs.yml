@@ -1,8 +1,8 @@
-site_name: apifuzz
+site_name: fuzzowl
 site_description: OWASP API Top 10 security scanner driven by your OpenAPI, HAR or Postman file.
-site_url: https://dragonday3.github.io/apifuzz/
-repo_url: https://github.com/dragonday3/apifuzz
-repo_name: dragonday3/apifuzz
+site_url: https://dragonday3.github.io/fuzzowl/
+repo_url: https://github.com/dragonday3/fuzzowl
+repo_name: dragonday3/fuzzowl
 edit_uri: edit/main/docs-site/
 docs_dir: docs-site
 

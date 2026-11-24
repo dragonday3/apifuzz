@@ -1,4 +1,9 @@
-# apifuzz
+# fuzzowl
+
+!!! note "Formerly apifuzz"
+    Renamed in 0.2.0, before its first package release: an unrelated OWASP API scanner already publishes
+    `apifuzz` on PyPI with the same command and module name. Results measured before the rename keep the old
+    name and `APIFUZZ-` rule ids.
 
 **An OWASP API Top 10 scanner driven by your API description.** Give it an OpenAPI/Swagger file, a HAR
 recording or a Postman collection plus the base URL of an API you are allowed to test. It generates security
@@ -7,10 +12,10 @@ with a normal authenticated request, and reports findings as JSON, SARIF (GitHub
 self-contained HTML report.
 
 !!! warning "Authorized use only"
-    apifuzz sends attack payloads (injection, SSRF, auth bypass, request bursts). Only scan APIs you own or
+    fuzzowl sends attack payloads (injection, SSRF, auth bypass, request bursts). Only scan APIs you own or
     have explicit written permission to test.
 
-![apifuzz HTML report from a scan of the VAmPI vulnerable API](https://raw.githubusercontent.com/dragonday3/apifuzz/main/assets/apifuzz-report.png)
+![fuzzowl HTML report from a scan of the VAmPI vulnerable API](https://raw.githubusercontent.com/dragonday3/fuzzowl/main/assets/fuzzowl-report.png)
 
 <small>HTML report from an authenticated scan of [VAmPI](https://github.com/erev0s/VAmPI) (rate-limit findings
 trimmed to one for space). Credentials in the request are masked.</small>
@@ -45,7 +50,7 @@ default check, and `--min-confidence firm` hides them. See [How it works](how-it
 
 ## Measured, with disclosures
 
-apifuzz is scored against each target's own list of documented vulnerabilities. On VAmPI it detects 7 of 9
+fuzzowl is scored against each target's own list of documented vulnerabilities. On VAmPI it detects 7 of 9
 documented vulnerabilities by default (8 of 9 with `--time-based`) with 0 false positives on both the
 vulnerable and the secure build; on OWASP crAPI, measured once before any tuning, it detected 5 of 18 documented
 challenges. Rules changed after seeing benchmark output are listed. Details and the after-tuning numbers:
@@ -58,5 +63,5 @@ challenges. Rules changed after seeing benchmark output are listed. Details and 
 - [Safety and scope](safety.md): what a scan sends and writes, and how to limit it.
 - [CLI reference](reference/cli.md) and [Output formats](reference/output.md).
 - [CI integration](ci.md): GitHub code scanning, GitLab, `--fail-on`, accepted findings.
-- [Comparison and limitations](comparison.md): what apifuzz does not do.
-- Source: [github.com/dragonday3/apifuzz](https://github.com/dragonday3/apifuzz) (MIT).
+- [Comparison and limitations](comparison.md): what fuzzowl does not do.
+- Source: [github.com/dragonday3/fuzzowl](https://github.com/dragonday3/fuzzowl) (MIT).

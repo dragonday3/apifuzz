@@ -1,6 +1,6 @@
 import pytest
-from apifuzz.checks.rate_limit import RateLimitCheck, BURST_COUNT
-from apifuzz.models.endpoint import Endpoint, AuthConfig
+from fuzzowl.checks.rate_limit import RateLimitCheck, BURST_COUNT
+from fuzzowl.models.endpoint import Endpoint, AuthConfig
 
 
 def make_endpoint(method="GET", path="/items", body_schema=None):

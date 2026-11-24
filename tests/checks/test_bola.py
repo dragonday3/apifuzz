@@ -1,5 +1,5 @@
-from apifuzz.checks.bola import BOLACheck
-from apifuzz.models.endpoint import Endpoint, Parameter, ParamLocation, AuthConfig
+from fuzzowl.checks.bola import BOLACheck
+from fuzzowl.models.endpoint import Endpoint, Parameter, ParamLocation, AuthConfig
 
 
 def make_endpoint(path="/users/{userId}", method="GET", params=None, body=None):
@@ -110,27 +110,27 @@ class TestBOLACheck:
 
 class TestBOLACrossUserScheme:
     def _cross(self, auth):
-        from apifuzz.checks.bola import BOLACheck
-        from apifuzz.models.endpoint import Endpoint, Parameter, ParamLocation
+        from fuzzowl.checks.bola import BOLACheck
+        from fuzzowl.models.endpoint import Endpoint, Parameter, ParamLocation
         ep = Endpoint(method="GET", path="/users/{userId}", base_url="https://api.example.com",
                       parameters=[Parameter(name="userId", location=ParamLocation.PATH, required=True)])
         return next(c for c in BOLACheck().generate(ep, auth) if c.extra["strategy"] == "cross_user")
 
     def test_apikey_second_token_uses_same_header(self):
-        from apifuzz.models.endpoint import AuthConfig
+        from fuzzowl.models.endpoint import AuthConfig
         tc = self._cross(AuthConfig(type="apikey", token="a", header_name="X-API-Key", second_token="b"))
         assert tc.headers == {"X-API-Key": "b"} and tc.auth_mode == "override"
 
     def test_bearer_second_token(self):
-        from apifuzz.models.endpoint import AuthConfig
+        from fuzzowl.models.endpoint import AuthConfig
         tc = self._cross(AuthConfig(type="bearer", token="a", second_token="b"))
         assert tc.headers == {"Authorization": "Bearer b"}
 
 
 
 def test_cross_user_keeps_example_zero():
-    from apifuzz.checks.bola import BOLACheck
-    from apifuzz.models.endpoint import AuthConfig, Endpoint, Parameter, ParamLocation
+    from fuzzowl.checks.bola import BOLACheck
+    from fuzzowl.models.endpoint import AuthConfig, Endpoint, Parameter, ParamLocation
     ep = Endpoint(method="GET", path="/items/{itemId}", base_url="http://x",
                   parameters=[Parameter(name="itemId", location=ParamLocation.PATH, example=0)])
     tc = next(c for c in BOLACheck().generate(ep, AuthConfig(type="bearer", token="a", second_token="b"))
@@ -139,8 +139,8 @@ def test_cross_user_keeps_example_zero():
 
 
 def test_build_url_does_not_clobber_longer_param_names():
-    from apifuzz.checks.base import build_url
-    from apifuzz.models.endpoint import Endpoint, Parameter, ParamLocation
+    from fuzzowl.checks.base import build_url
+    from fuzzowl.models.endpoint import Endpoint, Parameter, ParamLocation
     ep = Endpoint(method="GET", path="/u/:user/items/:userId", base_url="http://x", parameters=[
         Parameter(name="user", location=ParamLocation.PATH, example="bob"),
         Parameter(name="userId", location=ParamLocation.PATH, example="7")])
@@ -149,8 +149,8 @@ def test_build_url_does_not_clobber_longer_param_names():
 
 
 def test_secured_endpoint_probes_non_id_path_params():
-    from apifuzz.checks.bola import BOLACheck
-    from apifuzz.models.endpoint import AuthConfig, Endpoint, Parameter, ParamLocation
+    from fuzzowl.checks.bola import BOLACheck
+    from fuzzowl.models.endpoint import AuthConfig, Endpoint, Parameter, ParamLocation
     ep = Endpoint(method="GET", path="/books/{book_title}", base_url="http://x", secured=True,
                   parameters=[Parameter(name="book_title", location=ParamLocation.PATH, example="bookTitle77")])
     cases = BOLACheck().generate(ep, AuthConfig(type="bearer", token="a", second_token="b"))
@@ -158,8 +158,8 @@ def test_secured_endpoint_probes_non_id_path_params():
 
 
 def test_public_endpoint_not_probed():
-    from apifuzz.checks.bola import BOLACheck
-    from apifuzz.models.endpoint import AuthConfig, Endpoint, Parameter, ParamLocation
+    from fuzzowl.checks.bola import BOLACheck
+    from fuzzowl.models.endpoint import AuthConfig, Endpoint, Parameter, ParamLocation
     ep = Endpoint(method="GET", path="/users/{userId}", base_url="http://x", secured=False,
                   parameters=[Parameter(name="userId", location=ParamLocation.PATH)])
     assert BOLACheck().generate(ep, AuthConfig(type="bearer", token="a", second_token="b")) == []

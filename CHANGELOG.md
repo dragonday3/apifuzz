@@ -9,6 +9,11 @@ Hardening release: v0.1.0's findings could not be trusted (on the VAmPI benchmar
 vulnerabilities and reported 25 false positives per build with auth tokens). This release fixes correctness, removes
 false positives, makes scans safe to point at real systems, adds coverage, and measures the result.
 
+### Renamed
+- **apifuzz is now fuzzowl** (package, command, Python module, repository, docs site; rule ids `APIFUZZ-*` →
+  `FUZZOWL-*`, ignore file `.apifuzz-ignore.yaml` → `.fuzzowl-ignore.yaml`). An unrelated OWASP API scanner already
+  publishes `apifuzz` on PyPI and installs the same `apifuzz` command and module, so the two would clash.
+
 ### Benchmark
 - `benchmarks/`: reproducible scoring against VAmPI's own list of documented vulnerabilities, on its vulnerable
   and secure builds. Current: **7/9 detected** by default (6 firm), **8/9 with `--time-based`** (7 firm),
@@ -76,19 +81,19 @@ false positives, makes scans safe to point at real systems, adds coverage, and m
 - JWT attacks (API2), when the configured bearer token is a JWT: unverified signature (garbage signature),
   `kid` path traversal signed with a null key, and — for HS256 tokens — a weak signing key cracked **offline**
   (no requests) against a bundled public wordlist (wallarm/jwt-secrets, MIT, top 10000 verbatim entries; see
-  `src/apifuzz/jwt_secrets.README.md`). A cracked key is proved by re-signing the token (same identity) and by
+  `src/fuzzowl/jwt_secrets.README.md`). A cracked key is proved by re-signing the token (same identity) and by
   an expired copy; the guessed key is masked in the evidence like any other credential. This joins the existing
-  `alg:none` probe; all keep the `APIFUZZ-AUTH-JWT*` rule-id family. RS256→HS256 confusion and `jku` injection
+  `alg:none` probe; all keep the `FUZZOWL-AUTH-JWT*` rule-id family. RS256→HS256 confusion and `jku` injection
   are **not** implemented (they need the server's published key or an attacker-hosted JWKS, which the current
   request model does not provide cleanly).
-- `redos` check (API4, `APIFUZZ-REDOS-001`, medium), only with `--time-based` because a vulnerable target really
+- `redos` check (API4, `FUZZOWL-REDOS-001`, medium), only with `--time-based` because a vulnerable target really
   burns CPU: query params and top-level body fields with a `pattern`, an email/uri/hostname format or an
   email/url/domain/host-like name get 3 evil inputs (`"a"×27 + "!"`) interleaved with 3 same-length controls
   (`"!" + "a"×27`), sent one at a time in the time-based pass. Firm only if every evil request is at least 2 s and
   5× slower than the slowest control (timeouts count as slow); no tentative verdict. OpenAPI query params now
   keep their `format` and `pattern`. Motivated by VAmPI's documented RegexDoS on its email update; the rule is
   generic (no VAmPI path or field is special-cased).
-- The blind-SSRF probe map (`apifuzz-<id>` → `METHOD /path [param]`) is in every report, not only the console:
+- The blind-SSRF probe map (`fuzzowl-<id>` → `METHOD /path [param]`) is in every report, not only the console:
   SARIF `runs[0].properties.oobProbes`, an HTML section, and in JSON an object
   `{"findings": [...], "oob_probes": {...}}` (only with `--oob-url`; otherwise JSON stays a plain array).
 - Resource linking: when a `POST` response has no `Location` header or `id`, the object it created is found
@@ -103,10 +108,10 @@ false positives, makes scans safe to point at real systems, adds coverage, and m
 ### Added (CI/CD)
 - Documentation website (MkDocs Material, GitHub Pages): a page per check, a CLI reference generated
   from the code (CI fails if it drifts), CI recipes, safety, benchmarks with every disclosure.
-- SARIF `partialFingerprints` (stable across runs), `--fail-on <severity>`, `.apifuzz-ignore.yaml` accepted
+- SARIF `partialFingerprints` (stable across runs), `--fail-on <severity>`, `.fuzzowl-ignore.yaml` accepted
   findings with expiry (`--write-ignore` bootstraps one).
 - CI runs ruff and mypy plus the end-to-end suite; a weekly benchmark workflow fails on regressions.
-- Release workflow: PyPI as `apifuzz-scanner` (trusted publishing) and `ghcr.io/dragonday3/apifuzz`.
+- Release workflow: PyPI as `fuzzowl` (trusted publishing) and `ghcr.io/dragonday3/fuzzowl`.
 
 ## [0.1.0] - 2026-06-03
 

@@ -1,8 +1,8 @@
 # CI integration
 
-apifuzz is a command that exits non-zero when it finds something at or above `--fail-on`, so any CI system can
+fuzzowl is a command that exits non-zero when it finds something at or above `--fail-on`, so any CI system can
 run it. It is not on PyPI yet: install it from the GitHub repository (pin a commit or tag for reproducible
-builds, e.g. `git+https://github.com/dragonday3/apifuzz.git@<commit>`).
+builds, e.g. `git+https://github.com/dragonday3/fuzzowl.git@<commit>`).
 
 !!! warning "Scan a disposable or staging environment"
     A default scan sends a 50-request burst to every endpoint and creates records through `POST`
@@ -20,7 +20,7 @@ name: API security scan
 on: [pull_request]
 
 jobs:
-  apifuzz:
+  fuzzowl:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -32,24 +32,24 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install apifuzz (from GitHub; not on PyPI yet)
-        run: pip install "git+https://github.com/dragonday3/apifuzz.git"
+      - name: Install fuzzowl (from GitHub; not on PyPI yet)
+        run: pip install "git+https://github.com/dragonday3/fuzzowl.git"
 
       - name: Run API security scan
         run: |
-          apifuzz openapi.yaml \
+          fuzzowl openapi.yaml \
             --target "${{ secrets.API_BASE_URL }}" \
             --token "${{ secrets.API_TEST_TOKEN }}" \
             --second-token "${{ secrets.API_TEST_TOKEN_B }}" \
-            --output sarif --out-file apifuzz.sarif \
+            --output sarif --out-file fuzzowl.sarif \
             --fail-on high
 
       - name: Upload SARIF to code scanning
         # Upload even when the scan step failed on findings; skip if no report was written (exit 2).
-        if: always() && hashFiles('apifuzz.sarif') != ''
+        if: always() && hashFiles('fuzzowl.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: apifuzz.sarif
+          sarif_file: fuzzowl.sarif
 ```
 
 Notes:
@@ -69,18 +69,18 @@ api-security:
   image: python:3.12-slim
   before_script:
     - apt-get update && apt-get install -y --no-install-recommends git
-    - pip install "git+https://github.com/dragonday3/apifuzz.git"
+    - pip install "git+https://github.com/dragonday3/fuzzowl.git"
   script:
-    - apifuzz openapi.yaml --target "$API_BASE_URL" --token "$API_TEST_TOKEN"
-        --output html --out-file apifuzz-report.html --fail-on high
+    - fuzzowl openapi.yaml --target "$API_BASE_URL" --token "$API_TEST_TOKEN"
+        --output html --out-file fuzzowl-report.html --fail-on high
   artifacts:
     when: always
     paths:
-      - apifuzz-report.html
+      - fuzzowl-report.html
 ```
 
 Store `API_BASE_URL` and `API_TEST_TOKEN` as masked CI/CD variables. The `slim` image has no `git`, which
-`pip install git+...` needs. apifuzz writes SARIF, JSON and HTML; it does not produce GitLab's own security
+`pip install git+...` needs. fuzzowl writes SARIF, JSON and HTML; it does not produce GitLab's own security
 report format, so keep the report as a job artifact (or add a second run with `--output sarif` for tools that
 read SARIF).
 
@@ -93,24 +93,24 @@ exit code `2` means every request failed: treat it as a broken job, not a clean 
 
 ## Accepting known findings
 
-A finding you've reviewed and accepted shouldn't fail every later build. Record it in `.apifuzz-ignore.yaml`:
+A finding you've reviewed and accepted shouldn't fail every later build. Record it in `.fuzzowl-ignore.yaml`:
 
 ```yaml
 ignore:
-  - rule_id: APIFUZZ-RATE-001
+  - rule_id: FUZZOWL-RATE-001
     endpoint: "GET /health"            # spec operation; globs allowed; omit for every endpoint
     reason: rate limited at the gateway, not the app
     expires: 2027-01-31                # optional: the entry stops applying after this date
 ```
 
-- `rule_id` and `endpoint` are glob patterns (`APIFUZZ-RATE-*`, `GET /books/*`). They match the finding's rule
+- `rule_id` and `endpoint` are glob patterns (`FUZZOWL-RATE-*`, `GET /books/*`). They match the finding's rule
   id and its spec operation, so the entry keeps working although probe URLs change between runs.
 - After `expires`, an entry no longer suppresses anything, and every run warns about it, so accepted risks get
   reviewed again.
 - The file in the working directory is used automatically when it exists; `--ignore-file PATH` points to
   another one. An invalid file (no `rule_id`, a bad date) stops the run before anything is sent.
 
-**Bootstrap it** from a scan: `--write-ignore .apifuzz-ignore.yaml` writes one entry per rule and operation
+**Bootstrap it** from a scan: `--write-ignore .fuzzowl-ignore.yaml` writes one entry per rule and operation
 found, with `reason: "TODO: why this is accepted"`, and exits `0`. Entries already in the file are kept as they
 are (reasons, expiry dates); only new ones are added. Review the file, fill in each reason (and an `expires`
 date where it fits), and commit it.

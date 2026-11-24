@@ -2,11 +2,11 @@ import json
 
 import pytest
 
-from apifuzz.analyzer import Analyzer
-from apifuzz.checks.data_exposure import DataExposureCheck
-from apifuzz.executor import TestCase as Case
-from apifuzz.executor import TestResult as Result
-from apifuzz.models.endpoint import AuthConfig, Endpoint
+from fuzzowl.analyzer import Analyzer
+from fuzzowl.checks.data_exposure import DataExposureCheck
+from fuzzowl.executor import TestCase as Case
+from fuzzowl.executor import TestResult as Result
+from fuzzowl.models.endpoint import AuthConfig, Endpoint
 
 SCHEMA = {"type": "object", "properties": {"users": {"type": "array", "items": {
     "type": "object", "properties": {"username": {"type": "string"}, "email": {"type": "string"}}}}}}
@@ -28,8 +28,8 @@ def test_only_get_endpoints_probed():
 def test_plaintext_passwords_flagged_and_masked_in_report():
     findings = {f.rule_id: f for f in run({"users": [{"username": "a", "email": "e", "password": "hunter22"}]},
                                           SCHEMA)}
-    f = findings["APIFUZZ-EXPOSURE-001"]  # (002 also fires: password isn't in the schema either)
-    assert f.confidence == "firm" and set(findings) == {"APIFUZZ-EXPOSURE-001", "APIFUZZ-EXPOSURE-002"}
+    f = findings["FUZZOWL-EXPOSURE-001"]  # (002 also fires: password isn't in the schema either)
+    assert f.confidence == "firm" and set(findings) == {"FUZZOWL-EXPOSURE-001", "FUZZOWL-EXPOSURE-002"}
     assert "users[].password" in f.evidence and "hunter22" not in f.response_sample
 
 
@@ -46,7 +46,7 @@ def test_not_sensitive(body):
 
 def test_undocumented_fields_tentative_low():
     [f] = run({"users": [{"username": "a", "email": "e", "internal_notes": "vip"}]}, SCHEMA)
-    assert f.rule_id == "APIFUZZ-EXPOSURE-002" and f.confidence == "tentative"
+    assert f.rule_id == "FUZZOWL-EXPOSURE-002" and f.confidence == "tentative"
     assert "users[].internal_notes" in f.evidence
 
 
@@ -73,7 +73,7 @@ def test_masked_values_are_placeholders(card):
 
 @pytest.mark.parametrize("card", ["4111111111111111", "4111 1111 1111 1111"])
 def test_unmasked_card_number_still_flagged(card):
-    assert [f.rule_id for f in run({"payment": {"card_number": card}})] == ["APIFUZZ-EXPOSURE-001"]
+    assert [f.rule_id for f in run({"payment": {"card_number": card}})] == ["FUZZOWL-EXPOSURE-001"]
 
 
 def test_pagination_envelope_and_empty_fields_not_undocumented():

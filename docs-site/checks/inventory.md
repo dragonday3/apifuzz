@@ -3,14 +3,14 @@
 | | |
 |---|---|
 | OWASP | API9:2023 Improper Inventory Management |
-| Rule ids | `APIFUZZ-INVENTORY-001` shadow spec, `APIFUZZ-INVENTORY-002` debug/management endpoint, `APIFUZZ-INVENTORY-003` undocumented API version (tentative) |
+| Rule ids | `FUZZOWL-INVENTORY-001` shadow spec, `FUZZOWL-INVENTORY-002` debug/management endpoint, `FUZZOWL-INVENTORY-003` undocumented API version (tentative) |
 | Needs | nothing; runs once per scan, not per endpoint |
 
 ## What it sends
 
 Up to 25 `GET`s per scan, with the configured credentials:
 
-- **A control**: a random path that can't exist (`/apifuzz-nonexistent-<random>`), to see what a catch-all or
+- **A control**: a random path that can't exist (`/fuzzowl-nonexistent-<random>`), to see what a catch-all or
   single-page-app server answers for anything.
 - **Well-known paths** not already in the spec: `/openapi.json`, `/openapi.yaml`, `/swagger.json`,
   `/swagger.yaml`, `/v2/api-docs`, `/v3/api-docs`, `/api-docs`, `/actuator`, `/actuator/env`,
@@ -50,7 +50,7 @@ From the scan in `tests/checks/test_inventory.py` with the handler of `test_expo
 
 ```json
 {
-  "rule_id": "APIFUZZ-INVENTORY-002",
+  "rule_id": "FUZZOWL-INVENTORY-002",
   "title": "Inventory: .env file exposed (/.env)",
   "severity": "high",
   "confidence": "firm",

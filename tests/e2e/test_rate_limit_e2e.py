@@ -1,8 +1,8 @@
 """Phase 0.6: bursts bypass the global throttle; one verdict per endpoint."""
 import time
 
-from apifuzz.models.endpoint import AuthConfig
-from apifuzz.scanner import Scanner
+from fuzzowl.models.endpoint import AuthConfig
+from fuzzowl.scanner import Scanner
 
 from .conftest import BASE, PETSTORE
 

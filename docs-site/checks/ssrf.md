@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | OWASP | API7:2023 Server Side Request Forgery |
-| Rule id | `APIFUZZ-SSRF-001` (critical, firm) |
+| Rule id | `FUZZOWL-SSRF-001` (critical, firm) |
 | Needs | parameters with URL-like names; `--oob-url` (a collector you control) for blind SSRF |
 
 ## What it sends
@@ -17,7 +17,7 @@ one request per payload:
 - `http://127.0.0.1`
 - `http://0.0.0.0`
 
-With `--oob-url https://<your-collector>`, one more per parameter: `https://<your-collector>/apifuzz-<id>`,
+With `--oob-url https://<your-collector>`, one more per parameter: `https://<your-collector>/fuzzowl-<id>`,
 where `<id>` is 8 random hex characters unique to that parameter.
 
 ## How it decides
@@ -26,11 +26,11 @@ where `<id>` is 8 random hex characters unique to that parameter.
 `instance-id`, `root:x:0:0`, `computeMetadata`, `"AccessKeyId"`) and the endpoint's baseline response does not.
 None of the markers occurs in the payloads themselves, so a reflected payload doesn't count.
 
-**Blind (`--oob-url`)**: apifuzz does not poll your collector and does not create findings for callbacks. It
+**Blind (`--oob-url`)**: fuzzowl does not poll your collector and does not create findings for callbacks. It
 records which probe id went to which parameter, prints the map at the end of the scan (even with `--quiet`), and
 writes it into every report: SARIF `runs[0].properties.oobProbes`, an HTML section, and in JSON the object form
 `{"findings": [...], "oob_probes": {...}}` ([Output formats](../reference/output.md)). A request to
-`<collector>/apifuzz-<id>` means that parameter makes the server fetch attacker-chosen URLs; it may arrive
+`<collector>/fuzzowl-<id>` means that parameter makes the server fetch attacker-chosen URLs; it may arrive
 later than the scan.
 
 ## False-positive guards
@@ -45,7 +45,7 @@ From a scan of the `/fetch?url=` spec of `tests/checks/test_ssrf_oob.py` against
 
 ```json
 {
-  "rule_id": "APIFUZZ-SSRF-001",
+  "rule_id": "FUZZOWL-SSRF-001",
   "title": "SSRF: Internal metadata content in response",
   "severity": "critical",
   "confidence": "firm",

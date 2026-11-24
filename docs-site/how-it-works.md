@@ -128,10 +128,10 @@ API returns every finding.
 
 ```python
 import asyncio
-from apifuzz.scanner import Scanner
-from apifuzz.models.endpoint import AuthConfig
-from apifuzz.reporters.sarif import SARIFReporter
-from apifuzz.reporters.html import HTMLReporter
+from fuzzowl.scanner import Scanner
+from fuzzowl.models.endpoint import AuthConfig
+from fuzzowl.reporters.sarif import SARIFReporter
+from fuzzowl.reporters.html import HTMLReporter
 
 auth = AuthConfig(type="bearer", token="your-token")
 

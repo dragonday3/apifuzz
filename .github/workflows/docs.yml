@@ -9,7 +9,7 @@ on:
     paths:
       - "docs-site/**"
       - "mkdocs.yml"
-      - "src/apifuzz/**"         # the CLI reference is generated from the Typer app (cli.py and the defaults it imports)
+      - "src/fuzzowl/**"         # the CLI reference is generated from the Typer app (cli.py and the defaults it imports)
       - "CHANGELOG.md"           # included in the site by pymdownx.snippets
       - "benchmarks/README.md"
       - "pyproject.toml"         # the pinned docs dependencies
@@ -19,7 +19,7 @@ on:
     paths:
       - "docs-site/**"
       - "mkdocs.yml"
-      - "src/apifuzz/**"         # the CLI reference is generated from the Typer app (cli.py and the defaults it imports)
+      - "src/fuzzowl/**"         # the CLI reference is generated from the Typer app (cli.py and the defaults it imports)
       - "CHANGELOG.md"           # included in the site by pymdownx.snippets
       - "benchmarks/README.md"
       - "pyproject.toml"         # the pinned docs dependencies
@@ -42,7 +42,7 @@ jobs:
 
       - name: CLI reference is up to date
         run: |
-          python -m typer apifuzz.cli utils docs --name apifuzz --output docs-site/reference/cli.md
+          python -m typer fuzzowl.cli utils docs --name fuzzowl --output docs-site/reference/cli.md
           git diff --exit-code -- docs-site/reference/cli.md || {
             echo "::error file=docs-site/reference/cli.md::stale CLI reference: run the command above and commit the result"
             exit 1

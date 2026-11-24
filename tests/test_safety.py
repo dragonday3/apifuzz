@@ -8,14 +8,14 @@ import pytest
 import respx
 from typer.testing import CliRunner
 
-from apifuzz.analyzer import Analyzer
-from apifuzz.cli import app
-from apifuzz.executor import Executor, RequestBudget
-from apifuzz.executor import TestCase as Case
-from apifuzz.executor import TestResult as Result
-from apifuzz.models.endpoint import AuthConfig
-from apifuzz.redact import mask, scrub, secrets_for
-from apifuzz.scanner import Scanner
+from fuzzowl.analyzer import Analyzer
+from fuzzowl.cli import app
+from fuzzowl.executor import Executor, RequestBudget
+from fuzzowl.executor import TestCase as Case
+from fuzzowl.executor import TestResult as Result
+from fuzzowl.models.endpoint import AuthConfig
+from fuzzowl.redact import mask, scrub, secrets_for
+from fuzzowl.scanner import Scanner
 
 SPEC = textwrap.dedent("""
     openapi: "3.0.3"
@@ -148,7 +148,7 @@ def test_tls_verified_by_default_and_flags_reach_scanner(spec, monkeypatch):
         def plan(self):
             return []
 
-    monkeypatch.setattr("apifuzz.cli.Scanner", FakeScanner)
+    monkeypatch.setattr("fuzzowl.cli.Scanner", FakeScanner)
     CliRunner().invoke(app, [spec, "--target", "https://api", "--insecure", "--proxy", "http://127.0.0.1:8080",
                              "--dry-run"])
     assert seen["verify"] is False and seen["proxy"] == "http://127.0.0.1:8080"

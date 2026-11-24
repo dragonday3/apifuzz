@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | OWASP | API2:2023 Broken Authentication |
-| Rule id | `APIFUZZ-ENUM-001` (medium, firm) |
+| Rule id | `FUZZOWL-ENUM-001` (medium, firm) |
 | Needs | a login-like `POST` whose example body has a username and a password field |
 
 ## What it sends
@@ -13,7 +13,7 @@ Only `POST` operations whose path, operationId or summary mentions `login`, `log
 `e-mail`, `account`) and a password field (`pass`, `password`, `passwd`, `pwd`). Signup forms are left out on
 purpose: they say "user already exists" by design, and probing them creates accounts.
 
-Three requests, without credentials, all with the wrong password `apifuzz-Wr0ng-passw0rd`:
+Three requests, without credentials, all with the wrong password `fuzzowl-Wr0ng-passw0rd`:
 
 1. the spec's example user (the "known" user);
 2. two **lookalikes** of it: same length, case and character classes, different letters and digits (an email
@@ -45,7 +45,7 @@ From a scan of a one-operation login spec (`POST /users/login`, example user `na
 
 ```json
 {
-  "rule_id": "APIFUZZ-ENUM-001",
+  "rule_id": "FUZZOWL-ENUM-001",
   "title": "User Enumeration: Login answers differently for existing users",
   "severity": "medium",
   "confidence": "firm",

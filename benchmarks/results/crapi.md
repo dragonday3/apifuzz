@@ -1,13 +1,13 @@
-# apifuzz vs crapi
+# fuzzowl vs crapi
 
-Measured 2026-11-24 with apifuzz `d8653f0`. Scan settings: `{"allow_destructive": true, "rate_limit_rps": 20}`. Requests: 3526; failed: none.
+Measured 2026-11-24 with fuzzowl `d8653f0`. Scan settings: `{"allow_destructive": true, "rate_limit_rps": 20}`. Requests: 3526; failed: none.
 
 crapi has no fixed build, so there is no false-positive run. Findings that match no documented vulnerability are listed at the end and counted against precision; each is triaged by hand in benchmarks/README.md.
 
 | Metric | Value |
 |---|---|
 | Documented vulnerabilities detected | 7 / 18 (39%) |
-| ...of those apifuzz has a check for | 7 / 14 (50%) |
+| ...of those fuzzowl has a check for | 7 / 14 (50%) |
 | ...detected with a firm finding | 4 / 18 |
 | Findings | 69 (38 match no documented vulnerability) |
 | ...of which rate-limit (one per endpoint) | 28 |
@@ -39,41 +39,41 @@ crapi has no fixed build, so there is no false-positive run. Findings that match
 
 ## Findings matching no documented vulnerability
 
-- `APIFUZZ-EXPOSURE-002` (tentative) on `GET /identity/api/v2/vehicle/{vehicleId}/location`
-- `APIFUZZ-EXPOSURE-002` (tentative) on `GET /workshop/api/shop/orders/{order_id}`
-- `APIFUZZ-EXPOSURE-002` (tentative) on `GET /workshop/api/shop/orders/all`
-- `APIFUZZ-BOLA-001` (tentative) on `GET /community/api/v2/community/posts/{postId}`
-- `APIFUZZ-BOLA-001` (tentative) on `POST /community/api/v2/community/posts/{postId}/comment`
-- `APIFUZZ-BOLA-002` (tentative) on `GET /workshop/api/shop/orders/{order_id}`
-- `APIFUZZ-BOLA-002` (tentative) on `GET /workshop/api/shop/orders/{order_id}`
-- `APIFUZZ-INVENTORY-002` (firm) on `GET /.env (not in spec)`
-- `APIFUZZ-BOLA-001` (tentative) on `GET /community/api/v2/community/posts/{postId}`
-- `APIFUZZ-BOLA-001` (firm) on `GET /workshop/api/shop/orders/{order_id}`
-- `APIFUZZ-ENUM-001` (firm) on `POST /identity/api/auth/login`
-- `APIFUZZ-RATE-001` (firm) on `POST /identity/api/auth/login`
-- `APIFUZZ-RATE-001` (firm) on `POST /identity/api/auth/forget-password`
-- `APIFUZZ-RATE-001` (tentative) on `POST /identity/api/auth/v3/check-otp`
-- `APIFUZZ-RATE-001` (tentative) on `POST /identity/api/auth/v4.0/user/login-with-token`
-- `APIFUZZ-RATE-001` (tentative) on `POST /identity/api/auth/v2.7/user/login-with-token`
-- `APIFUZZ-RATE-001` (firm) on `POST /identity/api/v2/user/reset-password`
-- `APIFUZZ-RATE-001` (firm) on `POST /identity/api/v2/user/change-email`
-- `APIFUZZ-RATE-001` (tentative) on `POST /identity/api/v2/user/verify-email-token`
-- `APIFUZZ-RATE-001` (firm) on `GET /identity/api/v2/user/dashboard`
-- `APIFUZZ-RATE-001` (firm) on `GET /identity/api/v2/vehicle/vehicles`
-- `APIFUZZ-RATE-001` (firm) on `GET /identity/api/v2/vehicle/{vehicleId}/location`
-- `APIFUZZ-RATE-001` (firm) on `POST /identity/api/v2/vehicle/resend_email`
-- `APIFUZZ-RATE-001` (firm) on `GET /community/api/v2/community/posts/{postId}`
-- `APIFUZZ-RATE-001` (firm) on `POST /community/api/v2/community/posts`
-- `APIFUZZ-RATE-001` (firm) on `POST /community/api/v2/community/posts/{postId}/comment`
-- `APIFUZZ-RATE-001` (firm) on `GET /community/api/v2/community/posts/recent`
-- `APIFUZZ-RATE-001` (firm) on `POST /community/api/v2/coupon/validate-coupon`
-- `APIFUZZ-RATE-001` (firm) on `GET /workshop/api/shop/products`
-- `APIFUZZ-RATE-001` (firm) on `POST /workshop/api/shop/products`
-- `APIFUZZ-RATE-001` (firm) on `PUT /workshop/api/shop/orders/{order_id}`
-- `APIFUZZ-RATE-001` (firm) on `GET /workshop/api/shop/orders/{order_id}`
-- `APIFUZZ-RATE-001` (firm) on `GET /workshop/api/shop/orders/all`
-- `APIFUZZ-RATE-001` (firm) on `GET /workshop/api/shop/return_qr_code`
-- `APIFUZZ-RATE-001` (firm) on `GET /workshop/api/management/users/all`
-- `APIFUZZ-RATE-001` (firm) on `GET /workshop/api/mechanic/`
-- `APIFUZZ-RATE-001` (firm) on `GET /workshop/api/mechanic/mechanic_report`
-- `APIFUZZ-RATE-001` (firm) on `GET /workshop/api/mechanic/service_requests`
+- `FUZZOWL-EXPOSURE-002` (tentative) on `GET /identity/api/v2/vehicle/{vehicleId}/location`
+- `FUZZOWL-EXPOSURE-002` (tentative) on `GET /workshop/api/shop/orders/{order_id}`
+- `FUZZOWL-EXPOSURE-002` (tentative) on `GET /workshop/api/shop/orders/all`
+- `FUZZOWL-BOLA-001` (tentative) on `GET /community/api/v2/community/posts/{postId}`
+- `FUZZOWL-BOLA-001` (tentative) on `POST /community/api/v2/community/posts/{postId}/comment`
+- `FUZZOWL-BOLA-002` (tentative) on `GET /workshop/api/shop/orders/{order_id}`
+- `FUZZOWL-BOLA-002` (tentative) on `GET /workshop/api/shop/orders/{order_id}`
+- `FUZZOWL-INVENTORY-002` (firm) on `GET /.env (not in spec)`
+- `FUZZOWL-BOLA-001` (tentative) on `GET /community/api/v2/community/posts/{postId}`
+- `FUZZOWL-BOLA-001` (firm) on `GET /workshop/api/shop/orders/{order_id}`
+- `FUZZOWL-ENUM-001` (firm) on `POST /identity/api/auth/login`
+- `FUZZOWL-RATE-001` (firm) on `POST /identity/api/auth/login`
+- `FUZZOWL-RATE-001` (firm) on `POST /identity/api/auth/forget-password`
+- `FUZZOWL-RATE-001` (tentative) on `POST /identity/api/auth/v3/check-otp`
+- `FUZZOWL-RATE-001` (tentative) on `POST /identity/api/auth/v4.0/user/login-with-token`
+- `FUZZOWL-RATE-001` (tentative) on `POST /identity/api/auth/v2.7/user/login-with-token`
+- `FUZZOWL-RATE-001` (firm) on `POST /identity/api/v2/user/reset-password`
+- `FUZZOWL-RATE-001` (firm) on `POST /identity/api/v2/user/change-email`
+- `FUZZOWL-RATE-001` (tentative) on `POST /identity/api/v2/user/verify-email-token`
+- `FUZZOWL-RATE-001` (firm) on `GET /identity/api/v2/user/dashboard`
+- `FUZZOWL-RATE-001` (firm) on `GET /identity/api/v2/vehicle/vehicles`
+- `FUZZOWL-RATE-001` (firm) on `GET /identity/api/v2/vehicle/{vehicleId}/location`
+- `FUZZOWL-RATE-001` (firm) on `POST /identity/api/v2/vehicle/resend_email`
+- `FUZZOWL-RATE-001` (firm) on `GET /community/api/v2/community/posts/{postId}`
+- `FUZZOWL-RATE-001` (firm) on `POST /community/api/v2/community/posts`
+- `FUZZOWL-RATE-001` (firm) on `POST /community/api/v2/community/posts/{postId}/comment`
+- `FUZZOWL-RATE-001` (firm) on `GET /community/api/v2/community/posts/recent`
+- `FUZZOWL-RATE-001` (firm) on `POST /community/api/v2/coupon/validate-coupon`
+- `FUZZOWL-RATE-001` (firm) on `GET /workshop/api/shop/products`
+- `FUZZOWL-RATE-001` (firm) on `POST /workshop/api/shop/products`
+- `FUZZOWL-RATE-001` (firm) on `PUT /workshop/api/shop/orders/{order_id}`
+- `FUZZOWL-RATE-001` (firm) on `GET /workshop/api/shop/orders/{order_id}`
+- `FUZZOWL-RATE-001` (firm) on `GET /workshop/api/shop/orders/all`
+- `FUZZOWL-RATE-001` (firm) on `GET /workshop/api/shop/return_qr_code`
+- `FUZZOWL-RATE-001` (firm) on `GET /workshop/api/management/users/all`
+- `FUZZOWL-RATE-001` (firm) on `GET /workshop/api/mechanic/`
+- `FUZZOWL-RATE-001` (firm) on `GET /workshop/api/mechanic/mechanic_report`
+- `FUZZOWL-RATE-001` (firm) on `GET /workshop/api/mechanic/service_requests`

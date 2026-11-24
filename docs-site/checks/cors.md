@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | OWASP | API8:2023 Security Misconfiguration |
-| Rule id | `APIFUZZ-CORS-001` (high, firm) |
+| Rule id | `FUZZOWL-CORS-001` (high, firm) |
 | Needs | nothing |
 
 ## What it sends
@@ -30,7 +30,7 @@ From a scan of the test suite's petstore mock API (`tests/e2e/conftest.py` `Mock
 
 ```json
 {
-  "rule_id": "APIFUZZ-CORS-001",
+  "rule_id": "FUZZOWL-CORS-001",
   "title": "CORS: Origin reflection with credentials allowed",
   "severity": "high",
   "confidence": "firm",

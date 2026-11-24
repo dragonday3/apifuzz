@@ -1,6 +1,6 @@
 """Phase 0.2: body-based probes must send example bodies a real API accepts, not the schema."""
-from apifuzz.models.endpoint import AuthConfig
-from apifuzz.scanner import Scanner
+from fuzzowl.models.endpoint import AuthConfig
+from fuzzowl.scanner import Scanner
 
 from .conftest import BASE, PETSTORE
 
@@ -34,12 +34,12 @@ async def mass_scan(mock_api, mode):
 
 
 async def test_mass_assignment_persisted_is_firm(mock_api):
-    assert await mass_scan(mock_api, "persist") == [("APIFUZZ-MASS-001", "firm")]
+    assert await mass_scan(mock_api, "persist") == [("FUZZOWL-MASS-001", "firm")]
 
 
 async def test_mass_assignment_echo_only_is_tentative(mock_api):
     # Echoed back, and the follow-up GET /pets/3 finds nothing stored.
-    assert await mass_scan(mock_api, "reflect") == [("APIFUZZ-MASS-001", "tentative")]
+    assert await mass_scan(mock_api, "reflect") == [("FUZZOWL-MASS-001", "tentative")]
 
 
 async def test_allowlisted_fields_no_finding(mock_api):

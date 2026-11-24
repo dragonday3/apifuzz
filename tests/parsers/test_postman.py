@@ -1,6 +1,6 @@
 from pathlib import Path
-from apifuzz.parsers.postman import PostmanParser
-from apifuzz.models.endpoint import ParamLocation
+from fuzzowl.parsers.postman import PostmanParser
+from fuzzowl.models.endpoint import ParamLocation
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
 

@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from apifuzz.parsers.openapi import OpenAPIParser
+from fuzzowl.parsers.openapi import OpenAPIParser
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
 

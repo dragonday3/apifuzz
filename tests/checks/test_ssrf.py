@@ -1,5 +1,5 @@
-from apifuzz.models.endpoint import Endpoint, AuthConfig, Parameter, ParamLocation
-from apifuzz.checks.ssrf import SSRFCheck, SSRF_PAYLOADS
+from fuzzowl.models.endpoint import Endpoint, AuthConfig, Parameter, ParamLocation
+from fuzzowl.checks.ssrf import SSRFCheck, SSRF_PAYLOADS
 
 
 def make_endpoint(path="/search", method="GET", params=None, body_schema=None):

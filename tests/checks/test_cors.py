@@ -1,6 +1,6 @@
 import pytest
-from apifuzz.checks.cors import CORSCheck, EVIL_ORIGINS
-from apifuzz.models.endpoint import Endpoint, AuthConfig
+from fuzzowl.checks.cors import CORSCheck, EVIL_ORIGINS
+from fuzzowl.models.endpoint import Endpoint, AuthConfig
 
 
 def make_endpoint(method="GET", path="/items", body_schema=None):

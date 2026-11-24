@@ -2,8 +2,8 @@ import base64
 import pytest
 import respx
 import httpx
-from apifuzz.executor import Executor, TestCase, TestResult
-from apifuzz.models.endpoint import AuthConfig
+from fuzzowl.executor import Executor, TestCase, TestResult
+from fuzzowl.models.endpoint import AuthConfig
 
 
 def make_tc(method="GET", url="https://api.example.com/users", check_id="test", label="test", body=None, params=None, headers=None):
