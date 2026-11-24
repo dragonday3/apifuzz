@@ -54,7 +54,7 @@ def scan(
         "tentative", "--min-confidence",
         help="Report only findings at or above this confidence: tentative (all) | firm"),
     time_based: bool = typer.Option(
-        False, "--time-based", help="Add time-based SQLi probes (each waits ~5 s on a vulnerable target)"),
+        False, "--time-based", help="Add time-based SQLi and ReDoS probes, sent one at a time (each waits ~5 s on a vulnerable target)"),
     allow_destructive: bool = typer.Option(
         False, "--allow-destructive", help="Also test PUT/PATCH/DELETE endpoints (they modify or delete data)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Print the test plan (requests per check/endpoint), send nothing"),

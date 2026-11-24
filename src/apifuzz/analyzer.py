@@ -6,6 +6,7 @@ from urllib.parse import quote, urlencode, urljoin, urlsplit
 from apifuzz.checks.base import build_url
 from apifuzz.checks.bola import MISSING_ID
 from apifuzz.checks.injection import CMD_CANARY, SQLI_SLEEP_SECONDS, SSTI_PRODUCT
+from apifuzz.checks.redos import REDOS_N
 from apifuzz.executor import TestCase, TestResult, auth_headers
 from apifuzz.models.endpoint import AuthConfig, Endpoint
 from apifuzz.redact import mask, redact_headers
@@ -28,6 +29,10 @@ _CMD_UID = re.compile(r"uid=\d+\([\w-]+\) gid=\d+")
 _NOSQL_ERRORS = re.compile(r"(MongoError|MongoServerError|unknown operator|\$where)")
 
 _SEVERITY_RANK = {s: i for i, s in enumerate(_SEVERITY_ORDER)}
+
+# ReDoS verdict: every evil probe must be this much slower than the slowest control (both conditions).
+REDOS_MIN_DELAY_MS = 2000
+REDOS_FACTOR = 5
 
 
 _IDENTIFYING_KEY = re.compile(r"^(id|uuid|username|email|.+_id|.+Id)$")
@@ -354,6 +359,7 @@ class Analyzer:
         raw.extend(self._analyze_nosqli_pairs(results))
         raw.extend(self._analyze_sqli_blind(results))
         raw.extend(self._analyze_user_enum(results))
+        raw.extend(self._analyze_redos(results))
         self._confirm_mass_assignment(results, raw)
         _label_endpoints(raw, results)
         return self._dedup(raw)
@@ -868,6 +874,48 @@ class Analyzer:
                     f"AND '1'='2: HTTP {false.status_code}, {len(false.response_body)} bytes",
                     "Use parameterized queries. Never concatenate user input into SQL.",
                     "APIFUZZ-INJECT-SQLI-BOOL"))
+        return findings
+
+    def _analyze_redos(self, results: list[TestResult]) -> list[Finding]:
+        """Firm only if every evil probe is at least REDOS_MIN_DELAY_MS and REDOS_FACTOR x slower than the
+        slowest control (a timed-out evil probe counts as slow, like time-based SQLi). No tentative verdict:
+        one slow request is network noise. A 429, a failed control or any other error means no verdict."""
+        groups: dict[str, dict[str, list[TestResult]]] = {}
+        for r in results:
+            if r.test_case.extra.get("strategy") == "redos":
+                groups.setdefault(r.test_case.extra["pair_id"], {}).setdefault(
+                    r.test_case.extra["polarity"], []).append(r)
+        findings = []
+        for pair_id, g in groups.items():
+            controls, evil = g.get("control", []), g.get("evil", [])
+            if not controls or not evil or any(r.is_error or r.status_code == 429 for r in controls) or any(
+                    r.status_code == 429 or (r.is_error and "Timeout" not in (r.error or "")) for r in evil):
+                continue
+            slowest = max(r.elapsed_ms for r in controls)
+            threshold = max(slowest + REDOS_MIN_DELAY_MS, slowest * REDOS_FACTOR)
+            if not all(r.elapsed_ms >= threshold or r.is_error for r in evil):
+                continue
+            tc = evil[0].test_case
+            findings.append(Finding(
+                title="ReDoS: Regex backtracking delays the response",
+                description=(f"{tc.extra.get('param_name')} accepts input that makes server-side validation "
+                             f"backtrack: all {len(evil)} requests with {REDOS_N} 'a' characters followed by '!' "
+                             f"were slower than every same-length control ('!' first). Each such request burns "
+                             f"server CPU, so a few concurrent ones can exhaust the workers."),
+                severity=Severity.MEDIUM,
+                owasp_category=OWASPCategory.API4_RATE,
+                endpoint_method=tc.method,
+                endpoint_path=tc.url,
+                request_sample=_request_text(evil[0], self.sensitive_headers),
+                response_sample=_response_text(evil[0]),
+                evidence=("Evil ms: " + ", ".join(f"{r.elapsed_ms:.0f}" + (" (timeout)" if r.is_error else "")
+                                                  for r in evil)
+                          + "; control ms: " + ", ".join(f"{r.elapsed_ms:.0f}" for r in controls)),
+                remediation=("Rewrite the regex without nested or overlapping quantifiers (e.g. (a+)+, (\\w+\\s?)*), "
+                             "cap the input length before matching, or use a linear-time engine (RE2)."),
+                rule_id="APIFUZZ-REDOS-001",
+                parameter=str(tc.extra.get("param_name") or ""),
+            ))
         return findings
 
     def _analyze_user_enum(self, results: list[TestResult]) -> list[Finding]:

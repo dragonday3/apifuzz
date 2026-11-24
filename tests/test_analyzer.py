@@ -578,3 +578,43 @@ def test_confirmation_get_does_not_relabel_a_get_probe(analyzer):
     [f] = analyzer.analyze([make_result(get_probe, 500, body="sqlite3.OperationalError"),
                             make_result(verify, 200, body="{}")])
     assert f.endpoint == "GET /users/{id}"
+
+
+class TestRedos:
+    def _group(self, control_ms, evil_ms, evil_error=None, control_status=200):
+        out = []
+        for polarity, times in (("control", control_ms), ("evil", evil_ms)):
+            for ms in times:
+                tc = make_tc("redos", method="POST", url="http://api/users",
+                             extra={"strategy": "redos", "pair_id": "POST /users [email]", "polarity": polarity,
+                                    "param_name": "email"})
+                r = make_result(tc, control_status if polarity == "control" else 400,
+                                error=evil_error if polarity == "evil" else None)
+                r.elapsed_ms = ms
+                out.append(r)
+        return out
+
+    def test_every_evil_slow_is_firm(self, analyzer):
+        [f] = analyzer.analyze(self._group([40, 60, 50], [6100, 5900, 6300]))
+        assert (f.rule_id, f.confidence, f.severity) == ("APIFUZZ-REDOS-001", "firm", Severity.MEDIUM)
+        assert f.owasp_category == OWASPCategory.API4_RATE and f.parameter == "email"
+        assert "6100" in f.evidence and "60" in f.evidence
+
+    def test_one_fast_evil_not_flagged(self, analyzer):
+        assert analyzer.analyze(self._group([40, 60, 50], [6100, 70, 6300])) == []
+
+    def test_slow_control_not_flagged(self, analyzer):
+        # The whole server is slow: evil isn't 5x the slowest control.
+        assert analyzer.analyze(self._group([40, 2500, 50], [6100, 5900, 6300])) == []
+
+    def test_below_absolute_delay_not_flagged(self, analyzer):
+        # 5x slower, but under 2 s: jitter on a fast API, not backtracking.
+        assert analyzer.analyze(self._group([100, 100, 100], [1500, 1600, 1700])) == []
+
+    def test_evil_timeouts_count_as_slow(self, analyzer):
+        [f] = analyzer.analyze(self._group([40, 60, 50], [15000, 15000, 15000], evil_error="ReadTimeout: timed out"))
+        assert f.rule_id == "APIFUZZ-REDOS-001" and "timeout" in f.evidence
+
+    def test_other_errors_and_429_no_verdict(self, analyzer):
+        assert analyzer.analyze(self._group([40, 60, 50], [6100, 5900, 6300], evil_error="ConnectError: x")) == []
+        assert analyzer.analyze(self._group([40, 60, 50], [6100, 5900, 6300], control_status=429)) == []

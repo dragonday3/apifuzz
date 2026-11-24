@@ -41,6 +41,7 @@ The spec (or HAR) provides the paths. Pass just the origin:
 | `auth` | API2 — Broken Authentication | No auth, invalid/empty tokens, malformed scheme, and JWT attacks when the token is a JWT: `alg:none`, unverified signature, `kid` path traversal (null key), and — for HS256 — a weak signing key cracked offline (no requests) against a bundled public wordlist, proved by a re-signed and an expired token. On endpoints the spec marks as secured or doesn't document (HAR/Postman); reported only when the response looks like the authenticated one (same status, content type, JSON fields and similar size) |
 | `mass_assignment` | API3 — Broken Object Property Level Authorization | Privileged field injection (`role`, `admin`, `isAdmin`, …) into request bodies; confirmed by a follow-up `GET` showing the values were stored (the `Location`/`id` URL, or a sibling `GET` whose path param matches a body field, e.g. `GET /users/{username}` after a register) |
 | `rate_limit` | API4 — Unrestricted Resource Consumption | 50-request burst per endpoint; any `429`, `Retry-After` or `X-RateLimit-*` header counts as protected |
+| `redos` | API4 — Unrestricted Resource Consumption | Only with `--time-based` (a vulnerable server really burns CPU). Query params and top-level body fields with a `pattern`, an email/uri/hostname format, or a name like email/url/domain/host get `"a"×27 + "!"` (exponential backtracking in regexes like `^(a+)+$`) interleaved with a same-length control `"!" + "a"×27`, 3 of each, one at a time. Firm only if every evil request is ≥ 2 s and ≥ 5× slower than the slowest control (a timeout counts as slow); otherwise nothing. Tuned for backtracking engines (Python, PCRE); faster ones (V8, JVM) may need longer input, RE2/Go/Rust are immune |
 | `ssrf` | API7 — Server Side Request Forgery | Cloud-metadata and internal URL probes in URL-type parameters |
 | `cors` | API8 — Security Misconfiguration | Origin reflection + credentials misconfiguration |
 | `data_exposure` | API3 — Broken Object Property Level Authorization | Sensitive fields (passwords, secrets, keys, tokens, card numbers) with real values in GET responses; response fields the spec doesn't document (tentative) |
@@ -201,8 +202,8 @@ Options:
   --timeout FLOAT            HTTP request timeout in seconds [default: 15.0]
   --checks TEXT              Comma-separated check IDs or 'all' [default: all]
   --min-confidence TEXT      Report only: tentative (all) | firm [default: tentative]
-  --time-based               Add time-based SQLi probes (each waits ~5 s on a
-                             vulnerable target)
+  --time-based               Add time-based SQLi and ReDoS probes, sent one at a time
+                             (each waits ~5 s on a vulnerable target)
   --allow-destructive        Also test PUT/PATCH/DELETE endpoints (modifies data)
   --dry-run                  Print the test plan, send nothing
   --include TEXT             Only test paths matching this glob (repeatable); path only, no method
@@ -373,13 +374,14 @@ Input Parsers          → Endpoint models
   Postman Collection v2
 
 Check Engine           → TestCase list
-  11 checks:
+  12 checks:
     bola           (API1 - BOLA/IDOR)
     auth           (API2 - Broken Auth)
     mass_assignment(API3 - BOPLA / mass assignment)
     ssrf           (API7 - SSRF)
     injection      (A03:2021 - Injection)
     rate_limit     (API4 - Rate Limiting)
+    redos          (API4 - regex DoS, --time-based only)
     cors           (API8 - CORS)
     data_exposure  (API3 - excessive data exposure)
     user_enum      (API2 - login user enumeration)

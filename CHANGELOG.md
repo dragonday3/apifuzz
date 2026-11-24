@@ -61,6 +61,13 @@ false positives, makes scans safe to point at real systems, adds coverage, and m
   `alg:none` probe; all keep the `APIFUZZ-AUTH-JWT*` rule-id family. RS256→HS256 confusion and `jku` injection
   are **not** implemented (they need the server's published key or an attacker-hosted JWKS, which the current
   request model does not provide cleanly).
+- `redos` check (API4, `APIFUZZ-REDOS-001`, medium), only with `--time-based` because a vulnerable target really
+  burns CPU: query params and top-level body fields with a `pattern`, an email/uri/hostname format or an
+  email/url/domain/host-like name get 3 evil inputs (`"a"×27 + "!"`) interleaved with 3 same-length controls
+  (`"!" + "a"×27`), sent one at a time in the time-based pass. Firm only if every evil request is at least 2 s and
+  5× slower than the slowest control (timeouts count as slow); no tentative verdict. OpenAPI query params now
+  keep their `format` and `pattern`. Motivated by VAmPI's documented RegexDoS on its email update; the rule is
+  generic (no VAmPI path or field is special-cased).
 - The blind-SSRF probe map (`apifuzz-<id>` → `METHOD /path [param]`) is in every report, not only the console:
   SARIF `runs[0].properties.oobProbes`, an HTML section, and in JSON an object
   `{"findings": [...], "oob_probes": {...}}` (only with `--oob-url`; otherwise JSON stays a plain array).

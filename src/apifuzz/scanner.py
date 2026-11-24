@@ -17,6 +17,7 @@ from apifuzz.checks.injection import InjectionCheck
 from apifuzz.checks.inventory import InventoryCheck
 from apifuzz.checks.mass_assignment import MassAssignmentCheck
 from apifuzz.checks.rate_limit import RateLimitCheck
+from apifuzz.checks.redos import RedosCheck
 from apifuzz.checks.ssrf import SSRFCheck
 from apifuzz.checks.user_enum import UserEnumCheck
 from apifuzz.executor import MAX_BODY, Executor, RequestBudget, TestCase
@@ -40,11 +41,15 @@ _ALL_CHECKS: dict[str, type[BaseCheck]] = {
     "user_enum": UserEnumCheck,
     "inventory": InventoryCheck,
     "bfla": BFLACheck,
+    "redos": RedosCheck,
 }
 
 
 # Methods that modify or remove existing objects: skipped unless --allow-destructive.
 DESTRUCTIVE_METHODS = {"PUT", "PATCH", "DELETE"}
+
+# Strategies sent one at a time after the probes: their verdict is response time.
+_TIMED_STRATEGIES = {"sqli_time", "redos"}
 
 # Checks whose detectors compare against the per-endpoint baseline request.
 _BASELINE_CHECKS = {"auth", "bfla", "bola", "injection", "mass_assignment", "ssrf"}
@@ -117,7 +122,7 @@ class Scanner:
         enabled = checks if checks else list(_ALL_CHECKS.keys())
         self._checks = [_ALL_CHECKS[c]() for c in enabled if c in _ALL_CHECKS]
         for check in self._checks:
-            if isinstance(check, InjectionCheck):
+            if isinstance(check, (InjectionCheck, RedosCheck)):
                 check.time_based = time_based
             if isinstance(check, SSRFCheck):
                 check.oob_url = oob_url
@@ -170,17 +175,18 @@ class Scanner:
         # Passes, in order:
         # 1. baselines, before any probe can change the object they read;
         # 2. probes;
-        # 3. time-based SQLi one at a time (concurrent sleeps would delay innocent probes queued behind them);
+        # 3. time-based SQLi and ReDoS (control/evil interleaved) one at a time: concurrent slow requests would
+        #    delay innocent probes queued behind them and blur which request was slow;
         # 4. confirmations (GET the object a mass-assignment probe created, found through a sibling GET when
         #    the response has no Location/id; user A's and user B's reads of objects A's baselines created);
         # 5. rate-limit bursts last, so they can't exhaust a real limit and turn other probes into 429s,
         #    one endpoint at a time.
         # data_exposure reads are plain authenticated GETs: they run with the baselines.
         baselines = [tc for tc in test_cases if tc.check_id in ("baseline", "data_exposure")]
-        timed = [tc for tc in test_cases if tc.extra.get("strategy") == "sqli_time"]
+        timed = [tc for tc in test_cases if tc.extra.get("strategy") in _TIMED_STRATEGIES]
         bursts = [tc for tc in test_cases if not tc.throttle]
         probes = [tc for tc in test_cases if tc.throttle and tc.check_id not in ("baseline", "data_exposure")
-                  and tc.extra.get("strategy") != "sqli_time"]
+                  and tc.extra.get("strategy") not in _TIMED_STRATEGIES]
         results = await self.executor.run(baselines)
         results += await self.executor.run(probes)
         if timed:

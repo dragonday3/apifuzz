@@ -196,6 +196,8 @@ class OpenAPIParser(BaseParser):
                 required=p.get("required", location == ParamLocation.PATH),
                 schema_type=schema_type,
                 example=example,
+                schema_format=str(schema.get("format") or p.get("format") or ""),  # Swagger 2: on the param
+                pattern=str(schema.get("pattern") or p.get("pattern") or ""),
             ))
         return result
 

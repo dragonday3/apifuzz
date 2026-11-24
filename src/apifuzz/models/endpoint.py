@@ -17,6 +17,8 @@ class Parameter(BaseModel):
     required: bool = False
     schema_type: str = "string"  # string, integer, object, array, boolean, number
     example: Any = None
+    schema_format: str = ""      # email, uri, date-time... (OpenAPI only)
+    pattern: str = ""            # regex the spec says the value must match (OpenAPI only)
 
 
 class AuthConfig(BaseModel):
