@@ -189,7 +189,8 @@ Options:
   --low-priv-token TEXT      Low-privilege user's token for BFLA tests (--token
                              should then be a privileged user)
   --oob-url TEXT             Collector you control (interactsh, webhook) for blind
-                             SSRF; the scan prints which probe id is which parameter
+                             SSRF; the console and every report map each probe id
+                             to its parameter
   --header-name TEXT         Header name for apikey auth [default: Authorization]
   --output, -o TEXT          Output format: json | sarif | html [default: json]
   --out-file, -f TEXT        Output file path (stdout if omitted for json/sarif)
@@ -209,6 +210,8 @@ Options:
                              nothing is warned about
   --max-requests INT         Stop sending after this many requests
   --retries INT              Retries on 429/503 [default: 2]
+  --max-body INT             Keep this many characters of each response body; detection
+                             sees only these [default: 8192]
   --insecure                 Skip TLS certificate verification
   --proxy TEXT               Proxy URL, e.g. http://127.0.0.1:8080
   --fail-on TEXT             Exit 1 at or above this severity: critical | high |
@@ -327,21 +330,24 @@ HTMLReporter().write(findings, "report.html")
 
 ### SARIF 2.1
 
-Upload to GitHub Code Scanning (workflow above) and findings appear in the Security tab and inline on pull requests, with severity, description and remediation guidance. Tentative findings are reported at level `note` under `<rule>/tentative` rules. Any SARIF 2.1-compatible tool can read the file.
+Upload to GitHub Code Scanning (workflow above) and findings appear in the Security tab and inline on pull requests, with severity, description and remediation guidance. Tentative findings are reported at level `note` under `<rule>/tentative` rules. Any SARIF 2.1-compatible tool can read the file. With `--oob-url`, `runs[0].properties.oobProbes` maps each blind-SSRF probe id (`apifuzz-<id>`, the path your collector sees) to `METHOD /path [param]`.
 
 ### JSON
 
-Machine-readable array of findings. Each finding includes:
+Machine-readable array of findings. With `--oob-url` (and at least one blind-SSRF probe sent), the output is an
+object instead, so a callback that reaches your collector later can be mapped back from the report alone:
+`{"findings": [...], "oob_probes": {"apifuzz-<id>": "METHOD /path [param]"}}`. Without `--oob-url` it stays a
+plain array. Each finding includes:
 - `rule_id`, `title`, `severity`, `confidence` (`firm` | `tentative`), `owasp_category`
 - `endpoint_method`, `endpoint_path`
 - `evidence` — what matched (e.g. the error string or canary found)
 - `request_sample` — the request as sent (method, URL, headers, body), credentials masked
-- `response_sample` — an excerpt of the response (bodies over 8 KB are truncated, and the excerpt says so)
+- `response_sample` — an excerpt of the response (bodies longer than `--max-body`, 8192 characters by default, are truncated before detection, and the excerpt says so)
 - `remediation` — actionable fix guidance
 
 ### HTML
 
-Dark-theme interactive report with collapsible findings, severity badges, evidence blocks, and remediation guidance. Self-contained single file, no external dependencies.
+Dark-theme interactive report with collapsible findings, severity badges, evidence blocks, and remediation guidance; with `--oob-url`, a "Blind SSRF probes" section lists which probe id is which parameter. Self-contained single file, no external dependencies.
 
 ---
 

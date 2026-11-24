@@ -29,6 +29,8 @@ false positives, makes scans safe to point at real systems, adds coverage, and m
 - Rate limiter is concurrency-safe; rate-limit bursts aren't throttled, run last, one endpoint at a time.
 - The HTML report template ships in the package (wheel installs could not render HTML); the Docker image builds.
 - The "empty bearer" auth probe is actually sent (its trailing space made it an illegal header).
+- `Endpoint.response_schema` holds plain dicts and lists instead of jsonref proxies, so it serialises with
+  `json.dumps`; a recursive `$ref` is kept as `{"$ref": ...}` where it loops back.
 
 ### Changed (fewer false positives)
 - Findings carry `confidence: firm | tentative`; tentative findings are SARIF notes under a separate
@@ -43,12 +45,17 @@ false positives, makes scans safe to point at real systems, adds coverage, and m
 - Safe by default: `PUT`/`PATCH`/`DELETE` are skipped unless `--allow-destructive`; `--dry-run` prints the plan.
 - Scope lock: every request (redirects included) stays on the `--target` origin; `--include`/`--exclude` globs.
 - `--max-requests`, `429`/`503` retries honouring `Retry-After`; TLS verified by default (`--insecure`), `--proxy`.
+- `--max-body` (default 8192 characters) sets how much of each response body is kept for detection; it used to be
+  a fixed 8 KB.
 - Credentials are redacted in every report; findings show the request as sent.
 - A scan in which every request failed exits `2` (inconclusive) instead of reporting a clean result.
 
 ### Added (coverage)
 - `data_exposure` (API3), `user_enum` (API2), `bfla` with `--low-priv-token` (API5), `inventory` (API9, once per
   scan), and blind SSRF via `--oob-url`. Coverage: API1, 2, 3, 4, 5, 7, 8 and 9.
+- The blind-SSRF probe map (`apifuzz-<id>` → `METHOD /path [param]`) is in every report, not only the console:
+  SARIF `runs[0].properties.oobProbes`, an HTML section, and in JSON an object
+  `{"findings": [...], "oob_probes": {...}}` (only with `--oob-url`; otherwise JSON stays a plain array).
 
 ### Added (CI/CD)
 - SARIF `partialFingerprints` (stable across runs), `--fail-on <severity>`, `.apifuzz-ignore.yaml` accepted

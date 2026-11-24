@@ -148,6 +148,13 @@
     <div>No security issues detected in this scan.</div>
   </div>
   {% endif %}
+
+  {% if oob_probes %}
+  <div class="section-title" style="margin-top:32px;">Blind SSRF probes ({{ oob_probes | length }})</div>
+  <p style="color:var(--muted);margin-bottom:12px;">A request to &lt;collector&gt;/apifuzz-&lt;id&gt; means that parameter fetches attacker-supplied URLs.</p>
+  <pre>{% for oob_id, where in oob_probes %}{{ oob_id }}  {{ where }}
+{% endfor %}</pre>
+  {% endif %}
 </div>
 
 <script>

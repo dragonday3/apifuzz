@@ -184,3 +184,17 @@ class TestExecutorRateLimit:
         start = time.monotonic()
         await executor.run(cases)
         assert time.monotonic() - start < 1.0
+
+
+class TestMaxBody:
+    @respx.mock
+    async def test_body_cut_at_max_body(self):
+        respx.get("https://api.example.com/users").mock(return_value=httpx.Response(200, text="abcdefghij"))
+        [r] = await Executor(auth=AuthConfig(type="none"), max_body=4).run([make_tc()])
+        assert r.response_body == "abcd" and r.truncated
+
+    @respx.mock
+    async def test_default_keeps_8192(self):
+        respx.get("https://api.example.com/users").mock(return_value=httpx.Response(200, text="x" * 9000))
+        [r] = await Executor(auth=AuthConfig(type="none")).run([make_tc()])
+        assert len(r.response_body) == 8192 and r.truncated

@@ -1,4 +1,5 @@
 import json
+from collections.abc import Mapping
 from typing import Any
 from pathlib import Path
 import yaml
@@ -9,6 +10,19 @@ from apifuzz.payloads import GENERIC_STRING, example_from_schema
 
 
 VALID_METHODS = {"get", "post", "put", "delete", "patch", "options", "head"}
+
+
+def _plain(obj: Any, _ancestors: tuple[int, ...] = ()) -> Any:
+    """Copy a jsonref-resolved value into plain dicts/lists, so json.dumps works on it. A $ref back into one of
+    its own ancestors (recursive schema) stays the {"$ref": ...} it was, which keeps the copy finite."""
+    subject = getattr(obj, "__subject__", obj)  # a jsonref proxy -> the object it points at
+    if id(subject) in _ancestors:
+        return dict(getattr(obj, "__reference__", None) or {})
+    if isinstance(subject, Mapping):
+        return {k: _plain(v, _ancestors + (id(subject),)) for k, v in subject.items()}
+    if isinstance(subject, list):
+        return [_plain(v, _ancestors + (id(subject),)) for v in subject]
+    return subject
 
 
 class OpenAPIParser(BaseParser):
@@ -107,7 +121,7 @@ class OpenAPIParser(BaseParser):
                 media: Any = content.get("application/json") or next(iter(content.values()), {})
                 schema = media.get("schema") if isinstance(media, dict) else None
             if isinstance(schema, dict):
-                return dict(schema)
+                return _plain(schema)
         return {}
 
     @staticmethod

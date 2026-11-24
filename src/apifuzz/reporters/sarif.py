@@ -137,11 +137,11 @@ def _build_result(finding: Finding) -> dict[str, Any]:
 
 
 class SARIFReporter:
-    def generate(self, findings: list[Finding]) -> dict[str, Any]:
+    def generate(self, findings: list[Finding], oob_probes: dict[str, str] | None = None) -> dict[str, Any]:
         rules = _build_rules(findings)
         results = [_build_result(f) for f in findings]
 
-        return {
+        sarif: dict[str, Any] = {
             "$schema": SARIF_SCHEMA,
             "version": SARIF_VERSION,
             "runs": [
@@ -164,8 +164,11 @@ class SARIFReporter:
                 }
             ],
         }
+        if oob_probes:  # blind-SSRF callbacks arrive later at the collector: map "apifuzz-<id>" back to a parameter
+            sarif["runs"][0]["properties"]["oobProbes"] = oob_probes
+        return sarif
 
-    def write(self, findings: list[Finding], path: str) -> None:
-        sarif = self.generate(findings)
+    def write(self, findings: list[Finding], path: str, oob_probes: dict[str, str] | None = None) -> None:
+        sarif = self.generate(findings, oob_probes)
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(sarif, fh, indent=2)

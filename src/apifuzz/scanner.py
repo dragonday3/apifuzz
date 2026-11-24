@@ -19,7 +19,7 @@ from apifuzz.checks.mass_assignment import MassAssignmentCheck
 from apifuzz.checks.rate_limit import RateLimitCheck
 from apifuzz.checks.ssrf import SSRFCheck
 from apifuzz.checks.user_enum import UserEnumCheck
-from apifuzz.executor import Executor, RequestBudget, TestCase
+from apifuzz.executor import MAX_BODY, Executor, RequestBudget, TestCase
 from apifuzz.models.endpoint import AuthConfig, Endpoint
 from apifuzz.models.finding import Finding
 from apifuzz.parsers.base import BaseParser
@@ -96,6 +96,7 @@ class Scanner:
         verify: bool = True,
         proxy: str | None = None,
         retries: int = 2,
+        max_body: int = MAX_BODY,
     ):
         self.spec_path = spec_path
         self.base_url = base_url.rstrip("/")
@@ -106,7 +107,8 @@ class Scanner:
         self.budget = RequestBudget(max_requests)
         # Every executor of the scan shares the scope lock (target origin), TLS/proxy settings and budget.
         self._executor_opts = dict(rate_limit_rps=rate_limit_rps, timeout=timeout, verify=verify, proxy=proxy,
-                                   scope=self.base_url, budget=self.budget, retries=retries)
+                                   scope=self.base_url, budget=self.budget, retries=retries,
+                                   max_body=max_body)
         self.executor = Executor(self.auth, concurrency, **self._executor_opts)  # type: ignore[arg-type]
         self.analyzer = Analyzer(sensitive_headers=(self.auth.header_name,))
         self.errors: Counter[str] = Counter()  # failed requests by error type (OutOfScope, ConnectError...)
@@ -119,7 +121,7 @@ class Scanner:
                 check.time_based = time_based
             if isinstance(check, SSRFCheck):
                 check.oob_url = oob_url
-        # Blind SSRF probes sent this scan: oob id -> "METHOD /path [param]" (callbacks are confirmed by the user)
+        # Blind SSRF probes sent this scan: "apifuzz-<id>" (the collector path) -> "METHOD /path [param]"
         self.oob_probes: dict[str, str] = {}
 
     def plan(self) -> list[TestCase]:
@@ -158,7 +160,8 @@ class Scanner:
 
     async def run(self) -> list[Finding]:
         test_cases = self.plan()
-        self.oob_probes = {tc.extra["oob_id"]: f"{tc.extra.get('endpoint_key', '')} [{tc.extra.get('param_name')}]"
+        self.oob_probes = {f"apifuzz-{tc.extra['oob_id']}":
+                           f"{tc.extra.get('endpoint_key', '')} [{tc.extra.get('param_name')}]"
                            for tc in test_cases if tc.extra.get("oob_id")}
         # Passes, in order:
         # 1. baselines, before any probe can change the object they read;

@@ -137,3 +137,29 @@ def test_baseline_only_for_endpoints_with_probes(tmp_path):
     scanner = Scanner(str(spec), "http://x", checks=["bola"])
     baselines = [tc.url for tc in scanner._generate(scanner._parse(str(spec))) if tc.check_id == "baseline"]
     assert baselines == ["/items/1"]  # no probe on /createdb, so no baseline request there either
+
+
+def test_max_body_reaches_every_executor(tmp_path):
+    from apifuzz.executor import Executor
+    s = Scanner(spec_path=str(FIXTURES / "petstore.yaml"), base_url="http://api", max_body=7)
+    assert s._executor_opts["max_body"] == 7 and s.executor._max_body == 7
+    assert Executor(s.auth, 1, **s._executor_opts)._max_body == 7  # the extra executors (timed SQLi, bursts)
+
+
+def test_cli_max_body(tmp_path):
+    import json
+    from typer.testing import CliRunner
+    from apifuzz.cli import app
+    spec = tmp_path / "s.yaml"
+    spec.write_text('openapi: "3.0.3"\ninfo: {title: t, version: "1"}\npaths:\n  /me:\n    get:\n'
+                    '      responses: {"200": {description: ok}}\n', encoding="utf-8")
+
+    def scan(*args):
+        with respx.mock(assert_all_called=False) as router:
+            router.route(host="api").mock(return_value=httpx.Response(200, json={"name": "a", "password": "hunter2"}))
+            return CliRunner().invoke(app, [str(spec), "--target", "http://api", "--checks", "data_exposure",
+                                            "--quiet", "--rate-limit", "0", "--fail-on", "never", *args])
+
+    assert json.loads(scan().stdout)  # the password field is seen by default
+    assert json.loads(scan("--max-body", "5").stdout) == []  # cut before it: detection only sees 5 characters
+    assert scan("--max-body", "0").exit_code == 2

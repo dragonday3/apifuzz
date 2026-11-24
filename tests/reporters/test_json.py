@@ -68,3 +68,12 @@ class TestJSONReporter:
                       "endpoint_method", "endpoint_path", "evidence",
                       "remediation", "rule_id"):
             assert field in result
+
+
+def test_oob_probes_wrap_findings_in_an_object(tmp_path):
+    probes = {"apifuzz-ab12cd34": "GET /fetch [url]"}
+    assert JSONReporter().generate([make_finding()], {}) == [make_finding().model_dump()]  # no probes: still a list
+    out = tmp_path / "r.json"
+    JSONReporter().write([make_finding()], str(out), probes)
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["oob_probes"] == probes and data["findings"][0]["rule_id"] == "APIFUZZ-BOLA-001"

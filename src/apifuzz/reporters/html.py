@@ -20,7 +20,7 @@ class HTMLReporter:
         )
         self._template = env.get_template("report.html.j2")
 
-    def generate(self, findings: list[Finding]) -> str:
+    def generate(self, findings: list[Finding], oob_probes: dict[str, str] | None = None) -> str:
         counts = {
             "critical": sum(1 for f in findings if f.severity.value == "critical"),
             "high": sum(1 for f in findings if f.severity.value == "high"),
@@ -56,9 +56,10 @@ class HTMLReporter:
             findings=finding_dicts,
             counts=counts,
             generated_at=generated_at,
+            oob_probes=sorted((oob_probes or {}).items()),
         )
 
-    def write(self, findings: list[Finding], path: str) -> None:
-        html = self.generate(findings)
+    def write(self, findings: list[Finding], path: str, oob_probes: dict[str, str] | None = None) -> None:
+        html = self.generate(findings, oob_probes)
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(html)

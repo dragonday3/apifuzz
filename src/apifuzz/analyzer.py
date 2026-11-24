@@ -5,7 +5,7 @@ from urllib.parse import quote, urlencode, urljoin, urlsplit
 
 from apifuzz.checks.bola import MISSING_ID
 from apifuzz.checks.injection import CMD_CANARY, SQLI_SLEEP_SECONDS, SSTI_PRODUCT
-from apifuzz.executor import MAX_BODY, TestCase, TestResult
+from apifuzz.executor import TestCase, TestResult
 from apifuzz.redact import mask, redact_headers
 from apifuzz.models.finding import Confidence, Finding, OWASPCategory, Severity
 
@@ -245,7 +245,8 @@ def _request_text(result: TestResult, sensitive_headers: tuple[str, ...] = ()) -
 def _response_text(result: TestResult) -> str:
     excerpt = result.response_body[:500]
     if result.truncated:
-        excerpt += f"\n[response truncated at {MAX_BODY} bytes; detection only saw the first {MAX_BODY}]"
+        n = len(result.response_body)  # the executor cut it at --max-body
+        excerpt += f"\n[response truncated at {n} characters (--max-body); detection only saw the first {n}]"
     return excerpt
 
 
@@ -546,7 +547,7 @@ class Analyzer:
             if not served or served & self.documented_paths:
                 return []  # the API's own published spec (or unparseable): not an inventory gap
         signature = _INVENTORY_SIGNATURES.get(kind)
-        if signature is None or not signature[0].search(result.response_body[:MAX_BODY]):
+        if signature is None or not signature[0].search(result.response_body):
             return []  # reachable, but not the thing we probed for
         _, severity, rule_id, title, confidence = signature
         return [Finding(

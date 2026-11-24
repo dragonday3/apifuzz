@@ -107,3 +107,37 @@ class TestOpenAPIParserEdgeCases:
         assert len(endpoints) == 1
         assert endpoints[0].method == "GET"
         assert endpoints[0].path == "/health"
+
+
+def test_response_schema_is_plain_json_with_refs(tmp_path):
+    import json
+    spec = tmp_path / "s.yaml"
+    spec.write_text("""
+openapi: "3.0.3"
+info: {title: t, version: "1"}
+paths:
+  /users/{id}:
+    get:
+      parameters: [{name: id, in: path, required: true, schema: {type: integer}}]
+      responses:
+        "200":
+          description: ok
+          content: {application/json: {schema: {$ref: "#/components/schemas/User"}}}
+  /nodes:
+    get:
+      responses:
+        "200":
+          description: ok
+          content: {application/json: {schema: {$ref: "#/components/schemas/Node"}}}
+components:
+  schemas:
+    Address: {type: object, properties: {city: {type: string}}}
+    User: {type: object, properties: {name: {type: string}, address: {$ref: "#/components/schemas/Address"}}}
+    Node: {type: object, properties: {value: {type: string}, children: {type: array, items: {$ref: "#/components/schemas/Node"}}}}
+""", encoding="utf-8")
+    eps = {e.path: e for e in OpenAPIParser().parse(str(spec))}
+    user = eps["/users/{id}"].response_schema
+    assert json.loads(json.dumps(user))["properties"]["address"]["properties"]["city"] == {"type": "string"}
+    assert type(user["properties"]["address"]) is dict  # not a jsonref proxy
+    node = json.loads(json.dumps(eps["/nodes"].response_schema))  # recursive $ref: finite, no hang
+    assert node["properties"]["children"]["items"] == {"$ref": "#/components/schemas/Node"}

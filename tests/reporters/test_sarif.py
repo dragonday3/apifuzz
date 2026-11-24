@@ -124,3 +124,9 @@ def test_tentative_finding_is_note_level(reporter):
     f.confidence = "tentative"
     result = reporter.generate([f])["runs"][0]["results"][0]
     assert result["level"] == "note" and result["properties"]["confidence"] == "tentative"
+
+
+def test_oob_probes_in_run_properties():
+    probes = {"apifuzz-ab12cd34": "GET /fetch [url]"}
+    assert SARIFReporter().generate([make_finding()], probes)["runs"][0]["properties"]["oobProbes"] == probes
+    assert "oobProbes" not in SARIFReporter().generate([make_finding()])["runs"][0]["properties"]

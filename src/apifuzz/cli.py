@@ -14,6 +14,7 @@ from rich import box
 from rich.markup import escape
 
 from apifuzz import ignore as ignore_file
+from apifuzz.executor import MAX_BODY
 from apifuzz.models.endpoint import AuthConfig
 from apifuzz.scanner import Scanner
 from apifuzz.reporters.sarif import SARIFReporter
@@ -65,6 +66,8 @@ def scan(
     max_requests: Optional[int] = typer.Option(None, "--max-requests", min=1,
                                                help="Stop sending after this many requests"),
     retries: int = typer.Option(2, "--retries", min=0, help="Retries on 429/503 (honours Retry-After, else backoff)"),
+    max_body: int = typer.Option(MAX_BODY, "--max-body", min=1,
+                                 help="Keep this many characters of each response body; detection sees only these"),
     insecure: bool = typer.Option(False, "--insecure", help="Skip TLS certificate verification"),
     proxy: Optional[str] = typer.Option(None, "--proxy", help="Send traffic through a proxy, e.g. http://127.0.0.1:8080"),
     oob_url: str = typer.Option(
@@ -128,6 +131,7 @@ def scan(
         verify=not insecure,
         proxy=proxy,
         retries=retries,
+        max_body=max_body,
         oob_url=oob_url,
     )
 
@@ -173,10 +177,10 @@ def scan(
         console.print(f"[cyan]Sent {len(scanner.oob_probes)} blind-SSRF probe(s) to {oob_url}. A request to "
                       f"<collector>/apifuzz-<id> means that parameter fetches attacker URLs:[/]")
         for oob_id, where in sorted(scanner.oob_probes.items()):
-            console.print(f"  apifuzz-{oob_id}  {escape(where)}")  # "[param]" isn't Rich markup
+            console.print(f"  {oob_id}  {escape(where)}")  # "[param]" isn't Rich markup
 
     # Output
-    output_text = _format_output(findings, output, out_file)
+    output_text = _format_output(findings, output, out_file, scanner.oob_probes)
 
     if out_file:
         if not quiet:
@@ -265,7 +269,8 @@ def _print_summary(findings) -> None:
     console.print("Summary: " + "  ".join(parts))
 
 
-def _format_output(findings, output: str, out_file: Optional[str]) -> Optional[str]:
+def _format_output(findings, output: str, out_file: Optional[str],
+                   oob_probes: Optional[dict[str, str]] = None) -> Optional[str]:
     reporter: SARIFReporter | HTMLReporter | JSONReporter
     if output == "sarif":
         reporter = SARIFReporter()
@@ -274,9 +279,9 @@ def _format_output(findings, output: str, out_file: Optional[str]) -> Optional[s
     else:
         reporter = JSONReporter()
     if out_file:
-        reporter.write(findings, out_file)
+        reporter.write(findings, out_file, oob_probes)
         return None
-    result = reporter.generate(findings)
+    result = reporter.generate(findings, oob_probes)
     return result if isinstance(result, str) else json.dumps(result, indent=2) + "\n"
 
 

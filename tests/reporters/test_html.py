@@ -99,3 +99,9 @@ def test_default_template_ships_inside_package():
     assert template_dir.parent == Path(apifuzz.__file__).parent
     assert (template_dir / "report.html.j2").is_file()
     assert "<html" in HTMLReporter().generate([]).lower()
+
+
+def test_oob_probes_section():
+    html = HTMLReporter().generate([], {"apifuzz-ab12cd34": "GET /fetch [url]"})
+    assert "Blind SSRF probes (1)" in html and "apifuzz-ab12cd34  GET /fetch [url]" in html
+    assert "Blind SSRF probes" not in HTMLReporter().generate([])

@@ -35,7 +35,7 @@ class TestResult:
     elapsed_ms: float
     error: str | None = None
     request_headers: dict[str, str] = field(default_factory=dict)  # as sent (auth applied); redact before output
-    truncated: bool = False  # body longer than MAX_BODY; detectors only saw the first MAX_BODY characters
+    truncated: bool = False  # body longer than --max-body; detectors only saw the first max_body characters
 
     @property
     def is_error(self) -> bool:
@@ -46,7 +46,7 @@ class TestResult:
         return not self.is_error and 200 <= self.status_code < 300
 
 
-MAX_BODY = 8192
+MAX_BODY = 8192  # default --max-body
 MAX_RETRY_WAIT = 30.0  # seconds; a Retry-After longer than this is capped
 
 
@@ -104,6 +104,7 @@ class Executor:
         scope: str | None = None,
         budget: RequestBudget | None = None,
         retries: int = 2,
+        max_body: int = MAX_BODY,
     ):
         self.auth = auth
         self._sem = asyncio.Semaphore(concurrency)
@@ -115,6 +116,7 @@ class Executor:
         self._scope = origin(scope) if scope else None
         self._budget = budget or RequestBudget()
         self._retries = max(0, retries)
+        self._max_body = max(1, max_body)
 
     async def run(self, test_cases: list[TestCase]) -> list[TestResult]:
         async with httpx.AsyncClient(
@@ -181,11 +183,11 @@ class Executor:
         return TestResult(
             test_case=tc,
             status_code=resp.status_code,
-            response_body=text[:MAX_BODY],
+            response_body=text[:self._max_body],
             response_headers=dict(resp.headers),
             elapsed_ms=(time.monotonic() - start) * 1000,
             request_headers=headers,
-            truncated=len(text) > MAX_BODY,
+            truncated=len(text) > self._max_body,
         ), resp
 
     async def _rate_limit(self) -> None:

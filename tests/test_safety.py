@@ -201,7 +201,7 @@ def test_request_sample_is_the_real_request_redacted():
     assert f.request_sample.splitlines()[:2] == ["# probe", "POST http://api/items?q=1"]
     assert "Authorization: Bear****" in f.request_sample and "sid=0123456789" not in f.request_sample
     assert '{"name": "x"}' in f.request_sample
-    assert "response truncated at 8192 bytes" in f.response_sample
+    assert "response truncated at 2 characters (--max-body)" in f.response_sample  # the cut the executor made
 
 
 def test_cors_sample_masks_set_cookie():

@@ -42,3 +42,34 @@ def test_cli_prints_probe_ids_even_when_quiet(tmp_path):
                                           "--rate-limit", "0", "--oob-url", "https://oob.example.net"])
     assert result.exit_code == 0
     assert "blind-SSRF probe" in result.output and "apifuzz-" in result.output and "GET /fetch [url]" in result.output
+
+
+def test_reports_carry_the_probe_map(tmp_path):
+    import json
+    spec = tmp_path / "s.yaml"
+    spec.write_text(textwrap.dedent("""
+        openapi: "3.0.3"
+        info: {title: t, version: "1"}
+        paths:
+          /fetch:
+            get:
+              parameters: [{name: url, in: query, schema: {type: string}}]
+              responses: {"200": {description: ok}}
+    """))
+    for fmt in ("json", "sarif", "html"):
+        out = tmp_path / f"r.{fmt}"
+        with respx.mock(assert_all_called=False) as router:
+            router.route(host="api").mock(return_value=httpx.Response(200, json={}))
+            result = CliRunner().invoke(app, [str(spec), "--target", "http://api", "--checks", "ssrf", "--quiet",
+                                              "--rate-limit", "0", "--oob-url", "https://oob.example.net",
+                                              "-o", fmt, "-f", str(out)])
+        assert result.exit_code == 0, result.output
+        text = out.read_text(encoding="utf-8")
+        if fmt == "json":
+            [(oob_id, where)] = json.loads(text)["oob_probes"].items()
+        elif fmt == "sarif":
+            [(oob_id, where)] = json.loads(text)["runs"][0]["properties"]["oobProbes"].items()
+        else:
+            assert "GET /fetch [url]" in text
+            continue
+        assert oob_id.startswith("apifuzz-") and oob_id in result.output and where == "GET /fetch [url]"
