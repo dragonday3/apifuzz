@@ -49,8 +49,8 @@ vulnerabilities:
   - id: regex-dos
     name: RegexDOS (Denial of Service)
     endpoint: PUT /users/v1/{username}/email
-    check: null
-    rules: []
+    check: redos          # added in 0.2.0 (opt-in: only runs with --time-based)
+    rules: [APIFUZZ-REDOS-*]
     toggled: true
   - id: rate-limiting
     name: Lack of Resources & Rate Limiting
@@ -61,6 +61,6 @@ vulnerabilities:
   - id: jwt-weak-key
     name: JWT authentication bypass via weak signing key
     endpoint: "*"
-    check: null
-    rules: []
+    check: auth           # added in 0.2.0: the auth check cracks HS256 keys offline (JWT_WEAK_K)
+    rules: [APIFUZZ-AUTH-JWT*]
     toggled: false
