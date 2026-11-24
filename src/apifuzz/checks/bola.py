@@ -4,6 +4,9 @@ from apifuzz.executor import TestCase, auth_headers
 from apifuzz.models.endpoint import Endpoint, AuthConfig, ParamLocation
 
 ID_PATTERNS = re.compile(r'(id|Id|ID|uuid|UUID|key|Key)$')
+# Query params are only object references when they look like one (`id`, `report_id`, `userId`, `uuid`);
+# `page` or `q` are not. Path params on a secured endpoint are all probed (book_title, username).
+QUERY_ID = re.compile(r'(^id$|_id$|Id$|ID$|^uuid$|_uuid$)')
 MISSING_ID = "99999999"  # an id that shouldn't exist: shows what the endpoint answers for "not found"
 
 
@@ -13,7 +16,9 @@ class BOLACheck(BaseCheck):
 
     def generate(self, endpoint: Endpoint, auth: AuthConfig) -> list[TestCase]:
         test_cases = []
-        if auth.second_token and endpoint.method == "GET" and not any(
+        query_ids = [p for p in endpoint.parameters if p.location == ParamLocation.QUERY
+                     and QUERY_ID.search(p.name)]
+        if auth.second_token and endpoint.method == "GET" and not query_ids and not any(
                 p.location == ParamLocation.PATH for p in endpoint.parameters):
             # A listing as user B: an object of user A's that B also sees here is public by design (forum
             # posts, products), so B reading it directly is a weaker signal (the analyzer downgrades it).
@@ -31,8 +36,11 @@ class BOLACheck(BaseCheck):
         # otherwise only id-looking names are worth probing.
         id_params = path_params if endpoint.secured else [p for p in path_params if ID_PATTERNS.search(p.name)]
 
-        if not id_params:
+        if not id_params and not query_ids:
             return []
+
+        for param in query_ids:  # GET /reports?report_id=7: the id travels in the query, not the path
+            test_cases.extend(self._query_probes(endpoint, auth, param))
 
         for param in id_params:
             # Strategy 1: ID manipulation — try adjacent IDs (current±1, 0, 999999)
@@ -72,3 +80,31 @@ class BOLACheck(BaseCheck):
                 ))
 
         return test_cases
+
+    def _query_probes(self, endpoint: Endpoint, auth: AuthConfig, param) -> list[TestCase]:
+        """The path-param strategies (id enumeration, cross-user read) for an id carried in a query param."""
+        url = self._build_url(endpoint)
+        cases = []
+        probe_ids = [] if endpoint.method == "DELETE" else ["0", "1", "2", "999999", MISSING_ID]
+        for probe_id in probe_ids:
+            cases.append(TestCase(
+                method=endpoint.method, url=url, headers={}, params={param.name: probe_id},
+                body=endpoint.body_example,
+                label=f"BOLA: {endpoint.method} {endpoint.path} [?{param.name}={probe_id}]",
+                check_id=self.check_id,
+                extra={"param_name": param.name, "probe_id": probe_id, "strategy": "id_enumeration"},
+            ))
+        if auth.second_token:
+            example_id = str(param.example) if param.example is not None else "1"
+            cases.append(TestCase(
+                method=endpoint.method, url=url, params={param.name: example_id}, body=endpoint.body_example,
+                headers=auth_headers(auth.type if auth.type != "none" else "bearer",
+                                     auth.second_token, auth.header_name),
+                label=f"BOLA cross-user: {endpoint.method} {endpoint.path} [?{param.name}={example_id}] "
+                      f"via second token",
+                check_id=self.check_id,
+                extra={"param_name": param.name, "probe_id": example_id, "strategy": "cross_user",
+                       "uses_second_token": True},
+                auth_mode="override",
+            ))
+        return cases

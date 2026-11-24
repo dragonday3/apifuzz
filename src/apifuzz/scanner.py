@@ -21,7 +21,7 @@ from apifuzz.checks.redos import RedosCheck
 from apifuzz.checks.ssrf import SSRFCheck
 from apifuzz.checks.user_enum import UserEnumCheck
 from apifuzz.executor import MAX_BODY, Executor, RequestBudget, TestCase
-from apifuzz.models.endpoint import AuthConfig, Endpoint
+from apifuzz.models.endpoint import AuthConfig, Endpoint, ParamLocation
 from apifuzz.models.finding import Finding
 from apifuzz.parsers.base import BaseParser
 from apifuzz.parsers.har import HARParser
@@ -250,8 +250,15 @@ class Scanner:
                 cases.insert(0, TestCase(method=endpoint.method, url=build_url(endpoint), headers={}, params={},
                                          body=endpoint.body_example, label=f"Baseline: {key}",
                                          check_id="baseline"))
+            # A required query param (GET /reports?report_id=) must be on every request, not only on the
+            # injection probes that test it: without it the baseline and the other probes can't reach the object.
+            required_query = {p.name: (p.example if p.example is not None else "1") for p in endpoint.parameters
+                              if p.location == ParamLocation.QUERY and p.required}
             for tc in cases:
                 tc.extra["endpoint_key"] = key
+                for name, value in required_query.items():
+                    if name not in tc.params and not any(k.startswith(f"{name}[") for k in tc.params):
+                        tc.params[name] = str(value)
             test_cases.extend(cases)
         documented = getattr(self, "_all_endpoints", endpoints)
         for check in self._checks:

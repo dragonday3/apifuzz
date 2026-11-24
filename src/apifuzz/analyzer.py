@@ -289,6 +289,12 @@ def _label_endpoints(findings: list[Finding], results: list[TestResult]) -> None
         f.endpoint = f.endpoint or keys.get((f.endpoint_method, f.endpoint_path), "")
 
 
+# Operations where an attacker guesses (passwords, one-time codes, reset tokens): every wrong guess is
+# answered with an error, so "the burst wasn't accepted" doesn't apply. What matters is that nothing slowed down.
+_AUTH_SENSITIVE = re.compile(r"(log-?in|sign-?in|otp|verif|reset|passw|2fa|mfa|/token|check-?code)",
+                             re.IGNORECASE)
+
+
 def _limited(result: TestResult) -> bool:
     headers = {k.lower() for k in result.response_headers}
     return (result.status_code == 429 or "retry-after" in headers
@@ -1057,11 +1063,17 @@ class Analyzer:
             if total < burst[0].test_case.extra.get("burst_total", total):
                 continue  # part of the burst failed or was cut off by --max-requests: no verdict
             success_count = sum(1 for r in burst if 200 <= r.status_code < 300)
-            # 4xx answers mean the burst wasn't accepted anyway; any 429, Retry-After or X-RateLimit-*
-            # header means a limiter exists (it may just allow more than 50 requests).
-            if success_count < total * 0.9 or any(_limited(r) for r in burst):
+            # Any 429, Retry-After or X-RateLimit-* header means a limiter exists (it may just allow more
+            # than 50 requests).
+            if any(_limited(r) for r in burst):
                 continue
             tc = burst[0].test_case
+            if success_count < total * 0.9:
+                # Errors usually mean the burst wasn't accepted, except where errors ARE the answer to a guess.
+                unthrottled = self._unthrottled_guessing(burst)
+                if unthrottled:
+                    findings.append(unthrottled)
+                continue
             findings.append(Finding(
                 title="Rate Limiting: Burst requests all succeeded",
                 description=(
@@ -1080,6 +1092,36 @@ class Analyzer:
             ))
         _label_endpoints(findings, results)
         return findings
+
+    def _unthrottled_guessing(self, burst: list[TestResult]) -> Finding | None:
+        """A login/OTP/reset operation whose every attempt got the same error, first to last, with no throttling
+        signal: wrong guesses can be repeated at full speed. Tentative: the error may also mean the request
+        never reached the check (a malformed body), which only a person can tell."""
+        tc = burst[0].test_case
+        path = (tc.extra.get("endpoint_key") or tc.url).split(" ", 1)[-1]
+        statuses = {r.status_code for r in burst}
+        if (not _AUTH_SENSITIVE.search(path) or len(statuses) != 1 or 503 in statuses
+                or not _resembles(burst[0], burst[-1])):
+            return None
+        status = burst[0].status_code
+        return Finding(
+            title="Rate Limiting: unthrottled attempts on an authentication operation",
+            description=(f"All {len(burst)} burst requests to this authentication operation were answered "
+                         f"HTTP {status} without any throttling: no 429, no Retry-After or rate-limit headers, "
+                         f"and the last answer looks like the first (no lockout). Wrong passwords or codes can "
+                         f"be guessed at full speed."),
+            severity=Severity.MEDIUM,
+            owasp_category=OWASPCategory.API4_RATE,
+            endpoint_method=tc.method,
+            endpoint_path=tc.url,
+            request_sample=_request_text(burst[0], self.sensitive_headers),
+            response_sample=_response_text(burst[-1]),
+            evidence=f"{len(burst)}/{len(burst)} attempts answered HTTP {status}, none throttled",
+            remediation="Limit attempts per account and per client (lockout or exponential delay after a few "
+                        "failures) on login, one-time-code and reset operations.",
+            rule_id="APIFUZZ-RATE-001",
+            confidence="tentative",
+        )
 
     def _check_cors(self, result: TestResult) -> list[Finding]:
         tc = result.test_case

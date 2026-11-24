@@ -40,6 +40,7 @@ false positives, makes scans safe to point at real systems, adds coverage, and m
 - BOLA: cross-user findings need user B to get user A's object; ID enumeration alone is not a finding.
 - Mass assignment needs the injected value, confirmed by a follow-up GET; blind SQLi (boolean, and time-based
   with `--time-based`); rate limiting honours `429`, `Retry-After` and `X-RateLimit-*`.
+- From misses in the crAPI held-out run (generic, disclosed in `benchmarks/README.md`): required query params are sent on every request (only injection probes set them before); BOLA also probes id-like query params; rate limiting on login/one-time-code/reset operations is reported (tentative) when every attempt gets the same error with no throttling or lockout.
 - From the hand triage of the crAPI held-out run (each rule generic, disclosed in `benchmarks/README.md`):
   - Boolean SQLi sends the control again after the true/false pair and runs the four requests one at a time
     (in the serial pass): both controls must answer alike, and false must differ from both. A `POST` whose

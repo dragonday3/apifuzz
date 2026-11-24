@@ -25,14 +25,26 @@ class TestBOLACheck:
         results = self.check.generate(ep, AuthConfig())
         assert results == []
 
-    def test_returns_empty_for_query_param_only(self):
+    def test_probes_an_id_in_the_query(self):
+        # GET /reports?report_id= carries the object reference in the query (crAPI held-out miss).
+        ep = Endpoint(
+            method="GET", path="/reports",
+            parameters=[Parameter(name="report_id", location=ParamLocation.QUERY, required=True, example="7")],
+            base_url="https://api.example.com", secured=True,
+        )
+        results = self.check.generate(ep, AuthConfig(type="bearer", token="a", second_token="b"))
+        assert {tc.params["report_id"] for tc in results} >= {"0", "1", "7"}
+        cross = [tc for tc in results if tc.extra.get("strategy") == "cross_user"]
+        assert len(cross) == 1 and cross[0].params == {"report_id": "7"} and cross[0].auth_mode == "override"
+        assert all(tc.url == "https://api.example.com/reports" for tc in results)
+
+    def test_ignores_non_id_query_params(self):
         ep = Endpoint(
             method="GET", path="/users",
-            parameters=[Parameter(name="userId", location=ParamLocation.QUERY)],
+            parameters=[Parameter(name="page", location=ParamLocation.QUERY)],
             base_url="https://api.example.com",
         )
-        results = self.check.generate(ep, AuthConfig())
-        assert results == []
+        assert self.check.generate(ep, AuthConfig()) == []
 
     def test_generates_test_cases_for_path_id_param(self):
         ep = make_endpoint()
