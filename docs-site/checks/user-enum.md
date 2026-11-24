@@ -39,6 +39,27 @@ crAPI).
   so a username like `user` doesn't rewrite "Invalid username or password".
 - Rate limiting or server errors cancel the verdict.
 
+## Example finding
+
+From a scan of a one-operation login spec (`POST /users/login`, example user `name1`) against a minimal respx handler (written for this page) that answers "Username does not exist" for unknown users and "Password is not correct for the given username." for `name1`.
+
+```json
+{
+  "rule_id": "APIFUZZ-ENUM-001",
+  "title": "User Enumeration: Login answers differently for existing users",
+  "severity": "medium",
+  "confidence": "firm",
+  "owasp_category": "API2:2023 - Broken Authentication",
+  "endpoint": "POST /users/login",
+  "endpoint_method": "POST",
+  "endpoint_path": "http://testserver/users/login",
+  "evidence": "existing user: HTTP 401 '{\"status\":\"fail\",\"message\":\"Password is not correct for the given username.\"}'; unknown user: HTTP 401 '{\"status\":\"fail\",\"message\":\"Username does not exist\"}'",
+  "request_sample": "# UserEnum: POST /users/login [known username, wrong password]\nPOST http://testserver/users/login\n\n{\"username\": \"name1\", \"password\": \"apif****\"}",
+  "response_sample": "{\"status\":\"fail\",\"message\":\"Password is not correct for the given username.\"}",
+  "remediation": "Return the same status and message for a wrong username and a wrong password."
+}
+```
+
 ## Remediation
 
 Return the same status and message for a wrong username and a wrong password (and take the same time).

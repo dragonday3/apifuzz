@@ -34,6 +34,28 @@ there is no tentative verdict.
 - Same-length controls interleaved with the evil inputs cancel out server load and network latency.
 - The threshold is relative to the slowest control, and every evil repeat must exceed it.
 
+## Example finding
+
+From the scan in `tests/e2e/test_redos_e2e.py` with `vulnerable=True` and time-based probes on: the mock "backtracks" by advancing a fake clock by 6 s on the evil input (0.05 s otherwise), so the timings are simulated.
+
+```json
+{
+  "rule_id": "APIFUZZ-REDOS-001",
+  "title": "ReDoS: Regex backtracking delays the response",
+  "severity": "medium",
+  "confidence": "firm",
+  "owasp_category": "API4:2023 - Unrestricted Resource Consumption",
+  "endpoint": "POST /users",
+  "endpoint_method": "POST",
+  "endpoint_path": "http://testserver/users",
+  "parameter": "email",
+  "evidence": "Evil ms: 6000, 6000, 6000; control ms: 50, 50, 50",
+  "request_sample": "# ReDoS [evil #1]: POST /users [email]\nPOST http://testserver/users\n\n{\"email\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaa!\", \"username\": \"name1\"}",
+  "response_sample": "{\"email\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaa!\"}",
+  "remediation": "Rewrite the regex without nested or overlapping quantifiers (e.g. (a+)+, (\\w+\\s?)*), cap the input length before matching, or use a linear-time engine (RE2)."
+}
+```
+
 ## Remediation
 
 Rewrite the regex without nested or overlapping quantifiers (`(a+)+`, `(\w+\s?)*`), cap the input length before

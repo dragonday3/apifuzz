@@ -41,6 +41,27 @@ skipped, since what is undocumented can't be told there.
   `has_more`, ...) are ignored.
 - Reported values are masked in the finding's response sample, so the report doesn't repeat the leak.
 
+## Example finding
+
+From a scan of the test suite's petstore mock API (`tests/e2e/conftest.py` `MockAPI`) whose pet 1 was given a `password_hash` field (the mock's `pets` data; no stock mock leaks a secret), token `token-alice`.
+
+```json
+{
+  "rule_id": "APIFUZZ-EXPOSURE-001",
+  "title": "Data Exposure: Sensitive fields returned to the client",
+  "severity": "high",
+  "confidence": "firm",
+  "owasp_category": "API3:2023 - Broken Object Property Level Authorization",
+  "endpoint": "GET /pets",
+  "endpoint_method": "GET",
+  "endpoint_path": "http://testserver/pets",
+  "evidence": "Sensitive fields with values: ['[].password_hash']",
+  "request_sample": "# DataExposure: GET /pets\nGET http://testserver/pets\nAuthorization: Bear****",
+  "response_sample": "[{\"id\": 1, \"name\": \"rex\", \"owner\": \"alice\", \"password_hash\": \"****\"}]",
+  "remediation": "Return an explicit allowlist of fields per role; never serialize whole model objects."
+}
+```
+
 ## Remediation
 
 Return an explicit allowlist of fields per role; never serialise whole model objects. Document every response

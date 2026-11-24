@@ -57,6 +57,27 @@ same top-level JSON fields, and a body of similar length (within 10%, at least 2
 - The comparison with the authenticated response, not the status code, decides. This removed v0.1.0's false
   bypasses, where the configured token overwrote the probe's headers.
 
+## Example finding
+
+From a scan of the test suite's petstore mock API (`tests/e2e/conftest.py` `MockAPI`) with `accept_any_token=True` (any non-empty bearer token authenticates), token `token-alice`.
+
+```json
+{
+  "rule_id": "APIFUZZ-AUTH-INVALID_TO",
+  "title": "Broken Auth: Invalid Token accepted",
+  "severity": "high",
+  "confidence": "firm",
+  "owasp_category": "API2:2023 - Broken Authentication",
+  "endpoint": "GET /pets",
+  "endpoint_method": "GET",
+  "endpoint_path": "http://testserver/pets",
+  "evidence": "HTTP 200 returned with strategy: invalid_token; matches the authenticated baseline (HTTP 200, 39 bytes)",
+  "request_sample": "# Auth: GET /pets [invalid token]\nGET http://testserver/pets\nAuthorization: Bear****",
+  "response_sample": "[{\"id\":1,\"name\":\"rex\",\"owner\":\"alice\"}]",
+  "remediation": "Require valid authentication on all protected endpoints."
+}
+```
+
 ## Remediation
 
 Require valid authentication on every protected endpoint. For JWTs: pin the accepted algorithm(s) server-side

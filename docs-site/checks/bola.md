@@ -62,6 +62,27 @@ APIs have an object `1`.
 - Public objects (found in user B's listings) are downgraded to tentative for reads and `POST`s.
 - Endpoints the spec marks as public are not probed.
 
+## Example finding
+
+From a scan of the test suite's petstore mock API (`tests/e2e/conftest.py` `MockAPI`) with `enforce_ownership=False`, token `token-alice`, second token `token-bob`.
+
+```json
+{
+  "rule_id": "APIFUZZ-BOLA-001",
+  "title": "BOLA: Cross-user object access succeeded",
+  "severity": "critical",
+  "confidence": "firm",
+  "owasp_category": "API1:2023 - Broken Object Level Authorization",
+  "endpoint": "GET /pets/{petId}",
+  "endpoint_method": "GET",
+  "endpoint_path": "http://testserver/pets/1",
+  "evidence": "HTTP 200 with cross-user token; response matches user A's object",
+  "request_sample": "# BOLA cross-user: GET /pets/{petId} [petId=1] via second token\nGET http://testserver/pets/1\nAuthorization: Bear****",
+  "response_sample": "{\"id\":1,\"name\":\"rex\",\"owner\":\"alice\"}",
+  "remediation": "Enforce object-level authorization: verify the requesting user owns the resource."
+}
+```
+
 ## Remediation
 
 Enforce object-level authorization on every request that takes an object id: verify that the requesting user

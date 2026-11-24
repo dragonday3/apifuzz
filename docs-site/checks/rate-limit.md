@@ -36,6 +36,27 @@ This is the most expensive check: 50 requests per endpoint, `POST` included, so 
 - A burst with any failed request gets no verdict.
 - The unthrottled-guessing rule is tentative and limited to authentication-like paths.
 
+## Example finding
+
+From a scan of the test suite's petstore mock API (`tests/e2e/conftest.py` `MockAPI`) with no rate limiting configured (`rate_limit=None`, its default), token `token-alice`.
+
+```json
+{
+  "rule_id": "APIFUZZ-RATE-001",
+  "title": "Rate Limiting: Burst requests all succeeded",
+  "severity": "medium",
+  "confidence": "firm",
+  "owasp_category": "API4:2023 - Unrestricted Resource Consumption",
+  "endpoint": "GET /pets",
+  "endpoint_method": "GET",
+  "endpoint_path": "http://testserver/pets",
+  "evidence": "50/50 burst requests succeeded",
+  "request_sample": "# RateLimit burst #1: GET /pets\nGET http://testserver/pets\nAuthorization: Bear****",
+  "response_sample": "",
+  "remediation": "Implement rate limiting (token bucket, sliding window) per IP or user."
+}
+```
+
 ## Remediation
 
 Rate-limit per client and per user (token bucket or sliding window), and return `429` with `Retry-After`. On

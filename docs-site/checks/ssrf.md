@@ -39,6 +39,28 @@ later than the scan.
   flagged).
 - Markers are content only a real fetch returns, never a payload echo.
 
+## Example finding
+
+From a scan of the `/fetch?url=` spec of `tests/checks/test_ssrf_oob.py` against a minimal respx handler (written for this page) that fetches `url` and returns the content, with a canned AWS metadata listing for `169.254.169.254`.
+
+```json
+{
+  "rule_id": "APIFUZZ-SSRF-001",
+  "title": "SSRF: Internal metadata content in response",
+  "severity": "critical",
+  "confidence": "firm",
+  "owasp_category": "API7:2023 - Server Side Request Forgery",
+  "endpoint": "GET /fetch",
+  "endpoint_method": "GET",
+  "endpoint_path": "http://testserver/fetch",
+  "parameter": "url",
+  "evidence": "Metadata marker 'ami-id' in response, absent from baseline",
+  "request_sample": "# SSRF: GET /fetch [url=http://169.254.169.254/latest/...]\nGET http://testserver/fetch?url=http%3A%2F%2F169.254.169.254%2Flatest%2Fmeta-data%2F",
+  "response_sample": "{\"fetched\":\"http://169.254.169.254/latest/meta-data/\",\"content\":\"ami-id\\nhostname\\ninstance-id\\nlocal-ipv4\\n\"}",
+  "remediation": "Validate and allowlist URL parameters; block requests to internal networks."
+}
+```
+
 ## Remediation
 
 Validate and allowlist URL parameters (scheme, host, port); resolve the host and block private, loopback and

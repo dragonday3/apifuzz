@@ -41,6 +41,27 @@ The injected fields are looked for with the injected value, at the top level of 
 - A sibling `GET`'s normal read is a second baseline: values it always returns prove nothing.
 - A `Location` header pointing to another origin is never followed.
 
+## Example finding
+
+From a scan of the test suite's petstore mock API (`tests/e2e/conftest.py` `MockAPI`) with `mass_assignment="persist"` (binds the whole request body to the new pet), token `token-alice`.
+
+```json
+{
+  "rule_id": "APIFUZZ-MASS-001",
+  "title": "Mass Assignment: Privileged fields persisted",
+  "severity": "high",
+  "confidence": "firm",
+  "owasp_category": "API3:2023 - Broken Object Property Level Authorization",
+  "endpoint": "POST /pets",
+  "endpoint_method": "POST",
+  "endpoint_path": "http://testserver/pets",
+  "evidence": "MassAssignment verify: GET http://testserver/pets/3 returned the injected values: ['admin', 'is_admin', 'isAdmin', 'role', 'is_verified', 'credits', 'balance', 'permissions']",
+  "request_sample": "# MassAssignment: POST /pets\nPOST http://testserver/pets\nAuthorization: Bear****\n\n{\"name\": \"apifuzz\", \"tag\": \"apifuzz\", \"admin\": true, \"is_admin\": true, \"isAdmin\": true, \"role\": \"admin\", \"is_verified\": true, \"credits\": 99999, \"balance\": 99999.99, \"permissions\": [\"read\", \"write\", \"admin\"]}",
+  "response_sample": "{\"status\":\"created\"}",
+  "remediation": "Use an allowlist for accepted fields; never bind request body directly to model."
+}
+```
+
 ## Remediation
 
 Bind request bodies to an allowlist of writable fields per role; never bind the body directly to the model.

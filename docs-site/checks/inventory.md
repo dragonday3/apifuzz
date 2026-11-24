@@ -44,6 +44,27 @@ All but the version probe are firm.
   inventory gap. Only a spec describing *other* operations (a shadow API) is.
 - Content signatures: a `200` HTML error page on `/.env` is not an exposed `.env`.
 
+## Example finding
+
+From the scan in `tests/checks/test_inventory.py` with the handler of `test_exposed_items_need_matching_content` (serves `/.env`, `/actuator/env`, a shadow `/swagger.json` and `/api/v2/users`).
+
+```json
+{
+  "rule_id": "APIFUZZ-INVENTORY-002",
+  "title": "Inventory: .env file exposed (/.env)",
+  "severity": "high",
+  "confidence": "firm",
+  "owasp_category": "API9:2023 - Improper Inventory Management",
+  "endpoint": "GET /.env (not in spec)",
+  "endpoint_method": "GET",
+  "endpoint_path": "http://api/.env",
+  "evidence": "HTTP 200, content matches dotenv; a random path answers differently",
+  "request_sample": "# Inventory: GET /.env [dotenv]\nGET http://api/.env",
+  "response_sample": "DB_PASSWORD=x\nSECRET_KEY=y\n",
+  "remediation": "Remove or restrict the endpoint (network, auth), or document and own it in the inventory."
+}
+```
+
 ## Remediation
 
 Remove or restrict the endpoint (network policy, authentication), or document it and own it in the API

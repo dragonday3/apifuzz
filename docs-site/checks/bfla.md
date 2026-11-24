@@ -38,6 +38,27 @@ The endpoint's baseline is the same request with the privileged `--token`.
 - Public operations are skipped: any token may call them.
 - The comparison with the privileged response, not the status code, decides.
 
+## Example finding
+
+From the scan in `tests/checks/test_bfla.py` with `enforce_roles=False` (`/admin/stats` answers the low-privilege token too), token `admin-tok`, low-privilege token `user-tok`.
+
+```json
+{
+  "rule_id": "APIFUZZ-BFLA-001",
+  "title": "BFLA: Privileged operation allowed for a low-privilege user",
+  "severity": "high",
+  "confidence": "firm",
+  "owasp_category": "API5:2023 - Broken Function Level Authorization",
+  "endpoint": "GET /admin/stats",
+  "endpoint_method": "GET",
+  "endpoint_path": "http://api/admin/stats",
+  "evidence": "Low-privilege HTTP 200; privileged baseline HTTP 200, same shape",
+  "request_sample": "# BFLA: GET /admin/stats as low-privilege user\nGET http://api/admin/stats\nAuthorization: Bear****",
+  "response_sample": "{\"users\":42,\"revenue\":1000}",
+  "remediation": "Enforce role checks on every privileged function, server-side, deny by default."
+}
+```
+
 ## Remediation
 
 Enforce role checks on every privileged function, server-side, and deny by default.

@@ -66,6 +66,28 @@ All injection findings are firm.
 - Pairs split by a `429` or a `5xx` are ignored: a limiter or crash, not the query, made the difference.
 - Time-based probes are compared with the control's own latency and need every repeat to be slow.
 
+## Example finding
+
+From a scan of `vulnerable_api` in `tests/e2e/test_injection_e2e.py` (renders `q` like a Jinja template; builds SQL from the `username` path parameter by string concatenation).
+
+```json
+{
+  "rule_id": "APIFUZZ-INJECT-SQLI-BOOL",
+  "title": "SQL Injection: Boolean-based (true/false conditions change the response)",
+  "severity": "critical",
+  "confidence": "firm",
+  "owasp_category": "A03:2021 Injection (OWASP Top 10)",
+  "endpoint": "GET /users/{username}",
+  "endpoint_method": "GET",
+  "endpoint_path": "http://testserver/users/name1%27%20AND%20%271%27%3D%271",
+  "parameter": "username",
+  "evidence": "control: HTTP 200, 20 bytes; AND '1'='1: HTTP 200, 20 bytes; AND '1'='2: HTTP 404, 28 bytes; control again: HTTP 200, 20 bytes",
+  "request_sample": "# Injection [sqli bool true]: GET /users/{username} [username]\nGET http://testserver/users/name1%27%20AND%20%271%27%3D%271",
+  "response_sample": "{\"username\":\"name1\"}",
+  "remediation": "Use parameterized queries. Never concatenate user input into SQL."
+}
+```
+
 ## Remediation
 
 Use parameterised queries; never concatenate input into SQL or pass it to a shell or template engine; reject
