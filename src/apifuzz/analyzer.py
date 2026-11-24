@@ -86,7 +86,14 @@ def _listed_in(body: str, listings: list[TestResult], extra_keys: tuple[str, ...
     if not ident:
         return None
     for listing in listings:
-        stack, seen = [_json(listing.response_body)], 0
+        doc = _json(listing.response_body)
+        if doc is None and listing.truncated:
+            # A listing longer than --max-body is cut mid-JSON and won't parse: look for the identifying values
+            # as JSON literals in the text that did arrive (crAPI's 30 recent posts are ~12 KB).
+            if all(json.dumps(v) in listing.response_body for v in ident.values()):
+                return listing
+            continue
+        stack, seen = [doc], 0
         while stack and seen < _MAX_WALK:
             node, seen = stack.pop(), seen + 1
             if isinstance(node, dict):

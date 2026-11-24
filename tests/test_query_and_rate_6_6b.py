@@ -73,3 +73,19 @@ def test_lockout_mid_burst_is_not_reported():
     for r in b[25:]:
         r.status_code = 403  # locked out after 25 attempts
     assert Analyzer().analyze_rate_limit(b) == []
+
+
+def _listing(body, truncated):
+    tc = TestCase(method="GET", url="http://api/posts/recent", headers={}, params={}, body=None,
+                  label="listing", check_id="bola_listing")
+    return TestResult(test_case=tc, status_code=200, response_headers={"content-type": "application/json"},
+                      response_body=body, elapsed_ms=1.0, truncated=truncated)
+
+
+def test_listing_cut_by_max_body_is_still_searched():
+    from apifuzz.analyzer import _listed_in
+    a_post = '{"id": "zctHL6b7", "title": "mine"}'
+    cut = '{"posts": [{"id": "other"}, {"id": "zctHL6b7", "title": "mine"}, {"id": "x", "tit'  # cut mid-JSON
+    assert _listed_in(a_post, [_listing(cut, truncated=True)]) is not None
+    assert _listed_in(a_post, [_listing('{"posts": [{"id": "other"}, {"id": "y", "ti', truncated=True)]) is None
+    assert _listed_in(a_post, [_listing('{"posts": [{"id": "zctHL6b7"', truncated=False)]) is None  # just broken
