@@ -179,3 +179,9 @@ fuzzowl ./target-openapi.yaml --target http://localhost:<port> \
 `--allow-destructive` is fine here because these targets are disposable (VAmPI, for example, resets its data
 with `GET /createdb`; exclude that path with `--exclude /createdb` so a probe doesn't reset it mid-scan). The
 [benchmark harness](benchmarks.md) automates this for both.
+
+!!! warning "Git Bash on Windows rewrites `/paths`"
+    Git Bash turns an argument that starts with `/` into a Windows path, so `--exclude /createdb` reaches fuzzowl
+    as `C:/Program Files/Git/createdb` and excludes nothing. fuzzowl warns when a glob matches no path in the
+    spec; when you see that warning, run with `MSYS_NO_PATHCONV=1 fuzzowl ...` or write the glob as `'*/createdb'`.
+    PowerShell, cmd, macOS and Linux shells pass `/createdb` unchanged.

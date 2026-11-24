@@ -37,6 +37,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/dragonday3/fuzzowl"
+Documentation = "https://dragonday3.github.io/fuzzowl/"
 Issues = "https://github.com/dragonday3/fuzzowl/issues"
 Benchmarks = "https://github.com/dragonday3/fuzzowl/tree/main/benchmarks"
 
