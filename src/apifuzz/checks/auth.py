@@ -1,5 +1,7 @@
 import base64
 import json
+
+from apifuzz import jwt_forge
 from apifuzz.checks.base import BaseCheck
 from apifuzz.executor import TestCase
 from apifuzz.models.endpoint import Endpoint, AuthConfig
@@ -21,6 +23,15 @@ def _make_alg_none_jwt(original_token: str) -> str:
 class AuthCheck(BaseCheck):
     check_id = "auth"
     name = "Broken Authentication (OWASP API2)"
+
+    def __init__(self) -> None:
+        # Offline HS256 crack is the same for every endpoint; do it once per scan per token.
+        self._crack_cache: dict[str, str | None] = {}
+
+    def _cracked_secret(self, token: str) -> str | None:
+        if token not in self._crack_cache:
+            self._crack_cache[token] = jwt_forge.crack_hs256(token, jwt_forge.load_default_wordlist())
+        return self._crack_cache[token]
 
     def generate(self, endpoint: Endpoint, auth: AuthConfig) -> list[TestCase]:
         if endpoint.secured is False:  # public by design in the spec: nothing to bypass
@@ -60,11 +71,25 @@ class AuthCheck(BaseCheck):
         # refuses to send, so v0.1.0 never actually sent this probe.
         test_cases.append(case("empty bearer", "empty_bearer", {hdr: "Bearer"}))
 
-        # JWT alg:none attack (only if current auth is bearer and looks like JWT)
-        if auth.type == "bearer" and auth.token.count(".") == 2:
-            tampered = _make_alg_none_jwt(auth.token)
-            test_cases.append(case("JWT alg:none", "jwt_alg_none", {hdr: f"Bearer {tampered}"},
-                                   tampered_token=tampered))
+        # JWT attacks (OWASP API2): only when the configured credential is a bearer JWT.
+        if auth.type == "bearer" and jwt_forge.is_jwt(auth.token):
+            token = auth.token
+            bearer = lambda t: {hdr: f"Bearer {t}"}  # noqa: E731
+            # Signature-bypass forgeries (no key needed): accepted => the server trusts an unverified token.
+            test_cases.append(case("JWT alg:none", "jwt_alg_none", bearer(_make_alg_none_jwt(token))))
+            test_cases.append(case("JWT unverified signature", "jwt_unsigned",
+                                    bearer(jwt_forge.forge_unsigned(token))))
+            test_cases.append(case("JWT kid path traversal", "jwt_kid_trav",
+                                    bearer(jwt_forge.forge_kid_traversal(token))))
+            # Weak HS256 secret cracked offline (zero requests). If found, prove it by minting tokens.
+            secret = self._cracked_secret(token)
+            if secret is not None:
+                test_cases.append(case("JWT weak HS256 key", "jwt_weak_key",
+                                        bearer(jwt_forge.resign_hs256(token, secret)),
+                                        cracked_secret=secret))
+                test_cases.append(case("JWT expired token", "jwt_expired",
+                                        bearer(jwt_forge.resign_hs256(token, secret, expired=True)),
+                                        cracked_secret=secret))
 
         test_cases.append(case("malformed auth scheme", "malformed_scheme", {hdr: "NotBearer token123"}))
         return test_cases

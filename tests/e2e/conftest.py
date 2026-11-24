@@ -1,7 +1,10 @@
 """End-to-end harness: run the real Scanner against a respx-mocked API whose security
 behaviour is configurable, so tests can assert on false positives as well as detections."""
 import base64
+import hashlib
+import hmac
 import json
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -17,6 +20,25 @@ TOKENS = {"token-alice": "alice", "token-bob": "bob"}
 API_KEYS = {"key-alice": "alice", "key-bob": "bob"}
 BASIC = {"alice:pw-alice": "alice", "bob:pw-bob": "bob"}
 
+# A weak HS256 secret that IS in the bundled wordlist (rank 2836), so the offline crack finds it.
+JWT_SECRET = "random"
+# A secret the wordlist does not contain, so the offline crack fails against it.
+STRONG_SECRET = "Xq7#9fL2_pR4vN8tZ1bK6mW3yH5sJ0cDgEa"
+
+
+def _b64url(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
+def make_jwt(sub: str = "alice", secret: str = JWT_SECRET, exp_in: int = 3600) -> str:
+    """A real HS256 JWT for `sub`, signed with `secret`. Used as the configured credential."""
+    now = int(time.time())
+    header = _b64url(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
+    payload = _b64url(json.dumps({"sub": sub, "iat": now, "exp": now + exp_in}).encode())
+    signing = f"{header}.{payload}".encode()
+    sig = _b64url(hmac.new(secret.encode(), signing, hashlib.sha256).digest())
+    return f"{header}.{payload}.{sig}"
+
 
 @dataclass
 class MockAPI:
@@ -31,6 +53,10 @@ class MockAPI:
         "persist" (binds the whole body to the new pet, returns 201 + Location without echoing).
     """
     accept_any_token: bool = False
+    # JWT bearer handling: None = plain token map (default); "verify" = check HS256 sig + exp against
+    # JWT_SECRET (secure); "accept_unverified" = decode claims, skip signature/alg/exp checks (vulnerable).
+    jwt_mode: str | None = None
+    jwt_secret: str = JWT_SECRET  # the HS256 key the API verifies against when jwt_mode == "verify"
     enforce_ownership: bool = True
     rate_limit: int | None = None
     rate_limited_paths: set[str] | None = None
@@ -50,6 +76,8 @@ class MockAPI:
         value = request.headers.get("authorization", "")
         api_key = request.headers.get("x-api-key", "")
         allowed = lambda s: self.scheme in (None, s)  # noqa: E731
+        if allowed("bearer") and self.jwt_mode and value.startswith("Bearer "):
+            return self._jwt_user(value[7:].strip())
         if allowed("bearer") and value.startswith("Bearer ") and value[7:].strip():
             presented, user = value[7:].strip(), TOKENS.get(value[7:].strip())
         elif allowed("apikey") and api_key:
@@ -65,6 +93,32 @@ class MockAPI:
         if user:
             return user
         return "alice" if self.accept_any_token and presented else None
+
+    def _jwt_user(self, token: str) -> str | None:
+        parts = token.split(".")
+        if len(parts) != 3:
+            return None
+        try:
+            header = json.loads(base64.urlsafe_b64decode(parts[0] + "=" * (-len(parts[0]) % 4)))
+            payload = json.loads(base64.urlsafe_b64decode(parts[1] + "=" * (-len(parts[1]) % 4)))
+        except Exception:
+            return None
+        if self.jwt_mode == "verify":
+            if header.get("alg") != "HS256":
+                return None
+            signing = f"{parts[0]}.{parts[1]}".encode()
+            try:
+                sig = base64.urlsafe_b64decode(parts[2] + "=" * (-len(parts[2]) % 4))
+            except Exception:
+                return None
+            expected = hmac.new(self.jwt_secret.encode(), signing, hashlib.sha256).digest()
+            if not hmac.compare_digest(sig, expected):
+                return None
+            if payload.get("exp", 0) < time.time():
+                return None
+        # "accept_unverified": decode the claims, trust them — no signature/alg/exp enforcement.
+        sub = payload.get("sub")
+        return sub if sub in ("alice", "bob") else None
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         response = self._handle(request)

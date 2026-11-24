@@ -53,6 +53,14 @@ false positives, makes scans safe to point at real systems, adds coverage, and m
 ### Added (coverage)
 - `data_exposure` (API3), `user_enum` (API2), `bfla` with `--low-priv-token` (API5), `inventory` (API9, once per
   scan), and blind SSRF via `--oob-url`. Coverage: API1, 2, 3, 4, 5, 7, 8 and 9.
+- JWT attacks (API2), when the configured bearer token is a JWT: unverified signature (garbage signature),
+  `kid` path traversal signed with a null key, and — for HS256 tokens — a weak signing key cracked **offline**
+  (no requests) against a bundled public wordlist (wallarm/jwt-secrets, MIT, top 10000 verbatim entries; see
+  `src/apifuzz/jwt_secrets.README.md`). A cracked key is proved by re-signing the token (same identity) and by
+  an expired copy; the guessed key is masked in the evidence like any other credential. This joins the existing
+  `alg:none` probe; all keep the `APIFUZZ-AUTH-JWT*` rule-id family. RS256→HS256 confusion and `jku` injection
+  are **not** implemented (they need the server's published key or an attacker-hosted JWKS, which the current
+  request model does not provide cleanly).
 - The blind-SSRF probe map (`apifuzz-<id>` → `METHOD /path [param]`) is in every report, not only the console:
   SARIF `runs[0].properties.oobProbes`, an HTML section, and in JSON an object
   `{"findings": [...], "oob_probes": {...}}` (only with `--oob-url`; otherwise JSON stays a plain array).

@@ -418,18 +418,30 @@ class Analyzer:
             "empty_bearer": "Endpoint returned 2xx with an empty Bearer token.",
             "empty_apikey": "Endpoint returned 2xx with an empty API key.",
             "jwt_alg_none": "Endpoint accepted JWT with alg:none (signature bypass).",
+            "jwt_unsigned": "Endpoint accepted a JWT whose signature was replaced with garbage "
+                            "(the signature is not verified).",
+            "jwt_kid_trav": "Endpoint accepted a JWT with a path-traversal `kid` signed with an "
+                            "empty/null key (kid file-read signature bypass).",
+            "jwt_weak_key": "Endpoint accepted a JWT re-signed with a HMAC secret guessed offline from a "
+                            "public wordlist (the signing key is guessable).",
+            "jwt_expired": "Endpoint accepted an expired JWT (exp in the past), re-signed with the "
+                           "guessed HMAC secret (expiry is not enforced).",
             "malformed_scheme": "Endpoint returned 2xx with a malformed auth scheme.",
         }
+        # Signature-bypass / guessable-key forgeries are critical; weaker signals stay high.
+        critical = {"no_auth", "jwt_alg_none", "jwt_unsigned", "jwt_kid_trav", "jwt_weak_key"}
+        cracked = tc.extra.get("cracked_secret")
+        key_note = f"; signing key guessed: {mask(cracked)}" if cracked else ""
         return [Finding(
             title=f"Broken Auth: {strategy.replace('_', ' ').title()} accepted",
             description=descriptions.get(strategy, f"Auth bypass via {strategy}"),
-            severity=Severity.CRITICAL if strategy in ("no_auth", "jwt_alg_none") else Severity.HIGH,
+            severity=Severity.CRITICAL if strategy in critical else Severity.HIGH,
             owasp_category=OWASPCategory.API2_AUTH,
             endpoint_method=tc.method,
             endpoint_path=tc.url,
             request_sample=_request_text(result, self.sensitive_headers),
             response_sample=_response_text(result),
-            evidence=f"HTTP {result.status_code} returned with strategy: {strategy}{matched}",
+            evidence=f"HTTP {result.status_code} returned with strategy: {strategy}{matched}{key_note}",
             remediation="Require valid authentication on all protected endpoints.",
             rule_id=f"APIFUZZ-AUTH-{strategy.upper()[:10]}",
             confidence=confidence,

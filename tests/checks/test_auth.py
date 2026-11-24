@@ -1,5 +1,17 @@
+import base64
+import hashlib
+import hmac
+import json
+
 from apifuzz.checks.auth import AuthCheck, _make_alg_none_jwt
 from apifuzz.models.endpoint import Endpoint, AuthConfig
+
+
+def _hs256(secret: str, claims: dict | None = None) -> str:
+    b64 = lambda o: base64.urlsafe_b64encode(json.dumps(o).encode()).rstrip(b"=").decode()  # noqa: E731
+    h, p = b64({"alg": "HS256", "typ": "JWT"}), b64(claims or {"sub": "1"})
+    sig = base64.urlsafe_b64encode(hmac.new(secret.encode(), f"{h}.{p}".encode(), hashlib.sha256).digest())
+    return f"{h}.{p}.{sig.rstrip(b'=').decode()}"
 
 
 def make_endpoint(method="GET", path="/users"):
@@ -117,6 +129,47 @@ class TestAuthCheckModes:
 def test_public_endpoint_not_probed():
     ep = Endpoint(method="GET", path="/books", base_url="https://api.example.com", secured=False)
     assert AuthCheck().generate(ep, AuthConfig(type="bearer", token="t")) == []
+
+
+class TestJWTProbes:
+    def _strategies(self, token):
+        ep = Endpoint(method="GET", path="/me", base_url="https://api.example.com")
+        cases = AuthCheck().generate(ep, AuthConfig(type="bearer", token=token))
+        return {c.extra["strategy"] for c in cases}
+
+    def test_signature_bypass_probes_for_any_jwt(self):
+        # alg:none, unverified signature and kid traversal need no key, so they fire for any JWT.
+        strategies = self._strategies(_hs256("not-in-any-wordlist-xyz123"))
+        assert {"jwt_alg_none", "jwt_unsigned", "jwt_kid_trav"} <= strategies
+
+    def test_no_weak_key_probe_when_secret_uncrackable(self):
+        strategies = self._strategies(_hs256("not-in-any-wordlist-xyz123"))
+        assert "jwt_weak_key" not in strategies and "jwt_expired" not in strategies
+
+    def test_weak_key_and_expired_probes_when_cracked(self):
+        strategies = self._strategies(_hs256("random"))  # "random" is in the bundled wordlist
+        assert {"jwt_weak_key", "jwt_expired"} <= strategies
+
+    def test_cracked_secret_carried_on_probe(self):
+        ep = Endpoint(method="GET", path="/me", base_url="https://api.example.com")
+        cases = AuthCheck().generate(ep, AuthConfig(type="bearer", token=_hs256("random")))
+        weak = next(c for c in cases if c.extra["strategy"] == "jwt_weak_key")
+        assert weak.extra["cracked_secret"] == "random"
+
+    def test_crack_runs_once_per_token(self, monkeypatch):
+        import apifuzz.jwt_forge as jf
+        calls = []
+        real = jf.crack_hs256
+        monkeypatch.setattr(jf, "crack_hs256", lambda *a, **k: calls.append(1) or real(*a, **k))
+        check = AuthCheck()
+        auth = AuthConfig(type="bearer", token=_hs256("random"))
+        for path in ("/a", "/b", "/c"):
+            check.generate(Endpoint(method="GET", path=path, base_url="https://api.example.com"), auth)
+        assert len(calls) == 1  # cached across endpoints
+
+    def test_no_jwt_probes_for_non_jwt_bearer(self):
+        strategies = self._strategies("opaque-token")
+        assert not any(s.startswith("jwt_") for s in strategies)
 
 
 def test_unknown_security_still_probed():

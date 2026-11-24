@@ -38,7 +38,7 @@ The spec (or HAR) provides the paths. Pass just the origin:
 | ID | OWASP category (2023) | What it tests |
 |----|-----------------------|---------------|
 | `bola` | API1 — Broken Object Level Authorization | Cross-user access with `--second-token`, confirmed when user B gets user A's object back; ID enumeration (tentative: another object with the same fields) |
-| `auth` | API2 — Broken Authentication | No auth, invalid/empty tokens, malformed scheme, JWT `alg:none`, on endpoints the spec marks as secured or doesn't document (HAR/Postman); reported only when the response looks like the authenticated one (same status, content type, JSON fields and similar size) |
+| `auth` | API2 — Broken Authentication | No auth, invalid/empty tokens, malformed scheme, and JWT attacks when the token is a JWT: `alg:none`, unverified signature, `kid` path traversal (null key), and — for HS256 — a weak signing key cracked offline (no requests) against a bundled public wordlist, proved by a re-signed and an expired token. On endpoints the spec marks as secured or doesn't document (HAR/Postman); reported only when the response looks like the authenticated one (same status, content type, JSON fields and similar size) |
 | `mass_assignment` | API3 — Broken Object Property Level Authorization | Privileged field injection (`role`, `admin`, `isAdmin`, …) into request bodies; confirmed by a follow-up `GET` showing the values were stored |
 | `rate_limit` | API4 — Unrestricted Resource Consumption | 50-request burst per endpoint; any `429`, `Retry-After` or `X-RateLimit-*` header counts as protected |
 | `ssrf` | API7 — Server Side Request Forgery | Cloud-metadata and internal URL probes in URL-type parameters |

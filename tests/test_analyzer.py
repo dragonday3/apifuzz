@@ -119,6 +119,40 @@ class TestAnalyzerAuth:
         result = make_result(tc, 401)
         assert analyzer.analyze([result]) == []
 
+    def _jwt(self, strategy, status, extra=None):
+        key = {"endpoint_key": "GET /me"}
+        base = make_result(make_tc("baseline", extra=key), 200, body='{"user": "alice"}')
+        tc = make_tc("auth", extra={"strategy": strategy, **key, **(extra or {})})
+        return Analyzer().analyze([base, make_result(tc, status, body='{"user": "alice"}')])
+
+    def test_jwt_unsigned_accepted_is_firm_critical(self, analyzer):
+        [f] = self._jwt("jwt_unsigned", 200)
+        assert f.confidence == "firm" and f.severity == Severity.CRITICAL
+        assert f.rule_id == "APIFUZZ-AUTH-JWT_UNSIGN"
+
+    def test_jwt_kid_trav_accepted_is_firm_critical(self, analyzer):
+        [f] = self._jwt("jwt_kid_trav", 200)
+        assert f.severity == Severity.CRITICAL and f.rule_id == "APIFUZZ-AUTH-JWT_KID_TR"
+
+    def test_jwt_weak_key_masks_secret_in_evidence(self, analyzer):
+        [f] = self._jwt("jwt_weak_key", 200, extra={"cracked_secret": "supersecretvalue"})
+        assert f.rule_id == "APIFUZZ-AUTH-JWT_WEAK_K" and f.severity == Severity.CRITICAL
+        assert "supersecretvalue" not in f.evidence          # full secret never printed
+        assert "supe****" in f.evidence                      # masked like other credentials
+
+    def test_jwt_expired_accepted_is_high(self, analyzer):
+        [f] = self._jwt("jwt_expired", 200, extra={"cracked_secret": "random"})
+        assert f.severity == Severity.HIGH and f.rule_id == "APIFUZZ-AUTH-JWT_EXPIRE"
+        assert "random" not in f.evidence
+
+    def test_jwt_probe_rejected_is_no_finding(self, analyzer):
+        assert self._jwt("jwt_unsigned", 401) == []
+
+    def test_all_jwt_rule_ids_in_family(self, analyzer):
+        for strat in ("jwt_alg_none", "jwt_unsigned", "jwt_kid_trav", "jwt_weak_key", "jwt_expired"):
+            [f] = self._jwt(strat, 200, extra={"cracked_secret": "x"})
+            assert f.rule_id.startswith("APIFUZZ-AUTH-JWT")
+
 
 class TestAnalyzerMassAssignment:
     def test_reflected_privileged_field_is_high(self, analyzer):
