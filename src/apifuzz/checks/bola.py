@@ -13,6 +13,17 @@ class BOLACheck(BaseCheck):
 
     def generate(self, endpoint: Endpoint, auth: AuthConfig) -> list[TestCase]:
         test_cases = []
+        if auth.second_token and endpoint.method == "GET" and not any(
+                p.location == ParamLocation.PATH for p in endpoint.parameters):
+            # A listing as user B: an object of user A's that B also sees here is public by design (forum
+            # posts, products), so B reading it directly is a weaker signal (the analyzer downgrades it).
+            return [TestCase(
+                method="GET", url=self._build_url(endpoint), params={}, body=None,
+                headers=auth_headers(auth.type if auth.type != "none" else "bearer",
+                                     auth.second_token, auth.header_name),
+                label=f"BOLA listing: GET {endpoint.path} via second token", check_id="bola_listing",
+                extra={"strategy": "listing", "uses_second_token": True}, auth_mode="override",
+            )]
         if endpoint.secured is False and not endpoint.auth_optional:  # public by design: anyone may read it
             return []
         path_params = [p for p in endpoint.parameters if p.location == ParamLocation.PATH]

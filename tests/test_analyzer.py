@@ -1,3 +1,4 @@
+import json
 import pytest
 from apifuzz.analyzer import Analyzer
 from apifuzz.executor import TestCase, TestResult
@@ -74,6 +75,35 @@ class TestAnalyzerBOLA:
                            body='{"id": 1, "owner": "alice", "n": 6}')
         [f] = analyzer.analyze([base, leak])
         assert f.rule_id == "APIFUZZ-BOLA-001" and f.confidence == "firm"
+
+    def _cross_with_listing(self, analyzer, method, listing):
+        key = {"endpoint_key": f"{method} /posts/{{id}}"}
+        post = '{"id": "p1", "author": {"nickname": "alice"}, "title": "hi"}'
+        base = make_result(make_tc("baseline", method=method, url="http://api/posts/p1", extra=key), 200, body=post)
+        leak = make_result(make_tc("bola", method=method, url="http://api/posts/p1",
+                                   extra={"strategy": "cross_user", **key}), 200, body=post)
+        lst = make_result(make_tc("bola_listing", url="http://api/posts/recent", extra={"strategy": "listing"}),
+                          200, body=listing)
+        return analyzer.analyze([base, leak, lst])
+
+    PUBLIC = '{"posts": [{"id": "p0", "title": "x"}, {"id": "p1", "title": "hi", "comments": []}]}'
+
+    def test_cross_user_read_of_publicly_listed_object_is_tentative(self, analyzer):
+        [f] = self._cross_with_listing(analyzer, "GET", self.PUBLIC)
+        assert f.confidence == "tentative" and "GET http://api/posts/recent" in f.evidence
+        assert "public by design" in f.description
+
+    def test_cross_user_post_to_publicly_listed_object_is_tentative(self, analyzer):
+        [f] = self._cross_with_listing(analyzer, "POST", self.PUBLIC)  # commenting on a public post
+        assert f.confidence == "tentative"
+
+    def test_cross_user_put_to_publicly_listed_object_stays_firm(self, analyzer):
+        [f] = self._cross_with_listing(analyzer, "PUT", self.PUBLIC)  # changing someone else's public post
+        assert f.confidence == "firm"
+
+    def test_cross_user_object_not_in_listing_stays_firm(self, analyzer):
+        [f] = self._cross_with_listing(analyzer, "GET", '{"posts": [{"id": "p9", "title": "hi"}]}')
+        assert f.confidence == "firm"
 
     def test_cross_user_own_data_is_not_bola(self, analyzer):
         key = {"endpoint_key": "GET /items/{id}"}
@@ -480,9 +510,10 @@ class TestMassAssignmentConfirmation:
         assert f.confidence == "firm" and "'role'" in f.evidence and "'isAdmin'" in f.evidence
 
 
-def sqli_triple(control, true, false):
+def sqli_triple(control, true, false, again=None):
     out = []
-    for pol, (status, body) in (("control", control), ("true", true), ("false", false)):
+    for pol, (status, body) in (("control", control), ("true", true), ("false", false),
+                                ("control_again", again or control)):
         tc = make_tc("injection", extra={"injection_type": "sqli", "strategy": "sqli_bool",
                                          "pair_id": "GET /u/{n} [n]", "polarity": pol})
         out.append(make_result(tc, status, body=body))
@@ -507,6 +538,32 @@ class TestBlindSQLi:
 
     def test_rate_limited_false_not_flagged(self, analyzer):
         assert analyzer.analyze(sqli_triple((200, self.USER), (200, self.USER), (429, "slow"))) == []
+
+    @staticmethod
+    def _post_with(n):
+        """crAPI-style: POST .../comment answers with the post and every comment so far (one more per request)."""
+        return json.dumps({"id": "p1", "title": "hello", "body": "y" * 600, "comments": [
+            {"id": i, "content": "x" * 20, "author": {"nickname": "alice"}} for i in range(n)]})
+
+    def test_response_growing_per_request_not_flagged(self, analyzer):
+        # control, true, false, control again: comments 3, 4, 5, 6. True is close to the control, false is
+        # 2 comments longer; the repeated control has grown too, so nothing is a SQL difference.
+        grow = [(200, self._post_with(n)) for n in (3, 4, 5, 6)]
+        assert analyzer.analyze(sqli_triple(*grow)) == []
+
+    def test_unstable_control_not_flagged_even_if_false_differs_from_both(self, analyzer):
+        nf = '{"m": "not found"}'
+        assert analyzer.analyze(sqli_triple((200, self._post_with(3)), (200, self._post_with(3)), (404, nf),
+                                            (200, self._post_with(8)))) == []
+
+    def test_boolean_flagged_on_stable_post(self, analyzer):
+        post = self._post_with(3)
+        [f] = analyzer.analyze(sqli_triple((200, post), (200, post), (404, '{"m": "not found"}'), (200, post)))
+        assert f.rule_id == "APIFUZZ-INJECT-SQLI-BOOL" and "control again" in f.evidence
+
+    def test_missing_repeated_control_no_verdict(self, analyzer):
+        triple = sqli_triple((200, self.USER), (200, self.USER), (404, '{"m": "not found"}'))[:3]
+        assert analyzer.analyze(triple) == []
 
     def _timed(self, control_ms, probe_ms):
         ctl = make_tc("injection", extra={"injection_type": "sqli", "strategy": "sqli_bool",

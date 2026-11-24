@@ -29,7 +29,7 @@ class TestInjectionCheck:
             Parameter(name="q", location=ParamLocation.QUERY, schema_type="string"),
         ])
         results = self.check.generate(ep, self.auth)
-        assert len(results) == len(INJECTION_PAYLOADS) + 3 + 2  # + SQLi control/true/false + NoSQLi pair
+        assert len(results) == len(INJECTION_PAYLOADS) + 4 + 2  # + SQLi control/true/false/control again + NoSQLi pair
 
     def test_integer_param_not_targeted(self):
         ep = make_endpoint(params=[
@@ -57,7 +57,7 @@ class TestInjectionCheck:
             ],
         )
         results = self.check.generate(ep, self.auth)
-        assert len(results) == len(INJECTION_PAYLOADS) + 3  # + SQLi control/true/false
+        assert len(results) == len(INJECTION_PAYLOADS) + 4  # + SQLi control/true/false/control again
         for tc in results:
             assert "{name}" not in tc.url
 
@@ -83,7 +83,7 @@ class TestInjectionCheck:
             body_schema={"username": "alice", "email": "alice@example.com"},
         )
         results = self.check.generate(ep, self.auth)
-        assert len(results) == 2 * (len(INJECTION_PAYLOADS) + 3 + 2)  # per field: payloads, SQLi triple, NoSQLi pair
+        assert len(results) == 2 * (len(INJECTION_PAYLOADS) + 4 + 2)  # per field: payloads, SQLi quad, NoSQLi pair
 
     def test_body_injection_one_field_at_a_time(self):
         example = {"username": "alice", "email": "alice@example.com", "age": 30}
@@ -148,8 +148,9 @@ class TestBlindSQLiProbes:
 
     def test_boolean_triple_appends_to_original_value(self):
         cases = [c for c in InjectionCheck().generate(self._ep(), AuthConfig()) if c.extra["strategy"] == "sqli_bool"]
-        assert {c.extra["polarity"]: c.extra["payload"] for c in cases} == {
-            "control": "bob", "true": "bob' AND '1'='1", "false": "bob' AND '1'='2"}
+        # The control is repeated after the pair, in this order (the serial pass keeps it).
+        assert [(c.extra["polarity"], c.extra["payload"]) for c in cases] == [
+            ("control", "bob"), ("true", "bob' AND '1'='1"), ("false", "bob' AND '1'='2"), ("control_again", "bob")]
 
     def test_time_probes_only_when_enabled(self):
         check = InjectionCheck()

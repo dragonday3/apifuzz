@@ -20,8 +20,9 @@ INJECTION_PAYLOADS = [
 # Query params use the qs bracket syntax (Express); JSON bodies get real operator objects.
 NOSQLI_NONEXISTENT = "apifuzz-nonexistent"
 
-# Boolean SQLi: original value + a true / false condition, next to a control request with the original
-# value alone. True must answer like the control and false must not.
+# Boolean SQLi: original value + a true / false condition, between two control requests with the original
+# value alone (sent one at a time, in this order). True must answer like the control and false must not, and
+# both controls must answer alike: a response that grows with every request isn't a stable reference.
 SQLI_BOOL = (("true", "' AND '1'='1"), ("false", "' AND '1'='2"))
 # Time-based SQLi (opt-in, --time-based): each payload sent TIME_REPEATS times, compared with the control.
 SQLI_SLEEP_SECONDS = 5
@@ -46,7 +47,7 @@ class InjectionCheck(BaseCheck):
         out = [case(f"Injection [sqli bool {pol}]: {where}",
                     {**common, "strategy": "sqli_bool", "pair_id": where, "polarity": pol,
                      "payload": value + suffix}, **place(value + suffix))
-               for pol, suffix in (("control", ""), *SQLI_BOOL)]
+               for pol, suffix in (("control", ""), *SQLI_BOOL, ("control_again", ""))]
         if self.time_based:
             for payload in SQLI_TIME_PAYLOADS:
                 out += [case(f"Injection [sqli time #{i + 1}]: {where}",

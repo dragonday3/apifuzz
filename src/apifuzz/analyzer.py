@@ -77,6 +77,27 @@ def _same_object(a: str, b: str, extra_keys: tuple[str, ...] = ()) -> bool:
     return a == b
 
 
+def _listed_in(body: str, listings: list[TestResult], extra_keys: tuple[str, ...] = ()) -> TestResult | None:
+    """The first listing response containing the object `body` describes: an object anywhere in it (items,
+    nested ones) carrying every identifying field of `body` with the same value. None without identifying
+    fields: a bare body can't be found in a list."""
+    obj = _unwrap(_json(body))
+    ident = _identity(obj, extra_keys) if isinstance(obj, dict) else {}
+    if not ident:
+        return None
+    for listing in listings:
+        stack, seen = [_json(listing.response_body)], 0
+        while stack and seen < _MAX_WALK:
+            node, seen = stack.pop(), seen + 1
+            if isinstance(node, dict):
+                if all(node.get(k) == v for k, v in ident.items()):
+                    return listing
+                stack += node.values()
+            elif isinstance(node, list):
+                stack += node
+    return None
+
+
 def _content_type(result: TestResult) -> str:
     value = next((v for k, v in result.response_headers.items() if k.lower() == "content-type"), "")
     return value.split(";")[0].strip().lower()
@@ -161,8 +182,12 @@ _SENSITIVE_FIELD = re.compile(
     r"|private_?key"
     r"|access_?token|refresh_?token|ssn|social_?security_?number|card_?number|cvv|cvc)$", re.IGNORECASE)
 _CREDENTIAL_FIELD = re.compile(r"(api_?key|access_?token|refresh_?token|secret)", re.IGNORECASE)
-_PLACEHOLDER = re.compile(r"^\s*(\[?(filtered|redacted|hidden|masked|removed)\]?|<[^>]*>|null|none|n/?a|-+|\**|x+|•+)\s*$",
-                          re.IGNORECASE)
+# A masked value: runs of mask characters, optionally the first 6 / last 4 digits visible (PCI style):
+# XXXXXXXXXXXX9999, ************1234, xxxx-xxxx-xxxx-1234, •••• 1234, 411111******1234, ***-**-6789.
+_MASKED = r"\d{0,6}[\s-]*(?:[x*•●#]{2,}[\s-]*)+\d{0,4}"
+_PLACEHOLDER = re.compile(
+    rf"^\s*(\[?(filtered|redacted|hidden|masked|removed)\]?|<[^>]*>|null|none|n/?a|-+|\**|x+|•+|{_MASKED})\s*$",
+    re.IGNORECASE)
 # The caller's own account/settings: a key or token shown there may be the caller's own (still worth a look).
 _CALLER_SCOPED = re.compile(r"/(me|self|account|profile|settings|current|whoami)(/|$)", re.IGNORECASE)
 _MAX_WALK = 2000
@@ -190,8 +215,16 @@ def _sensitive_fields(doc: Any) -> list[str]:
     return sorted(set(found))
 
 
+# Pagination envelope fields (compared without "_"/"-", lower case): spec drift, not data.
+_PAGINATION = {"count", "total", "totalcount", "totalitems", "totalpages", "pages", "page", "pagesize", "perpage",
+               "limit", "offset", "next", "previous", "prev", "nextoffset", "previousoffset", "prevoffset",
+               "nextpage", "previouspage", "prevpage", "cursor", "nextcursor", "previouscursor", "prevcursor",
+               "hasmore", "hasnext", "hasprevious"}
+
+
 def _undocumented_fields(doc: Any, schema: Any, path: str = "", depth: int = 0) -> list[str]:
-    """Response fields the documented 2xx schema doesn't declare (objects with declared properties only)."""
+    """Response fields the documented 2xx schema doesn't declare (objects with declared properties only).
+    Not reported: empty values (null, "", [], {} expose nothing) and pagination fields of the top-level envelope."""
     if depth > 4 or not isinstance(schema, dict):
         return []
     if isinstance(doc, list):
@@ -201,7 +234,9 @@ def _undocumented_fields(doc: Any, schema: Any, path: str = "", depth: int = 0) 
     if (not isinstance(doc, dict) or not isinstance(props, dict) or schema.get("additionalProperties")
             or any(k in schema for k in ("allOf", "oneOf", "anyOf"))):
         return []  # open or composed schema: can't tell what is undocumented
-    out = [f"{path}.{k}" if path else str(k) for k in doc if k not in props]
+    out = [f"{path}.{k}" if path else str(k) for k, v in doc.items()
+           if k not in props and v is not None and v not in ("", [], {})
+           and not (depth == 0 and str(k).replace("_", "").replace("-", "").lower() in _PAGINATION)]
     for k, v in doc.items():
         if k in props:
             out += _undocumented_fields(v, props[k], f"{path}.{k}" if path else str(k), depth + 1)
@@ -348,6 +383,8 @@ class Analyzer:
             r.test_case.extra.get("pair_id"): r
             for r in results if r.test_case.check_id == "bola_owner" and not r.is_error
         }
+        # User B's reads of the listing endpoints (no path params): what B can see without asking for an id.
+        self._listings = [r for r in results if r.test_case.check_id == "bola_listing" and r.is_success]
         raw: list[Finding] = []
 
         for result in results:
@@ -419,12 +456,19 @@ class Analyzer:
                 return []
             # Firm only when B's response is A's object. Empty write responses (204) can't show whose
             # object changed, and without a baseline (DELETE) there is nothing to compare: tentative.
-            confidence: Confidence = "firm" if confirmed else "tentative"
+            # An object B also gets in a listing is public by design (a forum post): reading it, or adding to
+            # it (POST: a comment, a like), is what every user may do -> tentative. Changing it (PUT/PATCH)
+            # stays firm: a public object is still owned.
+            listed = (_listed_in(base.response_body, getattr(self, "_listings", []), keys)
+                      if confirmed and base is not None and tc.method in ("GET", "POST") else None)
+            confidence: Confidence = "firm" if confirmed and listed is None else "tentative"
+            public_note = (f" User B also gets this object from {listed.test_case.method} {listed.test_case.url}, so "
+                           f"it may be public by design; verify it is meant to be private." if listed else "")
             return [Finding(
                 title="BOLA: Cross-user object access succeeded",
                 description=(
                     f"Using the second user's token, {tc.method} {tc.url} returned the first user's object. "
-                    f"Object-level authorization is not enforced."
+                    f"Object-level authorization is not enforced.{public_note}"
                     if confirmed else
                     f"Using the second user's token, {tc.method} {tc.url} returned HTTP {result.status_code}. "
                     f"Nothing in the response shows whose object it was; verify manually."
@@ -437,6 +481,8 @@ class Analyzer:
                 response_sample=_response_text(result),
                 evidence=(f"HTTP {result.status_code} with cross-user token; response matches user A's object"
                           + (" (created by user A during the scan)" if created else "")
+                          + (f"; also listed for user B in {listed.test_case.method} {listed.test_case.url}"
+                             if listed else "")
                           if confirmed else f"HTTP {result.status_code} with cross-user token"),
                 remediation="Enforce object-level authorization: verify the requesting user owns the resource.",
                 rule_id="APIFUZZ-BOLA-001",
@@ -826,7 +872,8 @@ class Analyzer:
         return []
 
     def _analyze_sqli_blind(self, results: list[TestResult]) -> list[Finding]:
-        """Boolean: true answers like the control, false doesn't. Time: every repeat of a sleep payload
+        """Boolean: true answers like the control, false answers like neither control, and the control repeated
+        after the pair still answers like the first (a stable endpoint). Time: every repeat of a sleep payload
         is at least ~SLEEP seconds slower than the control."""
         groups: dict[str, dict[str, list[TestResult]]] = {}
         controls: dict[str, TestResult] = {}
@@ -859,19 +906,25 @@ class Analyzer:
                         "Use parameterized queries. Never concatenate user input into SQL.",
                         "APIFUZZ-INJECT-SQLI-TIME"))
                 continue
-            control, true, false = (g.get(k, [None])[0] for k in ("control", "true", "false"))
-            if not (control and true and false) or not control.is_success:
+            control, true, false, again = (g.get(k, [None])[0] for k in ("control", "true", "false", "control_again"))
+            if not (control and true and false and again) or not (control.is_success and again.is_success):
                 continue
-            if any(r.status_code == 429 or r.status_code >= 500 for r in (true, false)):
+            if any(r.status_code == 429 or r.status_code >= 500 for r in (true, false, again)):
                 continue
-            if _resembles(true, control) and not _resembles(false, control):
+            # The original value, sent before and after the pair, must get the same answer: a response that
+            # changes with every request (each POST appends a comment to the object it returns) is no
+            # reference, and the false probe differing from it proves nothing.
+            if not _resembles(again, control):
+                continue
+            if _resembles(true, control) and not _resembles(false, control) and not _resembles(false, again):
                 findings.append(self._injection_finding(
                     true, "SQL Injection: Boolean-based (true/false conditions change the response)",
                     "Appending a true condition returned the same response as the original value, a false "
                     "condition changed it, so the input is evaluated as SQL.",
                     f"control: HTTP {control.status_code}, {len(control.response_body)} bytes; "
                     f"AND '1'='1: HTTP {true.status_code}, {len(true.response_body)} bytes; "
-                    f"AND '1'='2: HTTP {false.status_code}, {len(false.response_body)} bytes",
+                    f"AND '1'='2: HTTP {false.status_code}, {len(false.response_body)} bytes; "
+                    f"control again: HTTP {again.status_code}, {len(again.response_body)} bytes",
                     "Use parameterized queries. Never concatenate user input into SQL.",
                     "APIFUZZ-INJECT-SQLI-BOOL"))
         return findings

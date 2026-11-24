@@ -67,3 +67,40 @@ async def test_vulnerable_api_findings(tmp_path):
     assert ("APIFUZZ-INJECT-SQLI", "users") in rules     # lone-quote payload on the path param
     assert ("APIFUZZ-INJECT-SSTI", "search") in rules
     assert ("APIFUZZ-INJECT-SQLI-BOOL", "users") in rules  # true/false conditions differ
+
+
+GROWING_SPEC = textwrap.dedent("""
+    openapi: "3.0.3"
+    info: {title: forum, version: "1"}
+    paths:
+      /post/comment:
+        post:
+          requestBody:
+            content:
+              application/json:
+                schema: {type: object, properties: {content: {type: string, example: nice post}}}
+          responses: {"200": {description: ok}}
+""")
+
+
+def growing_api():
+    """crAPI-style forum: every comment POST (any content, parameterised SQL) appends a comment and answers
+    with the whole post, so each response is longer than the one before."""
+    comments: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content or b"{}")
+        if not isinstance(body.get("content"), str):
+            return httpx.Response(400, json={"message": "content must be a string"})
+        comments.append({"id": len(comments), "content": "comment", "author": {"nickname": "alice"}})
+        return httpx.Response(200, json={"id": "p1", "title": "hello", "body": "y" * 200, "comments": comments})
+    return handler
+
+
+async def test_growing_response_is_not_boolean_sqli(tmp_path):
+    spec = tmp_path / "forum.yaml"
+    spec.write_text(GROWING_SPEC)
+    with respx.mock(assert_all_called=False) as router:
+        router.route(host="testserver").mock(side_effect=growing_api())
+        findings = await Scanner(str(spec), BASE, checks=["injection"], rate_limit_rps=0).run()
+    assert not [f for f in findings if f.rule_id == "APIFUZZ-INJECT-SQLI-BOOL"], [f.evidence for f in findings]

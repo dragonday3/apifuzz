@@ -63,3 +63,29 @@ def test_resource_secret_field_is_not_exposure_but_client_secret_is():
     assert run({"book_title": "b", "owner": "alice", "secret": "my note"}) == []
     [f] = run({"app": "x", "client_secret": "s3cr3tvalue"})
     assert "client_secret" in f.evidence
+
+
+@pytest.mark.parametrize("card", ["XXXXXXXXXXXX9999", "************1234", "xxxx-xxxx-xxxx-1234", "•••• 1234",
+                                  "411111******1234", "***-**-6789"])
+def test_masked_values_are_placeholders(card):
+    assert run({"payment": {"card_number": card}}) == []
+
+
+@pytest.mark.parametrize("card", ["4111111111111111", "4111 1111 1111 1111"])
+def test_unmasked_card_number_still_flagged(card):
+    assert [f.rule_id for f in run({"payment": {"card_number": card}})] == ["APIFUZZ-EXPOSURE-001"]
+
+
+def test_pagination_envelope_and_empty_fields_not_undocumented():
+    schema = {"type": "object", "properties": {"posts": SCHEMA["properties"]["users"]}}
+    body = {"posts": [{"username": "a", "email": "e", "previousOwners": [], "note": None, "bio": "", "meta": {}}],
+            "count": 1, "next_offset": None, "previous_offset": 0, "nextPage": "/p?2", "total": 1}
+    assert run(body, schema) == []
+
+
+def test_non_empty_undocumented_field_still_reported_next_to_pagination():
+    schema = {"type": "object", "properties": {"posts": SCHEMA["properties"]["users"]}}
+    [f] = run({"posts": [{"username": "a", "email": "e", "count": 3}], "count": 1, "debug": {"sql": "SELECT"}},
+              schema)
+    # pagination names are skipped only on the top-level envelope; an item's "count" is still data
+    assert "debug" in f.evidence and "posts[].count" in f.evidence and "'count'" not in f.evidence

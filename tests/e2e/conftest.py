@@ -67,6 +67,8 @@ class MockAPI:
     scheme: str | None = None  # "bearer" | "apikey" | "basic": honour only that one (catches wrong-scheme sends)
     mass_assignment: str = "none"
     store_created: bool = False  # "none" mode: keep the pet POST /pets creates (readable at /pets/3)
+    public_listing: bool = False  # GET /pets lists every user's pets (forum-style public objects)
+    unique_users: bool = False  # POST /users/register rejects a username that is already registered (409)
     pets: dict[str, dict] = field(default_factory=lambda: {
         "1": {"id": 1, "name": "rex", "owner": "alice"},
         "2": {"id": 2, "name": "tom", "owner": "bob"},
@@ -148,7 +150,8 @@ class MockAPI:
             return httpx.Response(401, json={"error": "unauthorized"})
 
         if path == "/pets" and request.method == "GET":
-            return httpx.Response(200, json=[p for p in self.pets.values() if p["owner"] == user])
+            return httpx.Response(200, json=[p for p in self.pets.values()
+                                             if self.public_listing or p["owner"] == user])
         if path == "/pets" and request.method == "POST":
             try:
                 body = json.loads(request.content or b"{}")
@@ -167,6 +170,8 @@ class MockAPI:
             return httpx.Response(201, json=created)
         if path == "/users/register" and request.method == "POST":
             body = json.loads(request.content or b"{}")
+            if self.unique_users and str(body.get("username")) in self.users:
+                return httpx.Response(409, json={"message": "User already exists"})
             stored = body if self.mass_assignment == "persist" else {k: body.get(k) for k in ("username", "email")}
             self.users[str(body.get("username"))] = {"role": "user", **stored}
             return httpx.Response(200, json={"message": "registered", "status": "success"})

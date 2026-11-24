@@ -2,9 +2,9 @@ from apifuzz.models.endpoint import Endpoint, AuthConfig
 from apifuzz.checks.mass_assignment import MassAssignmentCheck, PRIVILEGED_FIELDS
 
 
-def make_endpoint(body_schema=None):
+def make_endpoint(body_schema=None, method="POST"):
     return Endpoint(
-        method="POST",
+        method=method,
         path="/users",
         base_url="http://api.example.com",
         body_example=body_schema or None,
@@ -49,8 +49,18 @@ class TestMassAssignmentCheck:
         ep = make_endpoint(body_schema=original)
         results = self.check.generate(ep, self.auth)
         body = results[0].body
-        assert body["username"] == "alice"
-        assert body["email"] == "alice@example.com"
+        # POST: unique-looking values get a per-probe suffix (the baseline already created "alice"), email stays valid
+        assert body["username"].startswith("alice") and body["username"] != "alice"
+        assert body["email"].startswith("alice") and body["email"].endswith("@example.com") and body["email"] != original["email"]
+
+    def test_unique_values_only_on_post_and_unique_looking_fields(self):
+        example = {"username": "alice", "userName": "a", "contact_email": "a@b.co", "name": "rex", "age": 3}
+        post = self.check.generate(make_endpoint(method="POST", body_schema=example), self.auth)[0].body
+        assert {k for k in example if post[k] != example[k]} == {"username", "userName", "contact_email"}
+        put = self.check.generate(make_endpoint(method="PUT", body_schema=example), self.auth)[0].body
+        assert all(put[k] == v for k, v in example.items())
+        again = self.check.generate(make_endpoint(method="POST", body_schema=example), self.auth)[0].body
+        assert again["username"] != post["username"]  # unique per probe, not per process
 
     def test_extra_injected_fields_matches_privileged_keys(self):
         ep = make_endpoint(body_schema={"name": "test"})

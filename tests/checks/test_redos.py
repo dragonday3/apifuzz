@@ -96,7 +96,7 @@ async def test_scan_sends_redos_serially_in_time_pass(tmp_path, monkeypatch):
     monkeypatch.setattr("apifuzz.executor.Executor.run", fake_run)
     await _scanner(tmp_path, monkeypatch, True).run()
     [(concurrency, strategies)] = [c for c in calls if "redos" in c[1]]
-    assert concurrency == 1 and set(strategies) == {"redos", "sqli_time"}  # shares the serial time-based pass
+    assert concurrency == 1 and set(strategies) == {"redos", "sqli_time", "sqli_bool"}  # shares the serial pass
     assert strategies.count("redos") == 2 * REPEATS
 
 

@@ -151,3 +151,14 @@ def test_public_endpoint_not_probed():
     ep = Endpoint(method="GET", path="/users/{userId}", base_url="http://x", secured=False,
                   parameters=[Parameter(name="userId", location=ParamLocation.PATH)])
     assert BOLACheck().generate(ep, AuthConfig(type="bearer", token="a", second_token="b")) == []
+
+
+def test_listing_read_as_second_user():
+    ep = Endpoint(method="GET", path="/posts/recent", base_url="https://api.example.com",
+                  parameters=[Parameter(name="limit", location=ParamLocation.QUERY)])
+    [tc] = BOLACheck().generate(ep, AuthConfig(type="bearer", token="a", second_token="b"))
+    assert tc.check_id == "bola_listing" and tc.method == "GET" and tc.auth_mode == "override"
+    assert tc.headers == {"Authorization": "Bearer b"} and tc.url == "https://api.example.com/posts/recent"
+    assert BOLACheck().generate(ep, AuthConfig(type="bearer", token="a")) == []  # no second user, no listing read
+    post = Endpoint(method="POST", path="/posts", base_url="https://api.example.com")
+    assert BOLACheck().generate(post, AuthConfig(type="bearer", token="a", second_token="b")) == []

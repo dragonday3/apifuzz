@@ -40,6 +40,21 @@ false positives, makes scans safe to point at real systems, adds coverage, and m
 - BOLA: cross-user findings need user B to get user A's object; ID enumeration alone is not a finding.
 - Mass assignment needs the injected value, confirmed by a follow-up GET; blind SQLi (boolean, and time-based
   with `--time-based`); rate limiting honours `429`, `Retry-After` and `X-RateLimit-*`.
+- From the hand triage of the crAPI held-out run (each rule generic, disclosed in `benchmarks/README.md`):
+  - Boolean SQLi sends the control again after the true/false pair and runs the four requests one at a time
+    (in the serial pass): both controls must answer alike, and false must differ from both. A `POST` whose
+    response grows with every request (each probe appends a comment to the post it returns) is no longer
+    reported.
+  - BOLA reads every `GET` without path params once as user B. When user A's object also shows up there (by
+    its identifying fields), it is public by design (forum posts): B reading it or `POST`ing to it is
+    tentative; `PUT`/`PATCH` on it stays firm, since a public object still has an owner.
+  - `EXPOSURE-002` ignores empty undocumented fields (`null`, `""`, `[]`, `{}`) and pagination fields of the
+    top-level envelope (`count`, `total`, `next`, `previous`, `offset`, `limit`, `page`, `next_offset`, …).
+  - `EXPOSURE-001` treats masked values as placeholders: mask characters with at most the first 6 / last 4
+    digits visible (`XXXXXXXXXXXX9999`, `xxxx-xxxx-xxxx-1234`, `•••• 1234`).
+  - Mass-assignment `POST` probes give unique-looking fields (`username`, `email`, `login`, `nickname`,
+    `handle`, `slug`) a random suffix (emails keep their domain): the baseline already created the example
+    record, and an API enforcing uniqueness rejected the probe as a duplicate.
 
 ### Added (safety and scope)
 - Safe by default: `PUT`/`PATCH`/`DELETE` are skipped unless `--allow-destructive`; `--dry-run` prints the plan.

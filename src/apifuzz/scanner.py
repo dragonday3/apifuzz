@@ -48,8 +48,11 @@ _ALL_CHECKS: dict[str, type[BaseCheck]] = {
 # Methods that modify or remove existing objects: skipped unless --allow-destructive.
 DESTRUCTIVE_METHODS = {"PUT", "PATCH", "DELETE"}
 
-# Strategies sent one at a time after the probes: their verdict is response time.
-_TIMED_STRATEGIES = {"sqli_time", "redos"}
+# Strategies sent one at a time after the probes: their verdict is response time (sqli_time, redos) or a
+# comparison that other requests to the same endpoint must not interleave with (sqli_bool: each probe on a
+# POST that appends to the object grows the response).
+# ponytail: one serial executor for all of them; per-endpoint serial queues if scans on big specs get slow.
+_SERIAL_STRATEGIES = {"sqli_time", "redos", "sqli_bool"}
 
 # Checks whose detectors compare against the per-endpoint baseline request.
 _BASELINE_CHECKS = {"auth", "bfla", "bola", "injection", "mass_assignment", "ssrf"}
@@ -176,21 +179,22 @@ class Scanner:
         # 1. baselines, before any probe can change the object they read;
         # 2. probes;
         # 3. time-based SQLi and ReDoS (control/evil interleaved) one at a time: concurrent slow requests would
-        #    delay innocent probes queued behind them and blur which request was slow;
+        #    delay innocent probes queued behind them and blur which request was slow; boolean SQLi
+        #    (control, true, false, control again) too, so nothing else lands between its requests;
         # 4. confirmations (GET the object a mass-assignment probe created, found through a sibling GET when
         #    the response has no Location/id; user A's and user B's reads of objects A's baselines created);
         # 5. rate-limit bursts last, so they can't exhaust a real limit and turn other probes into 429s,
         #    one endpoint at a time.
         # data_exposure reads are plain authenticated GETs: they run with the baselines.
         baselines = [tc for tc in test_cases if tc.check_id in ("baseline", "data_exposure")]
-        timed = [tc for tc in test_cases if tc.extra.get("strategy") in _TIMED_STRATEGIES]
+        serial = [tc for tc in test_cases if tc.extra.get("strategy") in _SERIAL_STRATEGIES]
         bursts = [tc for tc in test_cases if not tc.throttle]
         probes = [tc for tc in test_cases if tc.throttle and tc.check_id not in ("baseline", "data_exposure")
-                  and tc.extra.get("strategy") not in _TIMED_STRATEGIES]
+                  and tc.extra.get("strategy") not in _SERIAL_STRATEGIES]
         results = await self.executor.run(baselines)
         results += await self.executor.run(probes)
-        if timed:
-            results += await Executor(self.auth, 1, **self._executor_opts).run(timed)  # type: ignore[arg-type]
+        if serial:
+            results += await Executor(self.auth, 1, **self._executor_opts).run(serial)  # type: ignore[arg-type]
         followups = self.analyzer.followups(results)
         if followups:
             results += await self.executor.run(followups)

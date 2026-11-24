@@ -155,8 +155,8 @@ async def test_scan_pass_order(tmp_path, monkeypatch):
     monkeypatch.setattr("apifuzz.executor.Executor.run", fake_run)
     await scanner.run()
     assert calls[0] == {"baseline"}
-    assert "baseline" not in calls[1] and "sqli_time" not in calls[1] and "burst" not in calls[1]
-    assert calls[2] == {"sqli_time"} and calls[-1] == {"burst"}
+    assert not {"baseline", "sqli_time", "sqli_bool", "burst"} & calls[1]
+    assert calls[2] == {"sqli_bool", "sqli_time"} and calls[-1] == {"burst"}
 
 
 async def test_bursts_run_one_endpoint_at_a_time(tmp_path, monkeypatch):
