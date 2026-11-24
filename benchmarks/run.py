@@ -314,8 +314,14 @@ def main() -> int:
     ap.add_argument("target", choices=sorted(TARGETS))
     ap.add_argument("--vulnerable-url")
     ap.add_argument("--secure-url")
+    ap.add_argument("--time-based", action="store_true",
+                    help="also run the opt-in timing probes (time-based SQLi, ReDoS); results go to "
+                         "<target>-time-based.{json,md}")
     args = ap.parse_args()
     target = TARGETS[args.target]
+    if args.time_based:
+        target = {**target, "scan": {**target["scan"], "time_based": True}}
+    name = f"{args.target}-time-based" if args.time_based else args.target
     vulns = yaml.safe_load((HERE / args.target / "expected.yaml").read_text(encoding="utf-8"))["vulnerabilities"]
 
     vuln_findings, vuln_errors, vuln_sent = scan(target, args.vulnerable_url or target["vulnerable_url"])
@@ -330,9 +336,9 @@ def main() -> int:
 
     out = HERE / "results"
     out.mkdir(exist_ok=True)
-    (out / f"{args.target}.json").write_text(json.dumps({"meta": meta, **result}, indent=2), encoding="utf-8")
-    report = markdown(args.target, meta, result)
-    (out / f"{args.target}.md").write_text(report, encoding="utf-8")
+    (out / f"{name}.json").write_text(json.dumps({"meta": meta, **result}, indent=2), encoding="utf-8")
+    report = markdown(name, meta, result)
+    (out / f"{name}.md").write_text(report, encoding="utf-8")
     sys.stdout.write(report)
     return 0
 
